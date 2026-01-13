@@ -1290,10 +1290,10 @@ await Promise.all(deletePromises);
                             </td>
                             <td className="px-6 py-4">
                               <div>
-                                <div className="text-sm">
+                                <div className="text-sm text-gray-700">
                                   Avg stock: <span className="font-medium">{avgStock.toFixed(0)}</span>
                                 </div>
-                                <div className="text-sm">
+                                <div className="text-sm text-gray-700">
                                   Min stock: <span className={`font-medium ${minStock < 10 ? 'text-red-600' : 'text-green-600'}`}>
                                     {minStock}
                                   </span>
@@ -1547,7 +1547,7 @@ await Promise.all(deletePromises);
 
           {/* Other tabs */}
           {selectedTab === 'labels' && (
-            <div className="bg-white rounded-xl border p-6">
+  <div className="bg-white rounded-xl border p-6 text-gray-900">
               <h3 className="text-lg font-semibold mb-4">Digital Label Management</h3>
               <p className="text-gray-600">Monitor and manage your digital price labels</p>
               
@@ -1571,19 +1571,27 @@ await Promise.all(deletePromises);
                     
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm">Current Price:</span>
-                        <span className="font-bold">${label.currentPrice.toFixed(2)}</span>
+                        <span className="text-sm text-gray-700">Current Price:</span>
+                        <span className="font-bold">
+                          {label.currentPrice != null
+                            ? `$${Number(label.currentPrice).toFixed(2)}`
+                            : "--"}
+                        </span>
+
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm">Battery:</span>
+                        <span className="text-sm text-gray-700">Battery:</span>
                         <span className={`font-medium ${label.battery < 20 ? 'text-red-600' : 'text-green-600'}`}>
                           {label.battery}%
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm">Last Sync:</span>
+                        <span className="text-sm text-gray-700">Last Sync:</span>
                         <span className="text-sm text-gray-500">
-                          {label.lastSync.toDate().toLocaleString()}
+                          {label.lastSync?.toDate
+                          ? label.lastSync.toDate().toLocaleString()
+                          : "—"}
+
                         </span>
                       </div>
                     </div>
@@ -1593,7 +1601,8 @@ await Promise.all(deletePromises);
   <div>
     <div className="text-xs font-medium text-gray-600 mb-1">Assign Product</div>
     <select
-      className="w-full border rounded-lg px-3 py-2 text-sm"
+         className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"
+
       value={label.productId || ''}
       onChange={(e) => {
         const newProductId = e.target.value;
@@ -1626,7 +1635,7 @@ await Promise.all(deletePromises);
           [label.id]: Number(e.target.value),
         }))
       }
-      className="w-32"
+      className="w-32 text-gray-900 placeholder-gray-400 bg-white"
     />
 
     <Button
@@ -1972,7 +1981,7 @@ await Promise.all(deletePromises);
                         })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">View Products</span>
+                      <span className="text-sm text-gray-700">View Products</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -1984,7 +1993,7 @@ await Promise.all(deletePromises);
                         })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">Update Stock</span>
+                      <span className="text-sm text-gray-700">Update Stock</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -1996,7 +2005,7 @@ await Promise.all(deletePromises);
                         })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">Report Issues</span>
+                      <span className="text-sm text-gray-700">Report Issues</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -2008,7 +2017,7 @@ await Promise.all(deletePromises);
                         })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">View Reports</span>
+                      <span className="text-sm text-gray-700">View Reports</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -2020,7 +2029,7 @@ await Promise.all(deletePromises);
                         })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">Change Prices</span>
+                      <span className="text-sm text-gray-700">Change Prices</span>
                     </label>
                   </div>
                 </div>
@@ -2186,7 +2195,7 @@ await Promise.all(deletePromises);
                             }}
                             className="rounded border-gray-300"
                           />
-                          <span className="text-sm">{product.name} - ${product.basePrice.toFixed(2)}</span>
+                          <span className="text-sm text-gray-700">{product.name} - ${product.basePrice.toFixed(2)}</span>
                         </label>
                       ))}
                     </div>
@@ -2218,7 +2227,7 @@ await Promise.all(deletePromises);
                             }}
                             className="rounded border-gray-300"
                           />
-                          <span className="text-sm">{branch.name}</span>
+                          <span className="text-sm text-gray-700">{branch.name}</span>
                         </label>
                       ))}
                     </div>
