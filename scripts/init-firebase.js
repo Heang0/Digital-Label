@@ -1,9 +1,9 @@
-// scripts/init-firebase.js
-const { initializeApp } = require('firebase/app');
-const { getAuth, createUserWithEmailAndPassword } = require('firebase/auth');
-const { getFirestore, doc, setDoc } = require('firebase/firestore');
+// Run this script to initialize Firebase collections
+// node scripts/init-firebase.js
 
-// Your Firebase config
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, addDoc } from 'firebase/firestore';
+
 const firebaseConfig = {
   apiKey: "AIzaSyCfgE3QkbaBoMZCBmU_twXH2lQu192bJH0",
   authDomain: "digital-label-8620b.firebaseapp.com",
@@ -14,269 +14,131 @@ const firebaseConfig = {
   measurementId: "G-QHGBZ7RD29"
 };
 
-// Demo users - NO ADMIN in demo
-const demoUsers = [
-  {
-    email: 'demo@digital-label.com',
-    password: 'demopassword123',
-    name: 'Demo Retail Chain',
-    role: 'vendor'
-  },
-  {
-    email: 'staff.demo@store.com',
-    password: 'staffdemo123',
-    name: 'Demo Staff',
-    role: 'staff'
-  }
-];
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-// Admin user (not for demo, separate)
-const adminUser = {
-  email: 'admin@digital-label.com',
-  password: 'adminpassword123',
-  name: 'System Admin',
-  role: 'admin'
-};
+async function initializeCollections() {
+  console.log('Initializing Firebase collections...');
 
-async function setupFirebase() {
-  console.log('🚀 Setting up Firebase for Digital Label...\n');
-  
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  // Create a sample company
+  const companyData = {
+    name: "Kitty Corporation",
+    email: "contact@kittycorp.com",
+    phone: "+1 (555) 123-4567",
+    address: "123 Business Street, New York, NY 10001",
+    subscription: "pro",
+    status: "active",
+    ownerId: "vendor_user_id", // You'll need to replace this
+    createdAt: new Date(),
+  };
 
-  // Create Admin User
-  console.log('👑 Creating Admin Account...');
+  // Create sample branches
+  const branches = [
+    {
+      name: "Downtown Store",
+      address: "456 Downtown Ave, New York, NY 10002",
+      phone: "+1 (555) 234-5678",
+      manager: "John Smith",
+      companyId: "company_1",
+      status: "active",
+      createdAt: new Date(),
+    },
+    {
+      name: "Uptown Store",
+      address: "789 Uptown Blvd, New York, NY 10003",
+      phone: "+1 (555) 345-6789",
+      manager: "Sarah Johnson",
+      companyId: "company_1",
+      status: "active",
+      createdAt: new Date(),
+    },
+  ];
+
+  // Create sample products
+  const products = [
+    {
+      name: "Premium Coffee Beans",
+      description: "Fresh roasted coffee beans, 500g",
+      sku: "COF-001",
+      category: "Beverages",
+      basePrice: 12.99,
+      companyId: "company_1",
+      createdBy: "vendor_user_id",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      name: "Organic Milk",
+      description: "Fresh organic milk, 1L",
+      sku: "DAI-001",
+      category: "Dairy",
+      basePrice: 3.99,
+      companyId: "company_1",
+      createdBy: "vendor_user_id",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
   try {
-    const adminCredential = await createUserWithEmailAndPassword(
-      auth,
-      adminUser.email,
-      adminUser.password
-    );
+    // Create company
+    const companyRef = doc(db, 'companies', 'company_1');
+    await setDoc(companyRef, companyData);
+    console.log('✓ Created company');
 
-    await setDoc(doc(db, 'users', adminCredential.user.uid), {
-      id: adminCredential.user.uid,
-      email: adminUser.email,
-      name: adminUser.name,
-      role: adminUser.role,
-      createdAt: new Date().toISOString(),
-      isAdmin: true
-    });
-
-    console.log(`✅ Admin created: ${adminUser.email}`);
-    console.log(`   Password: ${adminUser.password}\n`);
-  } catch (error) {
-    if (error.code === 'auth/email-already-in-use') {
-      console.log(`⚠️ Admin already exists: ${adminUser.email}\n`);
-    } else {
-      console.error(`❌ Error creating admin:`, error.message, '\n');
-    }
-  }
-
-  // Create Demo Users and Data
-  for (const demoUser of demoUsers) {
-    console.log(`🎪 Creating ${demoUser.role} demo account...`);
-    try {
-      // Create auth user
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        demoUser.email,
-        demoUser.password
-      );
-
-      const userId = userCredential.user.uid;
-
-      if (demoUser.role === 'vendor') {
-        // Create demo company for vendor
-        const companyId = `company_demo_${Date.now()}`;
-        
-        // 1. Create user document
-        await setDoc(doc(db, 'users', userId), {
-          id: userId,
-          email: demoUser.email,
-          name: demoUser.name,
-          role: demoUser.role,
-          companyId: companyId,
-          createdAt: new Date().toISOString(),
-          isDemo: true
-        });
-
-        // 2. Create company document
-        await setDoc(doc(db, 'companies', companyId), {
-          id: companyId,
-          name: 'Demo Retail Chain',
-          email: demoUser.email,
-          phone: '+1 (555) 123-4567',
-          address: '123 Demo Street, Business City',
-          subscription: 'pro',
-          status: 'active',
-          ownerId: userId,
-          isDemo: true,
-          createdAt: new Date().toISOString(),
-        });
-
-        // 3. Create demo branches
-        const branches = [
-          {
-            id: `branch_${Date.now()}_1`,
-            companyId: companyId,
-            name: 'Downtown Store',
-            address: '456 Main St, Business City',
-            phone: '+1 (555) 234-5678',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: `branch_${Date.now()}_2`,
-            companyId: companyId,
-            name: 'Uptown Store',
-            address: '789 Park Ave, Business City',
-            phone: '+1 (555) 345-6789',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-          }
-        ];
-
-        for (const branch of branches) {
-          await setDoc(doc(db, 'branches', branch.id), branch);
-        }
-
-        // 4. Create demo products
-        const products = [
-          {
-            id: `prod_${Date.now()}_1`,
-            companyId: companyId,
-            name: 'Premium Coffee Beans',
-            sku: 'COF-001',
-            category: 'Beverages',
-            description: 'Arabica coffee beans, 500g pack',
-            basePrice: 12.99,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: `prod_${Date.now()}_2`,
-            companyId: companyId,
-            name: 'Organic Milk',
-            sku: 'DAI-001',
-            category: 'Dairy',
-            description: 'Fresh organic milk, 1 liter',
-            basePrice: 3.99,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: `prod_${Date.now()}_3`,
-            companyId: companyId,
-            name: 'Whole Wheat Bread',
-            sku: 'BAK-001',
-            category: 'Bakery',
-            description: 'Fresh baked bread, 500g',
-            basePrice: 2.49,
-            createdAt: new Date().toISOString(),
-          }
-        ];
-
-        for (const product of products) {
-          await setDoc(doc(db, 'products', product.id), product);
-        }
-
-        // 5. Create demo labels
-        const labels = [
-          {
-            id: `label_${Date.now()}_1`,
-            branchId: branches[0].id,
-            productId: products[0].id,
-            labelId: 'DL-001',
-            location: 'Aisle 3, Shelf B',
-            battery: 85,
-            status: 'active',
-            lastSync: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: `label_${Date.now()}_2`,
-            branchId: branches[0].id,
-            productId: products[1].id,
-            labelId: 'DL-002',
-            location: 'Aisle 5, Shelf A',
-            battery: 45,
-            status: 'low-battery',
-            lastSync: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          }
-        ];
-
-        for (const label of labels) {
-          await setDoc(doc(db, 'labels', label.id), label);
-        }
-
-        console.log(`✅ Demo vendor created: ${demoUser.email}`);
-        console.log(`   Company: Demo Retail Chain`);
-        console.log(`   Branches: 2 stores`);
-        console.log(`   Products: 3 items`);
-        console.log(`   Labels: 2 digital labels\n`);
-
-      } else if (demoUser.role === 'staff') {
-        // Create staff user
-        await setDoc(doc(db, 'users', userId), {
-          id: userId,
-          email: demoUser.email,
-          name: demoUser.name,
-          role: demoUser.role,
-          branchId: `branch_${Date.now()}_1`, // Assign to first branch
-          createdAt: new Date().toISOString(),
-          isDemo: true,
-          permissions: {
-            canViewProducts: true,
-            canUpdateStock: true,
-            canReportIssues: true,
-            canViewReports: false,
-            canChangePrices: false
-          }
-        });
-
-        console.log(`✅ Demo staff created: ${demoUser.email}`);
-        console.log(`   Role: Store Staff`);
-        console.log(`   Permissions: Stock management, issue reporting\n`);
-      }
+    // Create branches
+    for (const branch of branches) {
+      const branchRef = await addDoc(collection(db, 'branches'), branch);
+      console.log(`✓ Created branch: ${branch.name} (${branchRef.id})`);
       
-    } catch (error) {
-      if (error.code === 'auth/email-already-in-use') {
-        console.log(`⚠️ Already exists: ${demoUser.email}\n`);
-      } else {
-        console.error(`❌ Error creating ${demoUser.email}:`, error.message, '\n');
+      // Update branch with its ID
+      await setDoc(branchRef, { ...branch, id: branchRef.id }, { merge: true });
+    }
+
+    // Create products
+    for (const product of products) {
+      const productRef = await addDoc(collection(db, 'products'), product);
+      console.log(`✓ Created product: ${product.name} (${productRef.id})`);
+      
+      // Update product with its ID
+      await setDoc(productRef, { ...product, id: productRef.id }, { merge: true });
+
+      // Create branch products for each branch
+      const branchProducts = [
+        {
+          productId: productRef.id,
+          branchId: "branch_1", // Replace with actual branch IDs
+          companyId: "company_1",
+          currentPrice: product.basePrice,
+          stock: 50,
+          minStock: 10,
+          status: "in-stock",
+          lastUpdated: new Date(),
+        },
+        {
+          productId: productRef.id,
+          branchId: "branch_2", // Replace with actual branch IDs
+          companyId: "company_1",
+          currentPrice: product.basePrice,
+          stock: 30,
+          minStock: 10,
+          status: "in-stock",
+          lastUpdated: new Date(),
+        },
+      ];
+
+      for (const bp of branchProducts) {
+        await addDoc(collection(db, 'branch_products'), bp);
       }
     }
-  }
 
-  console.log('🎉 Firebase setup complete!');
-  console.log('\n📋 ACCOUNTS CREATED:');
-  console.log('===================');
-  console.log('\n👑 ADMIN (Full Control):');
-  console.log(`Email: ${adminUser.email}`);
-  console.log(`Password: ${adminUser.password}`);
-  console.log(`Role: ${adminUser.role}`);
-  
-  console.log('\n🎪 DEMO ACCOUNTS (Testing Only):');
-  demoUsers.forEach(user => {
-    console.log(`\nEmail: ${user.email}`);
-    console.log(`Password: ${user.password}`);
-    console.log(`Role: ${user.role}`);
-    if (user.role === 'vendor') {
-      console.log(`Company: Demo Retail Chain`);
-      console.log(`Features: Full demo data with 2 branches, 3 products, 2 labels`);
-    }
-  });
-  
-  console.log('\n🔗 Website: http://localhost:3000');
-  console.log('\n📝 INSTRUCTIONS:');
-  console.log('1. Use admin account to manage the platform');
-  console.log('2. Use demo vendor account to test features');
-  console.log('3. Use demo staff account to test branch operations');
-  console.log('\n💾 All data is stored in your Firebase project!');
+    console.log('\n✅ Initialization complete!');
+    console.log('Company ID: company_1');
+    console.log('You can now use these IDs in your user data.');
+
+  } catch (error) {
+    console.error('Error initializing collections:', error);
+  }
 }
 
-// Run setup
-setupFirebase().catch(error => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+initializeCollections();

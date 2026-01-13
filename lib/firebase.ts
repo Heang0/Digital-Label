@@ -29,6 +29,10 @@ const app = initializeApp(firebaseConfig);
 // Initialize services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+// Secondary app/auth (used to create staff users without logging out the current vendor)
+const secondaryApp = initializeApp(firebaseConfig, 'secondary');
+export const secondaryAuth = getAuth(secondaryApp);
+
 
 // Authentication functions
 export const signUp = (email: string, password: string) => {

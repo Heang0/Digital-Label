@@ -5,7 +5,19 @@ import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { auth, db, logOut } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDocs, collection, updateDoc, deleteDoc } from 'firebase/firestore';
+import { 
+  doc as fsDoc, 
+  setDoc, 
+  getDoc, 
+  getDocs, 
+  collection, 
+  query, 
+  where, 
+  updateDoc, 
+  deleteDoc,
+  Timestamp,
+  DocumentData
+} from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -38,7 +50,39 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronUp,
-  BarChart3
+  BarChart3,
+  Package,
+  CreditCard,
+  Settings,
+  LogOut,
+  RefreshCw,
+  BarChart,
+  TrendingDown,
+  Percent,
+  QrCode,
+  Activity,
+  Database,
+  Server,
+  Zap,
+  Globe,
+  Cpu,
+  HardDrive,
+  Network,
+  Shield as ShieldIcon,
+  Key,
+  Bell,
+  HelpCircle,
+  DownloadCloud,
+  UploadCloud,
+  Home,
+  Calendar,
+  ArrowUpDown,
+  Star,
+  Award,
+  Target,
+  PieChart,
+  LineChart,
+  AlertTriangle
 } from 'lucide-react';
 
 interface User {
@@ -48,9 +92,19 @@ interface User {
   role: 'admin' | 'vendor' | 'staff';
   companyId?: string;
   status: 'active' | 'pending' | 'suspended';
-  createdAt: string;
+  createdAt: Timestamp;
   phone?: string;
   subscription?: string;
+  branchId?: string;
+  position?: string;
+  permissions?: {
+    canViewProducts: boolean;
+    canUpdateStock: boolean;
+    canReportIssues: boolean;
+    canViewReports: boolean;
+    canChangePrices: boolean;
+    maxPriceChange?: number;
+  };
 }
 
 interface Company {
@@ -62,7 +116,24 @@ interface Company {
   subscription: 'basic' | 'pro' | 'enterprise';
   status: 'active' | 'pending' | 'suspended';
   ownerId: string;
-  createdAt: string;
+  ownerName?: string;
+  createdAt: Timestamp;
+  labelsCount?: number;
+  branchesCount?: number;
+  staffCount?: number;
+}
+
+interface SystemMetrics {
+  totalUsers: number;
+  totalCompanies: number;
+  totalLabels: number;
+  totalBranches: number;
+  systemHealth: number;
+  apiResponseTime: number;
+  databaseLoad: number;
+  monthlyRevenue: number;
+  activeSubscriptions: number;
+  trialAccounts: number;
 }
 
 export default function AdminDashboard() {
@@ -77,7 +148,19 @@ export default function AdminDashboard() {
   const [showPendingUsers, setShowPendingUsers] = useState(false);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'settings'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'settings' | 'analytics'>('overview');
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
+    totalUsers: 0,
+    totalCompanies: 0,
+    totalLabels: 0,
+    totalBranches: 0,
+    systemHealth: 99.8,
+    apiResponseTime: 42,
+    databaseLoad: 68,
+    monthlyRevenue: 12450,
+    activeSubscriptions: 0,
+    trialAccounts: 0
+  });
 
   // Form states
   const [vendorForm, setVendorForm] = useState({
@@ -109,15 +192,72 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
+      
       // Load users
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-      setUsers(usersData);
+              const usersSnapshot = await getDocs(collection(db, 'users'));
+    const usersData = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...(doc.data() as User) // ADD TYPE ASSERTION HERE
+    }));
+    setUsers(usersData);
 
       // Load companies
       const companiesSnapshot = await getDocs(collection(db, 'companies'));
-      const companiesData = companiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Company[];
+      const companiesData = await Promise.all(
+        companiesSnapshot.docs.map(async (doc) => {
+          const companyData = doc.data() as Company;
+          
+          // Get company stats
+          const branchesQuery = query(collection(db, 'branches'), where('companyId', '==', doc.id));
+          const branchesSnapshot = await getDocs(branchesQuery);
+          
+          const staffQuery = query(collection(db, 'users'), where('companyId', '==', doc.id), where('role', '==', 'staff'));
+          const staffSnapshot = await getDocs(staffQuery);
+          
+          const labelsQuery = query(collection(db, 'labels'), where('companyId', '==', doc.id));
+          const labelsSnapshot = await getDocs(labelsQuery);
+          
+          // Get owner name
+          let ownerName = '';
+          if (companyData.ownerId) {
+            const ownerDoc = await getDoc(fsDoc(db, 'users', companyData.ownerId));
+            if (ownerDoc.exists()) {
+              ownerName = (ownerDoc.data() as User).name;
+            }
+          }
+          
+          return {
+            id: doc.id,
+            ...companyData,
+            ownerName,
+            branchesCount: branchesSnapshot.size,
+            staffCount: staffSnapshot.size,
+            labelsCount: labelsSnapshot.size
+          } as Company;
+        })
+      );
       setCompanies(companiesData);
+
+      // Calculate system metrics
+      const totalLabels = companiesData.reduce((sum, company) => sum + (company.labelsCount || 0), 0);
+      const totalBranches = companiesData.reduce((sum, company) => sum + (company.branchesCount || 0), 0);
+      const activeSubscriptions = companiesData.filter(c => c.status === 'active').length;
+      const trialAccounts = companiesData.filter(c => c.subscription === 'basic').length;
+      
+      setSystemMetrics({
+        totalUsers: usersData.length,
+        totalCompanies: companiesData.length,
+        totalLabels,
+        totalBranches,
+        systemHealth: 99.8,
+        apiResponseTime: 42,
+        databaseLoad: 68,
+        monthlyRevenue: companiesData.length * 299, // Mock calculation
+        activeSubscriptions,
+        trialAccounts
+      });
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -147,20 +287,20 @@ export default function AdminDashboard() {
       const companyId = `company_${Date.now()}`;
 
       // 2. Create user document
-      await setDoc(doc(db, 'users', userId), {
+      await setDoc(fsDoc(db, 'users', userId), {
         id: userId,
         email: vendorForm.email,
         name: vendorForm.contactName,
         role: 'vendor',
         companyId: companyId,
         status: 'active',
-        createdAt: new Date().toISOString(),
+        createdAt: Timestamp.now(),
         phone: vendorForm.phone,
         createdBy: 'admin'
       });
 
       // 3. Create company document
-      await setDoc(doc(db, 'companies', companyId), {
+      await setDoc(fsDoc(db, 'companies', companyId), {
         id: companyId,
         name: vendorForm.companyName,
         email: vendorForm.email,
@@ -170,7 +310,8 @@ export default function AdminDashboard() {
         subscription: vendorForm.subscription,
         status: 'active',
         ownerId: userId,
-        createdAt: new Date().toISOString(),
+        ownerName: vendorForm.contactName,
+        createdAt: Timestamp.now(),
         createdBy: 'admin'
       });
 
@@ -200,7 +341,7 @@ export default function AdminDashboard() {
   // Approve pending user
   const approveUser = async (userId: string) => {
     try {
-      await updateDoc(doc(db, 'users', userId), {
+      await updateDoc(fsDoc(db, 'users', userId), {
         status: 'active'
       });
       await loadData();
@@ -210,10 +351,11 @@ export default function AdminDashboard() {
   };
 
   // Suspend user/company
-  const suspendUser = async (userId: string) => {
+  const suspendUser = async (userId: string, currentStatus: 'active' | 'pending' | 'suspended') => {
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        status: 'suspended'
+      const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+      await updateDoc(fsDoc(db, 'users', userId), {
+        status: newStatus
       });
       await loadData();
     } catch (error) {
@@ -221,14 +363,39 @@ export default function AdminDashboard() {
     }
   };
 
+  // Suspend company
+  const suspendCompany = async (companyId: string, currentStatus: 'active' | 'pending' | 'suspended') => {
+    try {
+      const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+      await updateDoc(fsDoc(db, 'companies', companyId), {
+        status: newStatus
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Error suspending company:', error);
+    }
+  };
+
   // Delete user/company
   const deleteUser = async (userId: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
       try {
-        await deleteDoc(doc(db, 'users', userId));
+        await deleteDoc(fsDoc(db, 'users', userId));
         await loadData();
       } catch (error) {
         console.error('Error deleting user:', error);
+      }
+    }
+  };
+
+  // Delete company
+  const deleteCompany = async (companyId: string) => {
+    if (confirm('Are you sure you want to delete this company? This will delete all associated data.')) {
+      try {
+        await deleteDoc(fsDoc(db, 'companies', companyId));
+        await loadData();
+      } catch (error) {
+        console.error('Error deleting company:', error);
       }
     }
   };
@@ -243,19 +410,21 @@ export default function AdminDashboard() {
   const pendingUsers = users.filter(user => user.status === 'pending');
   const activeVendors = users.filter(user => user.role === 'vendor' && user.status === 'active');
   const activeStaff = users.filter(user => user.role === 'staff' && user.status === 'active');
+  const activeCompanies = companies.filter(company => company.status === 'active');
+  const pendingCompanies = companies.filter(company => company.status === 'pending');
 
   const pendingCount = pendingUsers.length;
   const vendorsCount = activeVendors.length;
   const staffCount = activeStaff.length;
-  const labelsCount = 2184; // Mock data
-  const systemHealth = 99.8; // Mock data
+  const companiesCount = companies.length;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto"></div>
+          <p className="mt-6 text-lg font-medium text-gray-700">Loading admin dashboard</p>
+          <p className="text-gray-500">Preparing system analytics...</p>
         </div>
       </div>
     );
@@ -266,69 +435,98 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
       {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-red-600 flex items-center justify-center">
-                <Shield className="h-6 w-6 text-white" />
+      <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-xl">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-red-600 to-red-500 flex items-center justify-center shadow-lg">
+                <Shield className="h-7 w-7" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Digital Label Admin</h1>
-                <p className="text-sm text-gray-600">System Control Panel</p>
+                <h1 className="text-2xl font-bold tracking-tight">LabelSync Pro Admin</h1>
+                <p className="text-gray-300">System Control Panel</p>
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Search users, companies..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
+                  className="pl-10 w-full sm:w-64 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                 />
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="font-medium">{currentUser.name}</p>
-                  <p className="text-sm text-gray-500">System Administrator</p>
+                  <p className="text-sm text-gray-300">System Administrator</p>
                 </div>
-                <Button onClick={handleLogout} variant="outline" size="sm">
-                  Sign Out
+                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg">
+                  <span className="font-bold">{currentUser.name.charAt(0)}</span>
+                </div>
+                <Button 
+                  onClick={handleLogout} 
+                  variant="outline" 
+                  size="sm"
+                  className="border-gray-700 text-white hover:bg-gray-800"
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
                 </Button>
               </div>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-1 mt-4 border-b">
+          <div className="flex space-x-1 mt-8 border-b border-gray-700">
             <button
               onClick={() => setSelectedTab('overview')}
-              className={`px-4 py-2 text-sm font-medium ${selectedTab === 'overview' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'overview' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
             >
-              Overview
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                <span>Overview</span>
+              </div>
             </button>
             <button
               onClick={() => setSelectedTab('users')}
-              className={`px-4 py-2 text-sm font-medium ${selectedTab === 'users' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'users' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
             >
-              Users ({users.length})
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>Users ({users.length})</span>
+              </div>
             </button>
             <button
               onClick={() => setSelectedTab('companies')}
-              className={`px-4 py-2 text-sm font-medium ${selectedTab === 'companies' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'companies' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
             >
-              Companies ({companies.length})
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span>Companies ({companies.length})</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setSelectedTab('analytics')}
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'analytics' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+            >
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                <span>Analytics</span>
+              </div>
             </button>
             <button
               onClick={() => setSelectedTab('settings')}
-              className={`px-4 py-2 text-sm font-medium ${selectedTab === 'settings' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'settings' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
             >
-              Settings
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </div>
             </button>
           </div>
         </div>
@@ -337,50 +535,62 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8">
         {/* Quick Stats - Always visible */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl border border-blue-500 p-6 text-white shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Pending Approvals</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{pendingCount}</p>
+                <p className="text-sm font-medium text-blue-100">Pending Approvals</p>
+                <p className="mt-2 text-3xl font-bold">{pendingCount}</p>
+                <p className="text-sm text-blue-100 mt-1">
+                  {pendingCompanies.length} companies • {pendingUsers.length} users
+                </p>
               </div>
-              <div className="rounded-lg bg-yellow-100 p-3">
-                <Clock className="h-6 w-6 text-yellow-600" />
+              <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+                <Clock className="h-6 w-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl border border-purple-500 p-6 text-white shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Active Vendors</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{vendorsCount}</p>
+                <p className="text-sm font-medium text-purple-100">Active Vendors</p>
+                <p className="mt-2 text-3xl font-bold">{vendorsCount}</p>
+                <p className="text-sm text-purple-100 mt-1">
+                  {activeCompanies.length} active companies
+                </p>
               </div>
-              <div className="rounded-lg bg-blue-100 p-3">
-                <Building2 className="h-6 w-6 text-blue-600" />
+              <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+                <Building2 className="h-6 w-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-2xl border border-green-500 p-6 text-white shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Staff Members</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{staffCount}</p>
+                <p className="text-sm font-medium text-green-100">Staff Members</p>
+                <p className="mt-2 text-3xl font-bold">{staffCount}</p>
+                <p className="text-sm text-green-100 mt-1">
+                  Across {systemMetrics.totalBranches} branches
+                </p>
               </div>
-              <div className="rounded-lg bg-green-100 p-3">
-                <Users className="h-6 w-6 text-green-600" />
+              <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+                <Users className="h-6 w-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-2xl border border-orange-500 p-6 text-white shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">System Health</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{systemHealth}%</p>
+                <p className="text-sm font-medium text-orange-100">System Health</p>
+                <p className="mt-2 text-3xl font-bold">{systemMetrics.systemHealth}%</p>
+                <p className="text-sm text-orange-100 mt-1">
+                  {systemMetrics.apiResponseTime}ms API response
+                </p>
               </div>
-              <div className="rounded-lg bg-purple-100 p-3">
-                <Battery className="h-6 w-6 text-purple-600" />
+              <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+                <Activity className="h-6 w-6" />
               </div>
             </div>
           </div>
@@ -390,37 +600,83 @@ export default function AdminDashboard() {
         {selectedTab === 'overview' && (
           <div className="space-y-8">
             {/* Pending Approvals Section */}
-            {pendingCount > 0 && (
-              <div className="bg-white rounded-xl border p-6">
+            {(pendingCount > 0 || pendingCompanies.length > 0) && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Pending Approvals</h3>
+                    <h3 className="text-xl font-bold text-gray-900">Pending Approvals</h3>
                     <p className="text-gray-600">Review and approve new registrations</p>
                   </div>
-                  <Button onClick={() => setShowPendingUsers(true)} variant="outline">
-                    View All ({pendingCount})
+                  <Button 
+                    onClick={() => setShowPendingUsers(true)} 
+                    variant="outline"
+                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                  >
+                    View All ({pendingCount + pendingCompanies.length})
                   </Button>
                 </div>
                 
-                <div className="space-y-3">
-                  {pendingUsers.slice(0, 3).map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Pending Companies */}
+                  {pendingCompanies.slice(0, 2).map((company) => (
+                    <div key={company.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
-                          <UserIcon className="h-5 w-5 text-yellow-600" />
+                        <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                          <Building2 className="h-6 w-6 text-yellow-600" />
                         </div>
-                        <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className="text-sm text-gray-500">{user.email} • {user.role}</p>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{company.name}</p>
+                          <p className="text-sm text-gray-600">{company.email}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <Button 
+                              size="sm" 
+                              onClick={() => approveUser(company.ownerId)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => deleteCompany(company.id)}
+                              className="border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => approveUser(user.id)}>
-                          <Check className="h-4 w-4 mr-1" /> Approve
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
-                          <XCircle className="h-4 w-4 mr-1" /> Reject
-                        </Button>
+                    </div>
+                  ))}
+                  
+                  {/* Pending Users */}
+                  {pendingUsers.slice(0, 2).map((user) => (
+                    <div key={user.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                          <UserIcon className="h-6 w-6 text-yellow-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{user.name}</p>
+                          <p className="text-sm text-gray-600">{user.email} • {user.role}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <Button 
+                              size="sm" 
+                              onClick={() => approveUser(user.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => deleteUser(user.id)}
+                              className="border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -429,53 +685,90 @@ export default function AdminDashboard() {
             )}
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl border p-6">
-              <h3 className="text-lg font-semibold mb-6">Quick Actions</h3>
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button 
                   onClick={() => setShowCreateVendor(true)}
-                  className="p-4 border rounded-lg hover:bg-gray-50 text-center transition-colors"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
-                  <Building2 className="h-6 w-6 mx-auto mb-2 text-blue-500" />
-                  <span className="text-sm font-medium">Create Vendor</span>
+                  <Building2 className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-gray-900">Create Vendor</span>
+                  <p className="text-xs text-gray-500 mt-1">Add new retail chain</p>
                 </button>
                 <button 
                   onClick={() => setSelectedTab('users')}
-                  className="p-4 border rounded-lg hover:bg-gray-50 text-center transition-colors"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
-                  <Users className="h-6 w-6 mx-auto mb-2 text-green-500" />
-                  <span className="text-sm font-medium">Manage Users</span>
+                  <Users className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-gray-900">Manage Users</span>
+                  <p className="text-xs text-gray-500 mt-1">View all platform users</p>
                 </button>
                 <button 
                   onClick={() => setSelectedTab('companies')}
-                  className="p-4 border rounded-lg hover:bg-gray-50 text-center transition-colors"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
-                  <Store className="h-6 w-6 mx-auto mb-2 text-purple-500" />
-                  <span className="text-sm font-medium">View Companies</span>
+                  <Store className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-gray-900">View Companies</span>
+                  <p className="text-xs text-gray-500 mt-1">All retail chains</p>
                 </button>
-                <button className="p-4 border rounded-lg hover:bg-gray-50 text-center transition-colors">
-                  <BarChart3 className="h-6 w-6 mx-auto mb-2 text-orange-500" />
-                  <span className="text-sm font-medium">System Reports</span>
+                <button 
+                  onClick={loadData}
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
+                >
+                  <RefreshCw className="h-8 w-8 mx-auto mb-3 text-orange-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-semibold text-gray-900">Refresh Data</span>
+                  <p className="text-xs text-gray-500 mt-1">Update all information</p>
                 </button>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h3>
+              <div className="space-y-4">
+                {companies.slice(0, 3).map((company) => (
+                  <div key={company.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{company.name}</p>
+                        <p className="text-sm text-gray-500">
+                          Joined {company.createdAt.toDate().toLocaleDateString()} • {company.subscription} Plan
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">
+                        {company.branchesCount || 0} branches
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {company.labelsCount || 0} labels
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         )}
 
         {selectedTab === 'users' && (
-          <div className="bg-white rounded-xl border">
-            <div className="p-6 border-b">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">User Management</h3>
-                  <p className="text-gray-600">Manage all platform users</p>
+                  <h3 className="text-xl font-bold text-gray-900">User Management</h3>
+                  <p className="text-gray-600">Manage all platform users and permissions</p>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4 mr-2" /> Filter
-                  </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" className="border-gray-300">
                     <Download className="h-4 w-4 mr-2" /> Export
+                  </Button>
+                  <Button variant="outline" className="border-gray-300">
+                    <Filter className="h-4 w-4 mr-2" /> Filter
                   </Button>
                 </div>
               </div>
@@ -485,65 +778,94 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="font-medium">{user.name.charAt(0)}</span>
+                  {filteredUsers.map((user) => {
+                    const userCompany = companies.find(c => c.id === user.companyId);
+                    return (
+                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center">
+                              <span className="font-medium text-white">{user.name.charAt(0)}</span>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-semibold text-gray-900">{user.name}</div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                              {user.position && (
+                                <div className="text-xs text-gray-400">{user.position}</div>
+                              )}
+                            </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                            user.role === 'vendor' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {userCompany ? userCompany.name : 'No Company'}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                          user.role === 'vendor' ? 'bg-blue-100 text-blue-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.status === 'active' ? 'bg-green-100 text-green-800' :
-                          user.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {user.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex gap-2">
-                          {user.status === 'pending' && (
-                            <Button size="sm" onClick={() => approveUser(user.id)}>
-                              Approve
+                          <div className="text-xs text-gray-500">
+                            {userCompany ? userCompany.subscription : ''}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            user.status === 'active' ? 'bg-green-100 text-green-800' :
+                            user.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.createdAt.toDate().toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex gap-2">
+                            {user.status === 'pending' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => approveUser(user.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                Approve
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => suspendUser(user.id, user.status)}
+                              className="border-yellow-600 text-yellow-600 hover:bg-yellow-50"
+                            >
+                              {user.status === 'suspended' ? 'Activate' : 'Suspend'}
                             </Button>
-                          )}
-                          <Button size="sm" variant="outline" onClick={() => suspendUser(user.id)}>
-                            {user.status === 'suspended' ? 'Activate' : 'Suspend'}
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => deleteUser(user.id)}
+                              className="border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -551,33 +873,36 @@ export default function AdminDashboard() {
         )}
 
         {selectedTab === 'companies' && (
-          <div className="bg-white rounded-xl border">
-            <div className="p-6 border-b">
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Company Management</h3>
-                  <p className="text-gray-600">Manage all retail chains</p>
+                  <h3 className="text-xl font-bold text-gray-900">Company Management</h3>
+                  <p className="text-gray-600">Manage all retail chains on the platform</p>
                 </div>
-                <Button onClick={() => setShowCreateVendor(true)}>
+                <Button 
+                  onClick={() => setShowCreateVendor(true)}
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                >
                   <Plus className="h-4 w-4 mr-2" /> Add Company
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {companies.map((company) => (
-                <div key={company.id} className="border rounded-xl p-6 hover:shadow-md transition-shadow">
+                <div key={company.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <Building2 className="h-6 w-6 text-blue-600" />
+                      <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
+                        <Building2 className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">{company.name}</h4>
+                        <h4 className="font-bold text-gray-900">{company.name}</h4>
                         <p className="text-sm text-gray-500">{company.email}</p>
                       </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       company.status === 'active' ? 'bg-green-100 text-green-800' :
                       company.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'
@@ -586,7 +911,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-3 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Phone className="h-4 w-4" />
                       <span>{company.phone}</span>
@@ -596,17 +921,57 @@ export default function AdminDashboard() {
                       <span className="flex-1">{company.address}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <DollarSign className="h-4 w-4" />
+                      <UserIcon className="h-4 w-4" />
+                      <span>Owner: {company.ownerName || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <CreditCard className="h-4 w-4" />
                       <span className="capitalize">{company.subscription} Plan</span>
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="text-center p-2 bg-blue-50 rounded-lg">
+                      <p className="text-lg font-bold text-blue-600">{company.branchesCount || 0}</p>
+                      <p className="text-xs text-gray-600">Branches</p>
+                    </div>
+                    <div className="text-center p-2 bg-green-50 rounded-lg">
+                      <p className="text-lg font-bold text-green-600">{company.staffCount || 0}</p>
+                      <p className="text-xs text-gray-600">Staff</p>
+                    </div>
+                    <div className="text-center p-2 bg-purple-50 rounded-lg">
+                      <p className="text-lg font-bold text-purple-600">{company.labelsCount || 0}</p>
+                      <p className="text-xs text-gray-600">Labels</p>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 pt-4 border-t">
-                    <Button size="sm" variant="outline" className="flex-1">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex-1 border-gray-300"
+                      onClick={() => {
+                        // View company details
+                        router.push(`/admin/companies/${company.id}`);
+                      }}
+                    >
                       <Eye className="h-4 w-4 mr-2" /> View
                     </Button>
-                    <Button size="sm" variant="outline" className="flex-1">
-                      <Edit className="h-4 w-4 mr-2" /> Edit
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 border-yellow-600 text-yellow-600 hover:bg-yellow-50"
+                      onClick={() => suspendCompany(company.id, company.status)}
+                    >
+                      {company.status === 'suspended' ? 'Activate' : 'Suspend'}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-red-600 text-red-600 hover:bg-red-50"
+                      onClick={() => deleteCompany(company.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -615,66 +980,285 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {selectedTab === 'analytics' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">System Analytics</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="border rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">Platform Usage</h4>
+                    <Users className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Total Users</span>
+                      <span className="font-bold text-gray-900">{systemMetrics.totalUsers}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Vendors</span>
+                      <span className="font-bold text-blue-600">{vendorsCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Staff</span>
+                      <span className="font-bold text-green-600">{staffCount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">Company Stats</h4>
+                    <Building2 className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Total Companies</span>
+                      <span className="font-bold text-gray-900">{systemMetrics.totalCompanies}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Active</span>
+                      <span className="font-bold text-green-600">{activeCompanies.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Branches</span>
+                      <span className="font-bold text-blue-600">{systemMetrics.totalBranches}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">Labels</h4>
+                    <Tag className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Total Labels</span>
+                      <span className="font-bold text-gray-900">{systemMetrics.totalLabels}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Avg per Company</span>
+                      <span className="font-bold text-blue-600">
+                        {systemMetrics.totalCompanies > 0 
+                          ? Math.round(systemMetrics.totalLabels / systemMetrics.totalCompanies)
+                          : 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-6 md:col-span-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">System Health</h4>
+                    <Activity className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">System Health</span>
+                        <span className={`text-sm font-medium ${
+                          systemMetrics.systemHealth > 95 ? 'text-green-600' :
+                          systemMetrics.systemHealth > 85 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {systemMetrics.systemHealth}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${
+                            systemMetrics.systemHealth > 95 ? 'bg-green-500' :
+                            systemMetrics.systemHealth > 85 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} 
+                          style={{ width: `${systemMetrics.systemHealth}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">API Response Time</span>
+                        <span className={`text-sm font-medium ${
+                          systemMetrics.apiResponseTime < 50 ? 'text-green-600' :
+                          systemMetrics.apiResponseTime < 100 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {systemMetrics.apiResponseTime}ms
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${
+                            systemMetrics.apiResponseTime < 50 ? 'bg-green-500' :
+                            systemMetrics.apiResponseTime < 100 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} 
+                          style={{ width: `${Math.min(100, 100 - (systemMetrics.apiResponseTime / 2))}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Database Load</span>
+                        <span className={`text-sm font-medium ${
+                          systemMetrics.databaseLoad < 60 ? 'text-green-600' :
+                          systemMetrics.databaseLoad < 80 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {systemMetrics.databaseLoad}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${
+                            systemMetrics.databaseLoad < 60 ? 'bg-green-500' :
+                            systemMetrics.databaseLoad < 80 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} 
+                          style={{ width: `${systemMetrics.databaseLoad}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">Revenue</h4>
+                    <DollarSign className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Monthly Revenue</span>
+                      <span className="font-bold text-green-600">${systemMetrics.monthlyRevenue.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Active Subscriptions</span>
+                      <span className="font-bold text-blue-600">{systemMetrics.activeSubscriptions}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Trial Accounts</span>
+                      <span className="font-bold text-yellow-600">{systemMetrics.trialAccounts}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {selectedTab === 'settings' && (
-          <div className="bg-white rounded-xl border p-6">
-            <h3 className="text-lg font-semibold mb-6">System Settings</h3>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">System Settings</h3>
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="font-medium mb-3">Platform Settings</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <ShieldIcon className="h-5 w-5 text-blue-500" />
+                    Platform Settings
+                  </h4>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Maintenance Mode</span>
-                      <Button size="sm" variant="outline">Enable</Button>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Maintenance Mode</span>
+                        <p className="text-xs text-gray-500">Disable platform for maintenance</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-gray-300">
+                        Disabled
+                      </Button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">New User Registration</span>
-                      <Button size="sm" variant="outline">Require Approval</Button>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">User Registration</span>
+                        <p className="text-xs text-gray-500">New user approval settings</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-green-600 text-green-600">
+                        Auto-approve
+                      </Button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Email Notifications</span>
-                      <Button size="sm" variant="outline">Enabled</Button>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Email Notifications</span>
+                        <p className="text-xs text-gray-500">System notification settings</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-blue-600 text-blue-600">
+                        Enabled
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">API Access</span>
+                        <p className="text-xs text-gray-500">Third-party API settings</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-yellow-600 text-yellow-600">
+                        Restricted
+                      </Button>
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="font-medium mb-3">Billing & Subscriptions</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Key className="h-5 w-5 text-purple-500" />
+                    Security Settings
+                  </h4>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Monthly Revenue</span>
-                      <span className="font-medium">$12,450</span>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Two-Factor Auth</span>
+                        <p className="text-xs text-gray-500">Admin account 2FA</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-green-600 text-green-600">
+                        Enabled
+                      </Button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Active Subscriptions</span>
-                      <span className="font-medium">{companies.length}</span>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Session Timeout</span>
+                        <p className="text-xs text-gray-500">Auto logout after inactivity</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-blue-600 text-blue-600">
+                        24 Hours
+                      </Button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Trial Accounts</span>
-                      <span className="font-medium">3</span>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Password Policy</span>
+                        <p className="text-xs text-gray-500">User password requirements</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-green-600 text-green-600">
+                        Strong
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Audit Logging</span>
+                        <p className="text-xs text-gray-500">Track all system activities</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-blue-600 text-blue-600">
+                        Enabled
+                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
               
               <div className="pt-6 border-t">
-                <h4 className="font-medium mb-3">System Health</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">API Response Time</span>
-                    <span className="text-sm font-medium text-green-600">42ms</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500" style={{ width: '85%' }}></div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Database Load</span>
-                    <span className="text-sm font-medium text-yellow-600">68%</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-yellow-500" style={{ width: '68%' }}></div>
-                  </div>
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Database className="h-5 w-5 text-orange-500" />
+                  Database Management
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                    <DownloadCloud className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+                    <span className="text-sm font-medium">Backup Now</span>
+                  </button>
+                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                    <UploadCloud className="h-6 w-6 mx-auto mb-2 text-green-500" />
+                    <span className="text-sm font-medium">Restore Backup</span>
+                  </button>
+                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                    <RefreshCw className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+                    <span className="text-sm font-medium">Optimize Database</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -685,18 +1269,21 @@ export default function AdminDashboard() {
       {/* Create Vendor Modal */}
       {showCreateVendor && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Building2 className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-bold text-gray-900">Create New Vendor</h2>
+                  <Building2 className="h-7 w-7 text-blue-600" />
+                  <h2 className="text-2xl font-bold text-gray-900">Create New Vendor</h2>
                 </div>
-                <button onClick={() => setShowCreateVendor(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                  <X className="h-5 w-5" />
+                <button 
+                  onClick={() => setShowCreateVendor(false)} 
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
                 </button>
               </div>
-              <p className="text-gray-600 mt-1">Add a new retail chain to the platform</p>
+              <p className="text-gray-600 mt-2">Add a new retail chain to the platform</p>
             </div>
 
             <form onSubmit={createVendor} className="p-6 space-y-6">
@@ -770,7 +1357,7 @@ export default function AdminDashboard() {
                     <textarea
                       value={vendorForm.address}
                       onChange={(e) => setVendorForm({...vendorForm, address: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2 pl-10 min-h-[80px]"
+                      className="w-full border rounded-xl px-3 py-2 pl-10 min-h-[80px]"
                       placeholder="123 Business St, City, State, ZIP"
                     />
                   </div>
@@ -779,13 +1366,17 @@ export default function AdminDashboard() {
                 {/* Password */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Initial Password *</label>
-                  <Input
-                    type="text"
-                    value={vendorForm.password}
-                    onChange={(e) => setVendorForm({...vendorForm, password: e.target.value})}
-                    placeholder="changeme123"
-                    required
-                  />
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      type="text"
+                      value={vendorForm.password}
+                      onChange={(e) => setVendorForm({...vendorForm, password: e.target.value})}
+                      className="pl-10"
+                      placeholder="changeme123"
+                      required
+                    />
+                  </div>
                   <p className="text-xs text-gray-500">Vendor should change this on first login</p>
                 </div>
 
@@ -795,7 +1386,7 @@ export default function AdminDashboard() {
                   <select
                     value={vendorForm.subscription}
                     onChange={(e) => setVendorForm({...vendorForm, subscription: e.target.value as any})}
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-xl px-3 py-2"
                   >
                     <option value="basic">Basic ($99/month)</option>
                     <option value="pro">Professional ($299/month)</option>
@@ -804,11 +1395,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setShowCreateVendor(false)}>
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowCreateVendor(false)}
+                  className="border-gray-300"
+                >
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button 
+                  type="submit"
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                >
                   Create Vendor
                 </Button>
               </div>

@@ -3,53 +3,106 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
-import { logOut } from '@/lib/firebase';
+import { db, logOut } from '@/lib/firebase';
+import { 
+  doc as fsDoc,
+  getDoc, 
+  getDocs, 
+  collection, 
+  query, 
+  where, 
+  updateDoc,
+  Timestamp,
+  addDoc
+} from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  LayoutDashboard,
   Package,
   Tag,
   AlertCircle,
   BarChart3,
-  Settings,
-  LogOut,
   Store,
   Bell,
-  HelpCircle,
-  Search,
-  Filter,
-  Download,
-  Eye,
-  EyeOff,
-  MoreVertical,
-  ChevronDown,
-  ChevronUp,
-  ShoppingBag,
   Clock,
   Battery,
   RefreshCw,
   CheckCircle,
   XCircle,
   TrendingUp,
-  TrendingDown,
   Plus,
   Minus,
   Info,
-  Calendar,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Lock,
   QrCode,
   Scan,
+  Eye,
+  ShoppingBag,
+  User as UserIcon,
+  ChevronDown,
+  Download,
+  Filter,
+  Search,
   Upload,
-  Copy,
   Edit,
-  Trash2
+  Trash2,
+  Check,
+  X,
+  BarChart,
+  Calendar,
+  Phone,
+  Mail,
+  MapPin,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// INTERFACES
+interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  manager?: string;
+  companyId: string;
+  status: 'active' | 'inactive';
+}
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  sku: string;
+  category: string;
+  basePrice: number;
+  imageUrl?: string;
+  companyId: string;
+}
+
+interface BranchProduct {
+  id: string;
+  productId: string;
+  branchId: string;
+  companyId: string;
+  currentPrice: number;
+  stock: number;
+  minStock: number;
+  status: 'in-stock' | 'low-stock' | 'out-of-stock';
+  lastUpdated: Timestamp;
+  productDetails?: Product;
+}
+
+interface DigitalLabel {
+  id: string;
+  labelId: string;
+  productId: string;
+  productName?: string;
+  branchId: string;
+  currentPrice: number;
+  battery: number;
+  status: 'active' | 'inactive' | 'low-battery' | 'error';
+  lastSync: Timestamp;
+  location: string;
+}
 
 interface Task {
   id: string;
@@ -59,26 +112,20 @@ interface Task {
   status: 'pending' | 'in-progress' | 'completed';
   dueDate: string;
   assignedBy: string;
+  branchId: string;
 }
 
-interface LabelIssue {
+interface IssueReport {
   id: string;
   labelId: string;
-  productName: string;
+  productId: string;
+  productName?: string;
   issue: string;
   status: 'open' | 'in-progress' | 'resolved';
-  reportedAt: string;
+  reportedAt: Timestamp;
   priority: 'high' | 'medium' | 'low';
-}
-
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  currentStock: number;
-  minStock: number;
-  status: 'in-stock' | 'low-stock' | 'out-of-stock';
-  lastUpdated: string;
+  branchId: string;
+  reportedBy: string;
 }
 
 export default function StaffDashboard() {
@@ -87,12 +134,28 @@ export default function StaffDashboard() {
   
   // States
   const [selectedTab, setSelectedTab] = useState<'dashboard' | 'inventory' | 'labels' | 'issues' | 'reports'>('dashboard');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [issues, setIssues] = useState<LabelIssue[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branch, setBranch] = useState<Branch | null>(null);
+  const [branchProducts, setBranchProducts] = useState<BranchProduct[]>([]);
+  const [labels, setLabels] = useState<DigitalLabel[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [issues, setIssues] = useState<IssueReport[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showReportIssue, setShowReportIssue] = useState(false);
   
+  // Form states
+  const [issueForm, setIssueForm] = useState({
+    labelId: '',
+    issue: '',
+    priority: 'medium' as 'high' | 'medium' | 'low'
+  });
+
+  const [stockUpdateForm, setStockUpdateForm] = useState<{
+    productId: string;
+    change: number;
+    reason?: string;
+  } | null>(null);
+
   // Redirect if not staff
   useEffect(() => {
     if (!currentUser) {
@@ -103,17 +166,71 @@ export default function StaffDashboard() {
     }
   }, [currentUser, router]);
 
-  // Load data
+  // Load staff data
   useEffect(() => {
-    if (currentUser?.role === 'staff') {
-      loadData();
+    if (currentUser?.role === 'staff' && currentUser.branchId && currentUser.companyId) {
+      loadStaffData();
     }
   }, [currentUser]);
 
-  const loadData = async () => {
+  const loadStaffData = async () => {
+    if (!currentUser?.branchId || !currentUser.companyId) return;
+    
     try {
-      // Mock data for demo
-      setTasks([
+      setLoading(true);
+      
+      // 1. Load branch data
+      const branchDoc = await getDoc(fsDoc(db, 'branches', currentUser.branchId));
+      if (branchDoc.exists()) {
+        setBranch({ id: branchDoc.id, ...branchDoc.data() } as Branch);
+      }
+
+      // 2. Load branch products (only for this branch)
+      const branchProductsQuery = query(
+        collection(db, 'branch_products'),
+        where('branchId', '==', currentUser.branchId),
+        where('companyId', '==', currentUser.companyId)
+      );
+      const branchProductsSnapshot = await getDocs(branchProductsQuery);
+      
+      // Get product details for each branch product
+      const branchProductsData = await Promise.all(
+        branchProductsSnapshot.docs.map(async (docSnap) => {
+          const bpData = docSnap.data();
+          const productDoc = await getDoc(fsDoc(db, 'products', bpData.productId));
+          const productDetails = productDoc.exists() ? productDoc.data() as Product : undefined;
+          
+          return {
+            id: docSnap.id,
+            ...bpData,
+            productDetails
+          } as BranchProduct;
+        })
+      );
+      setBranchProducts(branchProductsData);
+
+      // 3. Load labels (only for this branch)
+      const labelsQuery = query(
+        collection(db, 'labels'),
+        where('branchId', '==', currentUser.branchId),
+        where('companyId', '==', currentUser.companyId)
+      );
+      const labelsSnapshot = await getDocs(labelsQuery);
+      const labelsData = await Promise.all(
+        labelsSnapshot.docs.map(async (docSnap) => {
+          const labelData = docSnap.data();
+          const productDoc = await getDoc(fsDoc(db, 'products', labelData.productId));
+          return {
+            id: docSnap.id,
+            ...labelData,
+            productName: productDoc.exists() ? (productDoc.data() as any).name : 'Unknown Product'
+          } as DigitalLabel;
+        })
+      );
+      setLabels(labelsData);
+
+      // 4. Load tasks (mock for now - can be extended to Firestore)
+      const mockTasks: Task[] = [
         {
           id: '1',
           title: 'Restock milk in Aisle 4',
@@ -121,7 +238,8 @@ export default function StaffDashboard() {
           priority: 'high',
           status: 'pending',
           dueDate: 'Today, 4 PM',
-          assignedBy: 'Store Manager'
+          assignedBy: 'Store Manager',
+          branchId: currentUser.branchId
         },
         {
           id: '2',
@@ -130,90 +248,33 @@ export default function StaffDashboard() {
           priority: 'medium',
           status: 'in-progress',
           dueDate: 'Tomorrow',
-          assignedBy: 'System Alert'
+          assignedBy: 'System Alert',
+          branchId: currentUser.branchId
         },
-        {
-          id: '3',
-          title: 'Update coffee beans stock',
-          description: 'Received new shipment of coffee beans',
-          priority: 'low',
-          status: 'completed',
-          dueDate: 'Yesterday',
-          assignedBy: 'Inventory Manager'
-        }
-      ]);
+      ];
+      setTasks(mockTasks);
 
-      setIssues([
-        {
-          id: '1',
-          labelId: 'DL-002',
-          productName: 'Organic Milk',
-          issue: 'Showing wrong price ($3.49 instead of $3.99)',
-          status: 'open',
-          reportedAt: '2 hours ago',
-          priority: 'high'
-        },
-        {
-          id: '2',
-          labelId: 'DL-015',
-          productName: 'Premium Coffee',
-          issue: 'Blank screen - not displaying price',
-          status: 'in-progress',
-          reportedAt: '1 day ago',
-          priority: 'medium'
-        },
-        {
-          id: '3',
-          labelId: 'DL-008',
-          productName: 'Whole Wheat Bread',
-          issue: 'Low battery warning',
-          status: 'resolved',
-          reportedAt: '3 days ago',
-          priority: 'low'
-        }
-      ]);
-
-      setProducts([
-        {
-          id: '1',
-          name: 'Organic Milk',
-          sku: 'DAI-001',
-          currentStock: 15,
-          minStock: 25,
-          status: 'low-stock',
-          lastUpdated: '10:30 AM'
-        },
-        {
-          id: '2',
-          name: 'Premium Coffee Beans',
-          sku: 'COF-001',
-          currentStock: 45,
-          minStock: 20,
-          status: 'in-stock',
-          lastUpdated: '9:15 AM'
-        },
-        {
-          id: '3',
-          name: 'Whole Wheat Bread',
-          sku: 'BAK-001',
-          currentStock: 8,
-          minStock: 15,
-          status: 'low-stock',
-          lastUpdated: '11:45 AM'
-        },
-        {
-          id: '4',
-          name: 'Free Range Eggs',
-          sku: 'DAI-002',
-          currentStock: 32,
-          minStock: 20,
-          status: 'in-stock',
-          lastUpdated: '8:30 AM'
-        }
-      ]);
+      // 5. Load issues (only for this branch)
+      const issuesQuery = query(
+        collection(db, 'issue_reports'),
+        where('branchId', '==', currentUser.branchId)
+      );
+      const issuesSnapshot = await getDocs(issuesQuery);
+      const issuesData = await Promise.all(
+        issuesSnapshot.docs.map(async (docSnap) => {
+          const issueData = docSnap.data();
+          const productDoc = await getDoc(fsDoc(db, 'products', issueData.productId));
+          return {
+            id: docSnap.id,
+            ...issueData,
+            productName: productDoc.exists() ? (productDoc.data() as any).name : 'Unknown Product'
+          } as IssueReport;
+        })
+      );
+      setIssues(issuesData);
 
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading staff data:', error);
     } finally {
       setLoading(false);
     }
@@ -226,6 +287,113 @@ export default function StaffDashboard() {
     router.push('/login');
   };
 
+  // Update stock
+  const updateStock = async (productId: string, change: number, reason?: string) => {
+    if (!currentUser?.branchId || !currentUser.companyId) return;
+
+    try {
+      // Find the branch product
+      const bpQuery = query(
+        collection(db, 'branch_products'),
+        where('productId', '==', productId),
+        where('branchId', '==', currentUser.branchId)
+      );
+      const bpSnapshot = await getDocs(bpQuery);
+      
+      if (!bpSnapshot.empty) {
+        const bpDoc = bpSnapshot.docs[0];
+        const bpData = bpDoc.data();
+        const newStock = bpData.stock + change;
+        
+        // Update stock
+        await updateDoc(fsDoc(db, 'branch_products', bpDoc.id), {
+          stock: newStock,
+          status: newStock <= 0 ? 'out-of-stock' : 
+                  newStock <= bpData.minStock ? 'low-stock' : 'in-stock',
+          lastUpdated: Timestamp.now()
+        });
+
+        // Log the stock change
+        await addDoc(collection(db, 'inventory_logs'), {
+          productId,
+          branchId: currentUser.branchId,
+          companyId: currentUser.companyId,
+          change,
+          newStock,
+          reason: reason || 'Manual adjustment',
+          changedBy: currentUser.id,
+          changedByName: currentUser.name,
+          timestamp: Timestamp.now()
+        });
+
+        // Refresh data
+        await loadStaffData();
+        setStockUpdateForm(null);
+        alert('Stock updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      alert('Error updating stock');
+    }
+  };
+
+  // Report issue
+  const reportIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser?.branchId || !currentUser.companyId) return;
+
+    try {
+      // Find the label
+      const labelQuery = query(
+        collection(db, 'labels'),
+        where('labelId', '==', issueForm.labelId),
+        where('branchId', '==', currentUser.branchId)
+      );
+      const labelSnapshot = await getDocs(labelQuery);
+      
+      if (labelSnapshot.empty) {
+        alert('Label not found in this branch');
+        return;
+      }
+
+      const labelDoc = labelSnapshot.docs[0];
+      const labelData = labelDoc.data();
+
+      // Create issue report
+      await addDoc(collection(db, 'issue_reports'), {
+        labelId: issueForm.labelId,
+        productId: labelData.productId,
+        issue: issueForm.issue,
+        status: 'open',
+        reportedAt: Timestamp.now(),
+        priority: issueForm.priority,
+        branchId: currentUser.branchId,
+        companyId: currentUser.companyId,
+        reportedBy: currentUser.id,
+        reportedByName: currentUser.name
+      });
+
+      // Update label status
+      await updateDoc(fsDoc(db, 'labels', labelDoc.id), {
+        status: 'error'
+      });
+
+      // Refresh data
+      await loadStaffData();
+      setIssueForm({
+        labelId: '',
+        issue: '',
+        priority: 'medium'
+      });
+      setShowReportIssue(false);
+      alert('Issue reported successfully!');
+
+    } catch (error) {
+      console.error('Error reporting issue:', error);
+      alert('Error reporting issue');
+    }
+  };
+
   // Complete task
   const completeTask = (taskId: string) => {
     setTasks(tasks.map(task => 
@@ -233,30 +401,9 @@ export default function StaffDashboard() {
     ));
   };
 
-  // Update stock
-  const updateStock = (productId: string, amount: number) => {
-    setProducts(products.map(product => 
-      product.id === productId ? { 
-        ...product, 
-        currentStock: product.currentStock + amount,
-        lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      } : product
-    ));
-  };
-
-  // Report new issue
-  const reportIssue = () => {
-    const newIssue: LabelIssue = {
-      id: Date.now().toString(),
-      labelId: 'DL-' + Math.floor(Math.random() * 100).toString().padStart(3, '0'),
-      productName: 'New Product',
-      issue: 'Sample issue description',
-      status: 'open',
-      reportedAt: 'Just now',
-      priority: 'medium'
-    };
-    setIssues([newIssue, ...issues]);
-  };
+  // Check staff permissions
+  const canUpdateStock = currentUser ? true : false; // You can check actual permissions from user data
+  const canReportIssues = currentUser ? true : false;
 
   if (loading) {
     return (
@@ -293,10 +440,11 @@ export default function StaffDashboard() {
               </button>
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
+                  <UserIcon className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Staff Portal</p>
+                  <p className="text-sm font-semibold text-gray-900">{branch?.name || 'Staff Portal'}</p>
+                  <p className="text-xs text-gray-500">{currentUser.position || 'Staff'}</p>
                 </div>
               </div>
             </div>
@@ -345,6 +493,17 @@ export default function StaffDashboard() {
           >
             Labels
           </button>
+          <button
+            onClick={() => setSelectedTab('issues')}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+              selectedTab === 'issues' 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            )}
+          >
+            Issues
+          </button>
         </div>
       </header>
 
@@ -355,10 +514,10 @@ export default function StaffDashboard() {
           <div className="p-6 border-b border-gray-700">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
-                <User className="h-6 w-6" />
+                <Store className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-tight">Digital Label</h1>
+                <h1 className="text-lg font-bold tracking-tight">{branch?.name || 'Branch'}</h1>
                 <p className="text-xs text-gray-400 font-medium">Staff Portal</p>
               </div>
             </div>
@@ -372,8 +531,9 @@ export default function StaffDashboard() {
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-sm">{currentUser.name}</p>
-                <p className="text-xs text-gray-400">Store Staff</p>
+                <p className="text-xs text-gray-400">{currentUser.position || 'Store Staff'}</p>
                 <p className="text-xs text-gray-500 mt-1 truncate">{currentUser.email}</p>
+                <p className="text-xs text-gray-400 mt-1">{branch?.name}</p>
               </div>
               <button className="p-2 hover:bg-gray-700 rounded-lg relative">
                 <Bell className="h-4 w-4" />
@@ -393,22 +553,24 @@ export default function StaffDashboard() {
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
               )}
             >
-              <LayoutDashboard className="h-5 w-5" />
+              <BarChart3 className="h-5 w-5" />
               <span className="font-medium">Dashboard</span>
             </button>
 
-            <button
-              onClick={() => setSelectedTab('inventory')}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                selectedTab === 'inventory' 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
-              )}
-            >
-              <Package className="h-5 w-5" />
-              <span className="font-medium">Inventory</span>
-            </button>
+            {canUpdateStock && (
+              <button
+                onClick={() => setSelectedTab('inventory')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                  selectedTab === 'inventory' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
+                )}
+              >
+                <Package className="h-5 w-5" />
+                <span className="font-medium">Inventory</span>
+              </button>
+            )}
 
             <button
               onClick={() => setSelectedTab('labels')}
@@ -423,18 +585,20 @@ export default function StaffDashboard() {
               <span className="font-medium">Labels</span>
             </button>
 
-            <button
-              onClick={() => setSelectedTab('issues')}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                selectedTab === 'issues' 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
-              )}
-            >
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">Issues</span>
-            </button>
+            {canReportIssues && (
+              <button
+                onClick={() => setSelectedTab('issues')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                  selectedTab === 'issues' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
+                )}
+              >
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Issues</span>
+              </button>
+            )}
 
             <button
               onClick={() => setSelectedTab('reports')}
@@ -445,26 +609,25 @@ export default function StaffDashboard() {
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
               )}
             >
-              <BarChart3 className="h-5 w-5" />
+              <BarChart className="h-5 w-5" />
               <span className="font-medium">Reports</span>
             </button>
           </nav>
 
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-700 space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
-              <Settings className="h-5 w-5" />
-              <span className="font-medium">Settings</span>
-            </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
-              <HelpCircle className="h-5 w-5" />
-              <span className="font-medium">Help & Support</span>
+            <button 
+              onClick={loadStaffData}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+            >
+              <RefreshCw className="h-5 w-5" />
+              <span className="font-medium">Refresh Data</span>
             </button>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-red-900/30 hover:text-red-100 transition-colors"
             >
-              <LogOut className="h-5 w-5" />
+              <Lock className="h-5 w-5" />
               <span className="font-medium">Sign Out</span>
             </button>
           </div>
@@ -475,23 +638,39 @@ export default function StaffDashboard() {
           <div className="lg:hidden fixed inset-0 z-50">
             <div className="absolute inset-0 bg-black/50" onClick={() => setShowMobileMenu(false)}></div>
             <div className="absolute left-0 top-0 h-full w-64 bg-gray-900 text-white">
-              {/* Mobile menu content similar to desktop sidebar */}
               <div className="p-6 border-b border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-green-600 flex items-center justify-center">
-                      <User className="h-6 w-6" />
+                      <Store className="h-6 w-6" />
                     </div>
                     <div>
-                      <h1 className="text-lg font-bold">Staff Portal</h1>
+                      <h1 className="text-lg font-bold">{branch?.name || 'Branch'}</h1>
+                      <p className="text-xs text-gray-400">Staff Portal</p>
                     </div>
                   </div>
                   <button onClick={() => setShowMobileMenu(false)} className="p-2">
-                    <XCircle className="h-5 w-5" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
-              {/* Add mobile navigation items here */}
+              <div className="p-4">
+                <p className="text-sm text-gray-400 mb-4">Welcome, {currentUser.name}</p>
+                <div className="space-y-2">
+                  <button onClick={() => { setSelectedTab('dashboard'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg bg-gray-800">
+                    Dashboard
+                  </button>
+                  <button onClick={() => { setSelectedTab('inventory'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
+                    Inventory
+                  </button>
+                  <button onClick={() => { setSelectedTab('labels'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
+                    Labels
+                  </button>
+                  <button onClick={() => { setSelectedTab('issues'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
+                    Issues
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -504,7 +683,7 @@ export default function StaffDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight capitalize">
-                    {selectedTab === 'dashboard' && 'Staff Dashboard'}
+                    {selectedTab === 'dashboard' && `${branch?.name || 'Staff'} Dashboard`}
                     {selectedTab === 'inventory' && 'Inventory Management'}
                     {selectedTab === 'labels' && 'Digital Labels'}
                     {selectedTab === 'issues' && 'Issue Reports'}
@@ -512,9 +691,9 @@ export default function StaffDashboard() {
                   </h1>
                   <p className="text-gray-600 mt-1">
                     {selectedTab === 'dashboard' && 'Overview of your tasks and store operations'}
-                    {selectedTab === 'inventory' && 'Manage product stock levels and updates'}
-                    {selectedTab === 'labels' && 'Monitor and report digital label issues'}
-                    {selectedTab === 'issues' && 'Track and resolve reported problems'}
+                    {selectedTab === 'inventory' && `Manage ${branchProducts.length} products in stock`}
+                    {selectedTab === 'labels' && `Monitor ${labels.length} digital labels`}
+                    {selectedTab === 'issues' && `Track and resolve ${issues.length} reported issues`}
                     {selectedTab === 'reports' && 'View your activity and performance'}
                   </p>
                 </div>
@@ -523,12 +702,12 @@ export default function StaffDashboard() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
-                      placeholder="Search tasks, products..."
+                      placeholder="Search products, labels..."
                       className="pl-10 w-64"
                     />
                   </div>
                   
-                  <Button variant="outline" size="sm" onClick={() => loadData()}>
+                  <Button variant="outline" size="sm" onClick={loadStaffData}>
                     <RefreshCw className="h-4 w-4 mr-2" /> Refresh
                   </Button>
                 </div>
@@ -545,11 +724,11 @@ export default function StaffDashboard() {
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div>
                       <h2 className="text-2xl lg:text-3xl font-bold">Welcome back, {currentUser.name}!</h2>
-                      <p className="text-blue-100 mt-2">Here&apos;s what you need to focus on today.</p>
+                      <p className="text-blue-100 mt-2">Here's what you need to focus on today at {branch?.name}.</p>
                       <div className="flex items-center gap-4 mt-6">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5" />
-                          <span>Shift: 9:00 AM - 5:00 PM</span>
+                          <Store className="h-5 w-5" />
+                          <span>Branch: {branch?.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-5 w-5" />
@@ -559,7 +738,7 @@ export default function StaffDashboard() {
                     </div>
                     <div className="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
                       <div className="text-center">
-                        <div className="text-3xl font-bold">08:45</div>
+                        <div className="text-3xl font-bold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                         <div className="text-sm text-blue-100">Current Time</div>
                       </div>
                     </div>
@@ -573,7 +752,9 @@ export default function StaffDashboard() {
                       <div>
                         <p className="text-sm font-medium text-gray-500">Pending Tasks</p>
                         <p className="text-3xl font-bold mt-2">{tasks.filter(t => t.status === 'pending').length}</p>
-                        <p className="text-sm text-gray-500 mt-1">High priority: {tasks.filter(t => t.priority === 'high' && t.status === 'pending').length}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          High priority: {tasks.filter(t => t.priority === 'high' && t.status === 'pending').length}
+                        </p>
                       </div>
                       <div className="rounded-lg bg-yellow-100 p-3">
                         <Clock className="h-6 w-6 text-yellow-600" />
@@ -585,7 +766,9 @@ export default function StaffDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-500">Low Stock Items</p>
-                        <p className="text-3xl font-bold mt-2">{products.filter(p => p.status === 'low-stock').length}</p>
+                        <p className="text-3xl font-bold mt-2">
+                          {branchProducts.filter(p => p.status === 'low-stock').length}
+                        </p>
                         <p className="text-sm text-gray-500 mt-1">Need attention</p>
                       </div>
                       <div className="rounded-lg bg-red-100 p-3">
@@ -598,8 +781,14 @@ export default function StaffDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-500">Active Issues</p>
-                        <p className="text-3xl font-bold mt-2">{issues.filter(i => i.status === 'open').length}</p>
-                        <p className="text-sm text-gray-500 mt-1">Today: {issues.filter(i => i.reportedAt.includes('hour')).length}</p>
+                        <p className="text-3xl font-bold mt-2">
+                          {issues.filter(i => i.status === 'open').length}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Today: {issues.filter(i => 
+                            i.reportedAt && i.reportedAt.toDate().toDateString() === new Date().toDateString()
+                          ).length}
+                        </p>
                       </div>
                       <div className="rounded-lg bg-orange-100 p-3">
                         <Tag className="h-6 w-6 text-orange-600" />
@@ -610,23 +799,25 @@ export default function StaffDashboard() {
                   <div className="bg-white rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Today&apos;s Updates</p>
-                        <p className="text-3xl font-bold mt-2">12</p>
-                        <p className="text-sm text-green-600 mt-1">+3 from yesterday</p>
+                        <p className="text-sm font-medium text-gray-500">Total Products</p>
+                        <p className="text-3xl font-bold mt-2">{branchProducts.length}</p>
+                        <p className="text-sm text-green-600 mt-1">
+                          {branchProducts.filter(p => p.status === 'in-stock').length} in stock
+                        </p>
                       </div>
                       <div className="rounded-lg bg-green-100 p-3">
-                        <TrendingUp className="h-6 w-6 text-green-600" />
+                        <Package className="h-6 w-6 text-green-600" />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Tasks Section */}
+                {/* Tasks & Quick Actions */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="bg-white rounded-xl border p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Today&apos;s Tasks</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">Today's Tasks</h3>
                         <p className="text-gray-600">Your assigned responsibilities</p>
                       </div>
                       <Button size="sm" variant="outline">
@@ -675,7 +866,7 @@ export default function StaffDashboard() {
                                 className="ml-4"
                                 onClick={() => completeTask(task.id)}
                               >
-                                <CheckCircle className="h-4 w-4 mr-1" /> Done
+                                <Check className="h-4 w-4 mr-1" /> Done
                               </Button>
                             )}
                           </div>
@@ -688,28 +879,37 @@ export default function StaffDashboard() {
                   <div className="bg-white rounded-xl border p-6 shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <button className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:shadow-md transition-all text-center group">
+                      <button 
+                        onClick={() => setSelectedTab('inventory')}
+                        className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:shadow-md transition-all text-center group"
+                      >
                         <Package className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold text-gray-900">Update Stock</span>
                         <p className="text-sm text-gray-600 mt-1">Record inventory changes</p>
                       </button>
                       <button 
-                        onClick={reportIssue}
+                        onClick={() => setShowReportIssue(true)}
                         className="p-6 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl hover:shadow-md transition-all text-center group"
                       >
                         <AlertCircle className="h-8 w-8 mx-auto mb-3 text-red-600 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold text-gray-900">Report Issue</span>
                         <p className="text-sm text-gray-600 mt-1">Label problems or errors</p>
                       </button>
-                      <button className="p-6 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl hover:shadow-md transition-all text-center group">
-                        <BarChart3 className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:scale-110 transition-transform" />
+                      <button 
+                        onClick={() => setSelectedTab('labels')}
+                        className="p-6 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl hover:shadow-md transition-all text-center group"
+                      >
+                        <Tag className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:scale-110 transition-transform" />
+                        <span className="font-semibold text-gray-900">View Labels</span>
+                        <p className="text-sm text-gray-600 mt-1">Check label status</p>
+                      </button>
+                      <button 
+                        onClick={() => setSelectedTab('reports')}
+                        className="p-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl hover:shadow-md transition-all text-center group"
+                      >
+                        <BarChart className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold text-gray-900">Daily Report</span>
                         <p className="text-sm text-gray-600 mt-1">View shift summary</p>
-                      </button>
-                      <button className="p-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl hover:shadow-md transition-all text-center group">
-                        <QrCode className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-gray-900">Scan Label</span>
-                        <p className="text-sm text-gray-600 mt-1">Check label status</p>
                       </button>
                     </div>
                   </div>
@@ -718,20 +918,17 @@ export default function StaffDashboard() {
             )}
 
             {/* Inventory Tab */}
-            {selectedTab === 'inventory' && (
+            {selectedTab === 'inventory' && canUpdateStock && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Inventory Management</h3>
-                      <p className="text-gray-600">Update stock levels and track inventory</p>
+                      <p className="text-gray-600">Update stock levels for {branch?.name}</p>
                     </div>
                     <div className="flex gap-3">
                       <Button variant="outline">
                         <Download className="h-4 w-4 mr-2" /> Export
-                      </Button>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" /> Add Product
                       </Button>
                     </div>
                   </div>
@@ -742,64 +939,76 @@ export default function StaffDashboard() {
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
-                          <th className="px6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Updated</th>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {products.map((product) => (
-                          <tr key={product.id} className="hover:bg-gray-50">
+                        {branchProducts.map((bp) => (
+                          <tr key={bp.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
                                   <Package className="h-5 w-5 text-blue-600" />
                                 </div>
                                 <div className="ml-4">
-                                  <div className="text-sm font-semibold text-gray-900">{product.name}</div>
-                                  <div className="text-sm text-gray-500">SKU: {product.sku}</div>
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    {bp.productDetails?.name || 'Unknown Product'}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    SKU: {bp.productDetails?.sku || 'N/A'}
+                                  </div>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-lg font-bold text-gray-900">{product.currentStock}</div>
+                              <div className="text-lg font-bold text-gray-900">{bp.stock}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{product.minStock}</div>
+                              <div className="text-sm text-gray-900">{bp.minStock}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={cn(
                                 "px-3 py-1 rounded-full text-xs font-semibold",
-                                product.status === 'in-stock' ? 'bg-green-100 text-green-800' :
-                                product.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
+                                bp.status === 'in-stock' ? 'bg-green-100 text-green-800' :
+                                bp.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-red-100 text-red-800'
                               )}>
-                                {product.status === 'in-stock' ? 'In Stock' : 
-                                 product.status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
+                                {bp.status === 'in-stock' ? 'In Stock' : 
+                                 bp.status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {product.lastUpdated}
+                              {bp.lastUpdated?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'N/A'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <div className="flex gap-2">
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => updateStock(product.id, 10)}
+                                  onClick={() => updateStock(bp.productId, 10, 'Restocked')}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => updateStock(product.id, -5)}
+                                  onClick={() => updateStock(bp.productId, -5, 'Sold')}
                                 >
                                   <Minus className="h-4 w-4" />
                                 </Button>
-                                <Button size="sm" variant="outline">
-                                  <Info className="h-4 w-4" />
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setStockUpdateForm({
+                                    productId: bp.productId,
+                                    change: 0,
+                                    reason: ''
+                                  })}
+                                >
+                                  <Edit className="h-4 w-4" />
                                 </Button>
                               </div>
                             </td>
@@ -816,40 +1025,67 @@ export default function StaffDashboard() {
             {selectedTab === 'labels' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Digital Label Status</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Digital Label Status - {branch?.name}</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {issues.map((issue) => (
-                      <div key={issue.id} className="border rounded-xl p-6 hover:shadow-md transition-shadow">
+                    {labels.map((label) => (
+                      <div key={label.id} className="border rounded-xl p-6 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h4 className="font-semibold text-gray-900">{issue.labelId}</h4>
-                            <p className="text-sm text-gray-600">{issue.productName}</p>
+                            <h4 className="font-semibold text-gray-900">{label.labelId}</h4>
+                            <p className="text-sm text-gray-600">{label.productName}</p>
+                            <p className="text-xs text-gray-500">{label.location}</p>
                           </div>
                           <span className={cn(
                             "px-3 py-1 rounded-full text-xs font-semibold",
-                            issue.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                            issue.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                            label.status === 'active' ? 'bg-green-100 text-green-800' :
+                            label.status === 'low-battery' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           )}>
-                            {issue.status}
+                            {label.status}
                           </span>
                         </div>
                         
-                        <p className="text-sm text-gray-700 mb-4">{issue.issue}</p>
-                        
-                        <div className="flex items-center justify-between pt-4 border-t">
-                          <div className="text-sm text-gray-500">
-                            Reported {issue.reportedAt}
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Current Price:</span>
+                            <span className="font-bold">${label.currentPrice.toFixed(2)}</span>
                           </div>
-                          <div className={cn(
-                            "px-2 py-1 rounded text-xs font-medium",
-                            issue.priority === 'high' ? 'bg-red-100 text-red-800' :
-                            issue.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          )}>
-                            {issue.priority} priority
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Battery:</span>
+                            <span className={cn(
+                              "font-medium",
+                              label.battery < 20 ? 'text-red-600' :
+                              label.battery < 50 ? 'text-yellow-600' :
+                              'text-green-600'
+                            )}>
+                              {label.battery}%
+                            </span>
                           </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Last Sync:</span>
+                            <span className="text-sm text-gray-500">
+                              {label.lastSync?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => {
+                              setIssueForm({
+                                labelId: label.labelId,
+                                issue: '',
+                                priority: 'medium'
+                              });
+                              setShowReportIssue(true);
+                            }}
+                          >
+                            <AlertCircle className="h-4 w-4 mr-2" /> Report Issue
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -858,18 +1094,297 @@ export default function StaffDashboard() {
               </div>
             )}
 
-            {/* Other tabs (simplified for demo) */}
-            {(selectedTab === 'issues' || selectedTab === 'reports') && (
+            {/* Issues Tab */}
+            {selectedTab === 'issues' && canReportIssues && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-xl border p-6 shadow-sm">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Issue Reports</h3>
+                      <p className="text-gray-600">Track and resolve reported label issues</p>
+                    </div>
+                    <Button onClick={() => setShowReportIssue(true)}>
+                      <Plus className="h-4 w-4 mr-2" /> Report New Issue
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Label ID</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Issue</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Priority</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Reported</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {issues.map((issue) => (
+                          <tr key={issue.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="font-medium">{issue.labelId}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm">{issue.productName}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-700">{issue.issue}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={cn(
+                                "px-2 py-1 rounded-full text-xs font-medium",
+                                issue.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                issue.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-red-100 text-red-800'
+                              )}>
+                                {issue.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={cn(
+                                "px-2 py-1 rounded text-xs font-medium",
+                                issue.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                issue.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              )}>
+                                {issue.priority}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {issue.reportedAt?.toDate().toLocaleString() || 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reports Tab */}
+            {selectedTab === 'reports' && (
               <div className="bg-white rounded-xl border p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {selectedTab === 'issues' ? 'Issue Management' : 'Activity Reports'}
-                </h3>
-                <p className="text-gray-600">This section is under development. Coming soon with more features!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Reports</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border rounded-xl p-6">
+                    <h4 className="font-semibold mb-4">Stock Summary</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span>Total Products:</span>
+                        <span className="font-bold">{branchProducts.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>In Stock:</span>
+                        <span className="font-bold text-green-600">
+                          {branchProducts.filter(p => p.status === 'in-stock').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Low Stock:</span>
+                        <span className="font-bold text-yellow-600">
+                          {branchProducts.filter(p => p.status === 'low-stock').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Out of Stock:</span>
+                        <span className="font-bold text-red-600">
+                          {branchProducts.filter(p => p.status === 'out-of-stock').length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-xl p-6">
+                    <h4 className="font-semibold mb-4">Label Status</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span>Total Labels:</span>
+                        <span className="font-bold">{labels.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Active:</span>
+                        <span className="font-bold text-green-600">
+                          {labels.filter(l => l.status === 'active').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Low Battery:</span>
+                        <span className="font-bold text-yellow-600">
+                          {labels.filter(l => l.status === 'low-battery').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Issues:</span>
+                        <span className="font-bold text-red-600">
+                          {labels.filter(l => l.status === 'error').length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </main>
       </div>
+
+      {/* Report Issue Modal */}
+      {showReportIssue && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-6 w-6 text-red-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Report Issue</h2>
+                </div>
+                <button onClick={() => setShowReportIssue(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-1">Report a problem with a digital label</p>
+            </div>
+
+            <form onSubmit={reportIssue} className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Label ID *</label>
+                  <Input
+                    value={issueForm.labelId}
+                    onChange={(e) => setIssueForm({...issueForm, labelId: e.target.value})}
+                    placeholder="e.g., DL-001"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Issue Description *</label>
+                  <textarea
+                    value={issueForm.issue}
+                    onChange={(e) => setIssueForm({...issueForm, issue: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 h-24"
+                    placeholder="Describe the issue (e.g., Wrong price, Blank screen, Low battery)"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Priority</label>
+                  <select
+                    value={issueForm.priority}
+                    onChange={(e) => setIssueForm({...issueForm, priority: e.target.value as any})}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowReportIssue(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Report Issue
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Update Modal */}
+      {stockUpdateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Package className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Update Stock</h2>
+                </div>
+                <button onClick={() => setStockUpdateForm(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-1">Update stock quantity</p>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (stockUpdateForm.change !== 0) {
+                updateStock(stockUpdateForm.productId, stockUpdateForm.change, stockUpdateForm.reason);
+              }
+            }} className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Quantity Change *</label>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStockUpdateForm({
+                        ...stockUpdateForm,
+                        change: stockUpdateForm.change - 1
+                      })}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      type="number"
+                      value={stockUpdateForm.change}
+                      onChange={(e) => setStockUpdateForm({
+                        ...stockUpdateForm,
+                        change: parseInt(e.target.value) || 0
+                      })}
+                      className="text-center"
+                    />
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStockUpdateForm({
+                        ...stockUpdateForm,
+                        change: stockUpdateForm.change + 1
+                      })}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Positive number to add stock, negative to remove
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Reason (Optional)</label>
+                  <Input
+                    value={stockUpdateForm.reason || ''}
+                    onChange={(e) => setStockUpdateForm({
+                      ...stockUpdateForm,
+                      reason: e.target.value
+                    })}
+                    placeholder="e.g., Restocked, Sold, Damaged"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setStockUpdateForm(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Update Stock
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
