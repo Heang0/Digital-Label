@@ -1,0 +1,30 @@
+{
+  "name": "labelsync-simple",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "init-firebase": "node scripts/init-firebase.js"
+  },
+  "dependencies": {
+    "@radix-ui/react-icons": "^1.3.2",
+    "clsx": "^2.1.1",
+    "firebase": "^10.14.1",
+    "lucide-react": "^0.562.0",
+    "next": "^16.1.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.7",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "ts-node": "^10.9.2",
+    "typescript": "5.9.3"
+  }
+}
