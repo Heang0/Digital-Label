@@ -55,7 +55,7 @@ export default function ProductModal({
         name: '',
         description: '',
         sku: '',
-        category: categories.length > 0 ? categories[0].name : 'General',
+        category: categories.length > 0 ? categories[0].name : '',
         basePrice: 0,
         imageUrl: '',
       });
@@ -156,6 +156,9 @@ export default function ProductModal({
                   </option>
                 ))}
               </select>
+              {categories.length === 0 && (
+                <p className="text-xs text-gray-500">Add a category first to continue.</p>
+              )}
             </div>
 
             {/* Base Price */}
