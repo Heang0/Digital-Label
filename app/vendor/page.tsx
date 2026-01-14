@@ -13,7 +13,6 @@ import {
 } from 'firebase/auth';
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
-import { deleteCategory } from '@/lib/categories';
 import { 
   doc as fsDoc, 
   setDoc, 
@@ -243,7 +242,7 @@ const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | n
     name: '',
     description: '',
     sku: '',
-    category: '',
+    category: 'General',
     basePrice: 0,
     imageUrl: ''
   });
@@ -566,7 +565,7 @@ const loadVendorData = async () => {
         name: '',
         description: '',
         sku: '',
-        category: '',
+        category: 'General',
         basePrice: 0,
         imageUrl: ''
       });
@@ -790,17 +789,50 @@ const loadVendorData = async () => {
     }
   };
 
-  const handleDeleteCategory = async (category: Category) => {
-    if (!confirm(`Delete category "${category.name}"?`)) return;
+  // Create new category
+const createCategory = async (name: string, description: string = '') => {
+  if (!currentUser?.companyId || !name.trim()) return;
 
-    try {
-      await deleteCategory(category.id);
-      await loadVendorData();
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      alert('Error deleting category');
-    }
-  };
+  try {
+    const DEFAULT_COLORS = [
+      '#3B82F6', // blue
+      '#10B981', // green
+      '#EF4444', // red
+      '#F59E0B', // yellow
+      '#8B5CF6', // purple
+      '#EC4899', // pink
+      '#6366F1', // indigo
+      '#14B8A6', // teal
+    ];
+
+    const newCategory = {
+      name: name.trim(),
+      description: description.trim(), // Add this line
+      companyId: currentUser.companyId,
+      color: DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)],
+      createdAt: Timestamp.now()
+    };
+
+    await addDoc(collection(db, 'categories'), newCategory);
+    
+    // Refresh categories
+    const categoriesQuery = query(
+      collection(db, 'categories'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const categoriesSnapshot = await getDocs(categoriesQuery);
+    const categoriesData = categoriesSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as Category[];
+    setCategories(categoriesData);
+
+    alert(`Category "${name}" created!`);
+  } catch (error) {
+    console.error('Error creating category:', error);
+    alert('Error creating category');
+  }
+};
 
   // Reset staff password
   const resetStaffPassword = async (staffId: string) => {
@@ -1323,68 +1355,6 @@ const handleUpdateProduct = async (e: React.FormEvent) => {
                     <span className="text-sm font-medium">Add Branch</span>
                   </button>
                 </div>
-              </div>
-
-              {/* Categories */}
-              <div className="bg-white rounded-xl border p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold">Categories</h3>
-                    <p className="text-sm text-gray-600">Manage your product categories</p>
-                  </div>
-                  <Button
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setShowCategoryModal(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Category
-                  </Button>
-                </div>
-                {categories.length === 0 ? (
-                  <div className="text-sm text-gray-500 border rounded-lg p-4 bg-gray-50">
-                    No categories yet. Add your first category to start organizing products.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: category.color || '#CBD5F5' }}
-                          />
-                          <div>
-                            <div className="font-medium text-gray-900">{category.name}</div>
-                            {category.description && (
-                              <div className="text-sm text-gray-500">{category.description}</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedCategory(category);
-                              setShowCategoryModal(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteCategory(category)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Recent Products */}
@@ -2095,25 +2065,38 @@ const handleUpdateProduct = async (e: React.FormEvent) => {
                   />
                 </div>
 
-                {/* Category */}
+               {/* Category */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Category *</label>
-                  <select
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({...productForm, category: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  >
-                    <option value="">Select a category...</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  {categories.length === 0 && (
-                    <p className="text-xs text-gray-500">Add a category first to continue.</p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={productForm.category}
+                      onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                      className="flex-1 border rounded-lg px-3 py-2"
+                      required
+                    >
+                      <option value="">Select a category...</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                      {categories.length === 0 && (
+                        <option value="General">General (no categories yet)</option>
+                      )}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCategory(null);
+                        setShowCategoryModal(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 
 
@@ -2209,21 +2192,37 @@ const handleUpdateProduct = async (e: React.FormEvent) => {
                 </div>
 
                 {/* Category */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    value={showEditProduct.category}
-                    onChange={(e) => setShowEditProduct({...showEditProduct, category: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                  >
-                    <option value="">Select a category...</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+<div className="space-y-2">
+  <label className="text-sm font-medium text-gray-700">Category</label>
+  <div className="flex items-center gap-2">
+    <select
+      value={showEditProduct.category}
+      onChange={(e) => setShowEditProduct({...showEditProduct, category: e.target.value})}
+      className="flex-1 border rounded-lg px-3 py-2"
+    >
+      <option value="">Select a category...</option>
+      {categories.map(cat => (
+        <option key={cat.id} value={cat.name}>
+          {cat.name}
+        </option>
+      ))}
+    </select>
+    <Button
+  type="button"
+  variant="outline"
+  size="sm"
+  onClick={() => {
+    const newCategoryName = prompt("Enter new category name:");
+    if (newCategoryName) {
+      const description = prompt("Enter category description (optional):") || '';
+      createCategory(newCategoryName, description);
+    }
+  }}
+>
+  <Plus className="h-4 w-4" />
+</Button>
+  </div>
+</div>
 
                 {/* Base Price */}
                 <div className="space-y-2">
