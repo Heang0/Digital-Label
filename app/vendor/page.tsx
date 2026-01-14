@@ -150,8 +150,10 @@ interface StaffMember {
 interface DigitalLabel {
   id: string;
   labelId: string;
+  labelCode?: string;
   productId: string;
   productName?: string;
+  productSku?: string;
   branchId: string;
   branchName?: string;
   companyId: string;
@@ -372,6 +374,10 @@ export default function VendorDashboard() {
             productDocSnap && productDocSnap.exists()
               ? ((productDocSnap.data() as any)?.name ?? 'Unknown Product')
               : 'Unknown Product';
+          const productSku =
+            productDocSnap && productDocSnap.exists()
+              ? ((productDocSnap.data() as any)?.sku ?? 'Unknown SKU')
+              : 'Unknown SKU';
 
           const branchName =
             branchDocSnap && branchDocSnap.exists()
@@ -381,7 +387,9 @@ export default function VendorDashboard() {
           return {
             id: docSnap.id,
             ...labelRaw,
+            labelId: labelRaw?.labelId ?? labelRaw?.labelCode ?? docSnap.id,
             productName,
+            productSku,
             branchName
           } as DigitalLabel;
         })
@@ -587,44 +595,51 @@ export default function VendorDashboard() {
 
 
 
-// --- Supermarket: price source + label assignment ---
-const getBranchPriceForProduct = (productId: string, branchId: string) => {
-  const bp = branchProducts.find((x) => x.productId === productId && x.branchId === branchId);
-  if (bp?.currentPrice != null) return Number(bp.currentPrice);
+  // --- Supermarket: price source + label assignment ---
+  const getBranchPriceForProduct = (productId: string, branchId: string) => {
+    const bp = branchProducts.find((x) => x.productId === productId && x.branchId === branchId);
+    if (bp?.currentPrice != null) return Number(bp.currentPrice);
 
-  const p = products.find((x) => x.id === productId);
-  return Number(p?.basePrice ?? 0);
-};
+    const p = products.find((x) => x.id === productId);
+    return Number(p?.basePrice ?? 0);
+  };
 
-const assignProductToLabel = async (labelDocId: string, productId: string, branchId: string) => {
-  try {
-    setAssigningLabelId(labelDocId);
+  const assignProductToLabel = async (
+    labelDocId: string,
+    productId: string,
+    branchId: string,
+    labelCode?: string
+  ) => {
+    try {
+      setAssigningLabelId(labelDocId);
 
-    const product = products.find((p) => p.id === productId);
-    if (!product) return alert('Product not found');
+      const product = products.find((p) => p.id === productId);
+      if (!product) return alert('Product not found');
 
-    const basePrice = getBranchPriceForProduct(productId, branchId);
-    if (!basePrice) return alert('Base price is 0. Please set product/branch price first.');
+      const basePrice = getBranchPriceForProduct(productId, branchId);
+      if (!basePrice) return alert('Base price is 0. Please set product/branch price first.');
 
-    await updateDoc(fsDoc(db, 'labels', labelDocId), {
-      productId,
-      productName: product.name,
-      currentPrice: basePrice, // what your labels UI already shows
-      basePrice,
-      finalPrice: basePrice,
-      lastSync: Timestamp.now(),
-      status: 'syncing',
-    });
+      await updateDoc(fsDoc(db, 'labels', labelDocId), {
+        labelId: labelCode ?? labelDocId,
+        productId,
+        productName: product.name,
+        productSku: product.sku,
+        currentPrice: basePrice, // what your labels UI already shows
+        basePrice,
+        finalPrice: basePrice,
+        lastSync: Timestamp.now(),
+        status: 'syncing',
+      });
 
-    await loadVendorData();
-    alert('✅ Product assigned to label!');
-  } catch (error: any) {
-    console.error('Error assigning product to label:', error);
-    alert(`❌ Error: ${error.message || 'Failed to assign product'}`);
-  } finally {
-    setAssigningLabelId(null);
-  }
-};
+      await loadVendorData();
+      alert('✅ Product assigned to label!');
+    } catch (error: any) {
+      console.error('Error assigning product to label:', error);
+      alert(`❌ Error: ${error.message || 'Failed to assign product'}`);
+    } finally {
+      setAssigningLabelId(null);
+    }
+  };
   // Create new branch
   const createBranch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -810,10 +825,9 @@ const assignProductToLabel = async (labelDocId: string, productId: string, branc
       const branchProductsSnapshot = await getDocs(branchProductsQuery);
       
       const deletePromises = branchProductsSnapshot.docs.map((docSnap) =>
-  deleteDoc(docSnap.ref)
-);
-await Promise.all(deletePromises);
-
+        deleteDoc(docSnap.ref)
+      );
+      await Promise.all(deletePromises);
 
       // Refresh data
       await loadVendorData();
@@ -1547,7 +1561,7 @@ await Promise.all(deletePromises);
 
           {/* Other tabs */}
           {selectedTab === 'labels' && (
-  <div className="bg-white rounded-xl border p-6 text-gray-900">
+            <div className="bg-white rounded-xl border p-6 text-gray-900">
               <h3 className="text-lg font-semibold mb-4">Digital Label Management</h3>
               <p className="text-gray-600">Monitor and manage your digital price labels</p>
               
@@ -1596,102 +1610,107 @@ await Promise.all(deletePromises);
                       </div>
                     </div>
 
-<div className="mt-4 pt-4 border-t space-y-3">
-  {/* Assign Product */}
-  <div>
-    <div className="text-xs font-medium text-gray-600 mb-1">Assign Product</div>
-    <select
-         className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"
+                    <div className="mt-4 pt-4 border-t space-y-3">
+                      {/* Assign Product */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-600 mb-1">Assign Product</div>
+                        <select
+                          className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"
 
-      value={label.productId || ''}
-      onChange={(e) => {
-        const newProductId = e.target.value;
-        if (!newProductId) return;
-        assignProductToLabel(label.id, newProductId, label.branchId);
-      }}
-      disabled={assigningLabelId === label.id}
-    >
-      <option value="">Select product...</option>
-      {products.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
-    {assigningLabelId === label.id && (
-      <div className="text-xs text-gray-500 mt-1">Assigning...</div>
-    )}
-  </div>
+                          value={label.productId || ''}
+                          onChange={(e) => {
+                            const newProductId = e.target.value;
+                            if (!newProductId) return;
+                            assignProductToLabel(
+                              label.id,
+                              newProductId,
+                              label.branchId,
+                              label.labelId ?? label.labelCode
+                            );
+                          }}
+                          disabled={assigningLabelId === label.id}
+                        >
+                          <option value="">Select product...</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                        {assigningLabelId === label.id && (
+                          <div className="text-xs text-gray-500 mt-1">Assigning...</div>
+                        )}
+                      </div>
 
-  {/* Discount */}
-  <div className="flex gap-2 items-center">
-    <Input
-      type="number"
-      placeholder="Discount %"
-      value={discountInputs[label.id] ?? ''}
-      onChange={(e) =>
-        setDiscountInputs((prev) => ({
-          ...prev,
-          [label.id]: Number(e.target.value),
-        }))
-      }
-      className="w-32 text-gray-900 placeholder-gray-400 bg-white"
-    />
+                      {/* Discount */}
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          placeholder="Discount %"
+                          value={discountInputs[label.id] ?? ''}
+                          onChange={(e) =>
+                            setDiscountInputs((prev) => ({
+                              ...prev,
+                              [label.id]: Number(e.target.value),
+                            }))
+                          }
+                          className="w-32 text-gray-900 placeholder-gray-400 bg-white"
+                        />
 
-    <Button
-      onClick={async () => {
-        const percent = discountInputs[label.id];
-        if (!percent || percent <= 0 || percent > 100) return alert('Enter 1 - 100%');
+                        <Button
+                          onClick={async () => {
+                            const percent = discountInputs[label.id];
+                            if (!percent || percent <= 0 || percent > 100) return alert('Enter 1 - 100%');
 
-        if (!label.productId) return alert('Assign product first');
+                            if (!label.productId) return alert('Assign product first');
 
-        const basePrice = getBranchPriceForProduct(label.productId, label.branchId);
-        if (!basePrice) return alert('Base price is 0');
+                            const basePrice = getBranchPriceForProduct(label.productId, label.branchId);
+                            if (!basePrice) return alert('Base price is 0');
 
-        await applyDiscountToLabel({
-          labelId: label.id,
-          basePrice,
-          percent,
-        });
+                            await applyDiscountToLabel({
+                              labelId: label.id,
+                              basePrice,
+                              percent,
+                            });
 
-        await loadVendorData();
-        alert('✅ Discount applied!');
-      }}
-      className="flex-1"
-    >
-      Apply Discount
-    </Button>
+                            await loadVendorData();
+                            alert('✅ Discount applied!');
+                          }}
+                          className="flex-1"
+                        >
+                          Apply Discount
+                        </Button>
 
-    <Button
-      variant="outline"
-      onClick={async () => {
-        if (!label.productId) return alert('Assign product first');
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            if (!label.productId) return alert('Assign product first');
 
-        const basePrice = getBranchPriceForProduct(label.productId, label.branchId);
-        if (!basePrice) return alert('Base price is 0');
+                            const basePrice = getBranchPriceForProduct(label.productId, label.branchId);
+                            if (!basePrice) return alert('Base price is 0');
 
-        await clearDiscountFromLabel({
-          labelId: label.id,
-          basePrice,
-        });
+                            await clearDiscountFromLabel({
+                              labelId: label.id,
+                              basePrice,
+                            });
 
-        await loadVendorData();
-        alert('✅ Discount cleared!');
-      }}
-    >
-      Clear
-    </Button>
-  </div>
+                            await loadVendorData();
+                            alert('✅ Discount cleared!');
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
 
-  <a
-    className="text-xs text-blue-600 underline"
-    href={`/digital-labels?companyId=${label.companyId}&branchId=${label.branchId}`}
-    target="_blank"
-    rel="noreferrer"
-  >
-    Open Digital Labels Screen for this branch
-  </a>
-</div>
+                      <a
+                        className="text-xs text-blue-600 underline"
+                        href={`/digital-labels?companyId=${label.companyId}&branchId=${label.branchId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open Digital Labels Screen for this branch
+                      </a>
+                    </div>
 
                   </div>
                 ))}

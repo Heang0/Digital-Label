@@ -52,7 +52,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  Lock
+  Lock,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -94,6 +95,7 @@ interface BranchProduct {
 interface DigitalLabel {
   id: string;
   labelId: string;
+  labelCode?: string;
   productId: string;
   productName?: string;
   branchId: string;
@@ -223,6 +225,7 @@ export default function StaffDashboard() {
           return {
             id: docSnap.id,
             ...labelData,
+            labelId: labelData.labelId ?? labelData.labelCode ?? docSnap.id,
             productName: productDoc.exists() ? (productDoc.data() as any).name : 'Unknown Product'
           } as DigitalLabel;
         })
@@ -627,7 +630,7 @@ export default function StaffDashboard() {
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-red-900/30 hover:text-red-100 transition-colors"
             >
-              <Lock className="h-5 w-5" />
+              <LogOut className="h-5 w-5" />
               <span className="font-medium">Sign Out</span>
             </button>
           </div>
@@ -719,198 +722,151 @@ export default function StaffDashboard() {
             {/* Dashboard Tab */}
             {selectedTab === 'dashboard' && (
               <div className="space-y-6">
-                {/* Welcome Card */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-xl">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div>
-                      <h2 className="text-2xl lg:text-3xl font-bold">Welcome back, {currentUser.name}!</h2>
-                      <p className="text-blue-100 mt-2">Here's what you need to focus on today at {branch?.name}.</p>
-                      <div className="flex items-center gap-4 mt-6">
-                        <div className="flex items-center gap-2">
-                          <Store className="h-5 w-5" />
-                          <span>Branch: {branch?.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5" />
-                          <span>{tasks.filter(t => t.status === 'completed').length}/{tasks.length} tasks completed</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                        <div className="text-sm text-blue-100">Current Time</div>
-                      </div>
-                    </div>
+                {/* Dashboard Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+                    <p className="text-gray-600">Welcome back, {currentUser.name}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh
+                    </Button>
+                    <Button size="sm" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
                   </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Pending Tasks</p>
-                        <p className="text-3xl font-bold mt-2">{tasks.filter(t => t.status === 'pending').length}</p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          High priority: {tasks.filter(t => t.priority === 'high' && t.status === 'pending').length}
-                        </p>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <Package className="h-6 w-6 text-blue-600" />
                       </div>
-                      <div className="rounded-lg bg-yellow-100 p-3">
-                        <Clock className="h-6 w-6 text-yellow-600" />
-                      </div>
+                      <span className="text-sm text-green-600 font-medium">+5%</span>
                     </div>
+                    <h3 className="text-2xl font-bold text-gray-900">{branchProducts.length}</h3>
+                    <p className="text-gray-600">Total Products</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Low Stock Items</p>
-                        <p className="text-3xl font-bold mt-2">
-                          {branchProducts.filter(p => p.status === 'low-stock').length}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">Need attention</p>
+                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-green-600" />
                       </div>
-                      <div className="rounded-lg bg-red-100 p-3">
-                        <AlertCircle className="h-6 w-6 text-red-600" />
-                      </div>
+                      <span className="text-sm text-green-600 font-medium">+2%</span>
                     </div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {branchProducts.filter(p => p.status === 'in-stock').length}
+                    </h3>
+                    <p className="text-gray-600">In Stock</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Active Issues</p>
-                        <p className="text-3xl font-bold mt-2">
-                          {issues.filter(i => i.status === 'open').length}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Today: {issues.filter(i => 
-                            i.reportedAt && i.reportedAt.toDate().toDateString() === new Date().toDateString()
-                          ).length}
-                        </p>
+                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                        <AlertCircle className="h-6 w-6 text-yellow-600" />
                       </div>
-                      <div className="rounded-lg bg-orange-100 p-3">
-                        <Tag className="h-6 w-6 text-orange-600" />
-                      </div>
+                      <span className="text-sm text-red-600 font-medium">-3%</span>
                     </div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {branchProducts.filter(p => p.status === 'low-stock').length}
+                    </h3>
+                    <p className="text-gray-600">Low Stock</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Total Products</p>
-                        <p className="text-3xl font-bold mt-2">{branchProducts.length}</p>
-                        <p className="text-sm text-green-600 mt-1">
-                          {branchProducts.filter(p => p.status === 'in-stock').length} in stock
-                        </p>
+                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <Tag className="h-6 w-6 text-purple-600" />
                       </div>
-                      <div className="rounded-lg bg-green-100 p-3">
-                        <Package className="h-6 w-6 text-green-600" />
-                      </div>
+                      <span className="text-sm text-green-600 font-medium">+8%</span>
                     </div>
+                    <h3 className="text-2xl font-bold text-gray-900">{labels.length}</h3>
+                    <p className="text-gray-600">Active Labels</p>
                   </div>
                 </div>
 
-                {/* Tasks & Quick Actions */}
+                {/* Tasks and Alerts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Tasks */}
                   <div className="bg-white rounded-xl border p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Today's Tasks</h3>
-                        <p className="text-gray-600">Your assigned responsibilities</p>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        View All
-                      </Button>
+                      <h3 className="text-lg font-semibold text-gray-900">Today's Tasks</h3>
+                      <Button size="sm" variant="outline">View All</Button>
                     </div>
-                    
                     <div className="space-y-4">
                       {tasks.map((task) => (
-                        <div key={task.id} className={cn(
-                          "p-4 rounded-xl border transition-all hover:shadow-sm",
-                          task.priority === 'high' ? 'border-red-200 bg-red-50' :
-                          task.priority === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                          'border-gray-200 bg-gray-50'
-                        )}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className={cn(
-                                  "h-2 w-2 rounded-full",
-                                  task.priority === 'high' ? 'bg-red-500' :
-                                  task.priority === 'medium' ? 'bg-yellow-500' :
-                                  'bg-green-500'
-                                )}></div>
-                                <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-3">{task.description}</p>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                  <span className="text-xs text-gray-500">Due: {task.dueDate}</span>
-                                  <span className="text-xs text-gray-500">By: {task.assignedBy}</span>
-                                </div>
-                                <span className={cn(
-                                  "px-2 py-1 rounded-full text-xs font-medium",
-                                  task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                                )}>
-                                  {task.status}
-                                </span>
-                              </div>
+                        <div key={task.id} className="flex items-start gap-4 p-4 rounded-lg border">
+                          <div className={`h-3 w-3 rounded-full mt-2 ${
+                            task.priority === 'high' ? 'bg-red-500' :
+                            task.priority === 'medium' ? 'bg-yellow-500' :
+                            'bg-green-500'
+                          }`} />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{task.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                              <span>Due: {task.dueDate}</span>
+                              <span>By: {task.assignedBy}</span>
                             </div>
-                            {task.status !== 'completed' && (
-                              <Button 
-                                size="sm" 
-                                className="ml-4"
-                                onClick={() => completeTask(task.id)}
-                              >
-                                <Check className="h-4 w-4 mr-1" /> Done
-                              </Button>
-                            )}
                           </div>
+                          {task.status === 'pending' && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => completeTask(task.id)}
+                            >
+                              Complete
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Quick Actions */}
+                  {/* Alerts */}
                   <div className="bg-white rounded-xl border p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button 
-                        onClick={() => setSelectedTab('inventory')}
-                        className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:shadow-md transition-all text-center group"
-                      >
-                        <Package className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-gray-900">Update Stock</span>
-                        <p className="text-sm text-gray-600 mt-1">Record inventory changes</p>
-                      </button>
-                      <button 
-                        onClick={() => setShowReportIssue(true)}
-                        className="p-6 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl hover:shadow-md transition-all text-center group"
-                      >
-                        <AlertCircle className="h-8 w-8 mx-auto mb-3 text-red-600 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-gray-900">Report Issue</span>
-                        <p className="text-sm text-gray-600 mt-1">Label problems or errors</p>
-                      </button>
-                      <button 
-                        onClick={() => setSelectedTab('labels')}
-                        className="p-6 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl hover:shadow-md transition-all text-center group"
-                      >
-                        <Tag className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-gray-900">View Labels</span>
-                        <p className="text-sm text-gray-600 mt-1">Check label status</p>
-                      </button>
-                      <button 
-                        onClick={() => setSelectedTab('reports')}
-                        className="p-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl hover:shadow-md transition-all text-center group"
-                      >
-                        <BarChart className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-gray-900">Daily Report</span>
-                        <p className="text-sm text-gray-600 mt-1">View shift summary</p>
-                      </button>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900">Alerts & Issues</h3>
+                      <Button size="sm" variant="outline">View All</Button>
+                    </div>
+                    <div className="space-y-4">
+                      {issues.slice(0, 3).map((issue) => (
+                        <div key={issue.id} className="flex items-start gap-4 p-4 rounded-lg border">
+                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                            issue.priority === 'high' ? 'bg-red-100' :
+                            issue.priority === 'medium' ? 'bg-yellow-100' :
+                            'bg-green-100'
+                          }`}>
+                            <AlertCircle className={`h-5 w-5 ${
+                              issue.priority === 'high' ? 'text-red-600' :
+                              issue.priority === 'medium' ? 'text-yellow-600' :
+                              'text-green-600'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{issue.issue}</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Label: {issue.labelId} • Product: {issue.productName}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                              <span>Reported: {issue.reportedAt?.toDate().toLocaleDateString()}</span>
+                              <span className={`px-2 py-1 rounded-full ${
+                                issue.status === 'open' ? 'bg-red-100 text-red-700' :
+                                issue.status === 'in-progress' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {issue.status}
+                              </span>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline">View</Button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -918,72 +874,78 @@ export default function StaffDashboard() {
             )}
 
             {/* Inventory Tab */}
-            {selectedTab === 'inventory' && canUpdateStock && (
+            {selectedTab === 'inventory' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Inventory Management</h3>
-                      <p className="text-gray-600">Update stock levels for {branch?.name}</p>
+                      <p className="text-gray-600">Monitor and update product stock levels</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          placeholder="Search products..."
+                          className="pl-10 w-64"
+                        />
+                      </div>
                       <Button variant="outline">
-                        <Download className="h-4 w-4 mr-2" /> Export
+                        <Filter className="h-4 w-4 mr-2" /> Filter
                       </Button>
                     </div>
                   </div>
+                </div>
 
+                <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Updated</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">SKU</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Stock</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {branchProducts.map((bp) => (
                           <tr key={bp.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
                                   <Package className="h-5 w-5 text-blue-600" />
                                 </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-semibold text-gray-900">
-                                    {bp.productDetails?.name || 'Unknown Product'}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    SKU: {bp.productDetails?.sku || 'N/A'}
-                                  </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{bp.productDetails?.name}</p>
+                                  <p className="text-sm text-gray-500">{bp.productDetails?.category}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-lg font-bold text-gray-900">{bp.stock}</div>
+                            <td className="px-6 py-4">
+                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                                {bp.productDetails?.sku}
+                              </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{bp.minStock}</div>
+                            <td className="px-6 py-4">
+                              <span className="font-bold text-lg">{bp.stock}</span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4">
+                              <span className="text-gray-600">{bp.minStock}</span>
+                            </td>
+                            <td className="px-6 py-4">
                               <span className={cn(
                                 "px-3 py-1 rounded-full text-xs font-semibold",
                                 bp.status === 'in-stock' ? 'bg-green-100 text-green-800' :
                                 bp.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-red-100 text-red-800'
                               )}>
-                                {bp.status === 'in-stock' ? 'In Stock' : 
-                                 bp.status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
+                                {bp.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {bp.lastUpdated?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'N/A'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <td className="px-6 py-4">
                               <div className="flex gap-2">
                                 <Button 
                                   size="sm" 

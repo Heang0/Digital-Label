@@ -63,12 +63,14 @@ export async function generateLabelsForBranch(params: {
       batch.set(ref, {
         companyId,
         branchId,
+        labelId: labelCode,
         labelCode,
         aisle: a.aisle,
         shelf,
 
         productId: null,
         productName: null,
+        productSku: null,
 
         basePrice: null,
         currentPrice: null,

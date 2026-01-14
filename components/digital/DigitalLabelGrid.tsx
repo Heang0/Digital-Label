@@ -8,6 +8,7 @@ import DigitalLabelCard from "./DigitalLabelCard";
 
 type LabelDoc = {
   id: string;
+  labelId?: string;
   labelCode: string;
   aisle: string;
   shelf: string;
@@ -15,6 +16,7 @@ type LabelDoc = {
   companyId?: string;
   productId: string | null;
   productName?: string;
+  productSku?: string | null;
   activePrice: number | null;
 };
 
