@@ -11,6 +11,8 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
+import CategoryModal from '@/components/modals/CategoryModal';
+import ProductModal from '@/components/modals/ProductModal';
 import { 
   doc as fsDoc, 
   setDoc, 
@@ -179,7 +181,15 @@ interface Promotion {
   status: 'active' | 'upcoming' | 'expired';
   createdAt: Timestamp;
 }
-
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  companyId: string;
+  createdAt: Timestamp;
+}
+//
 export default function VendorDashboard() {
   const router = useRouter();
   const { user: currentUser, clearUser } = useUserStore();
@@ -197,7 +207,7 @@ export default function VendorDashboard() {
   const [discountInputs, setDiscountInputs] = useState<Record<string, number>>({});
   const [assigningLabelId, setAssigningLabelId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
-  
+  const [categories, setCategories] = useState<Category[]>([]);
   // Modal states
   const [showCreateStaff, setShowCreateStaff] = useState(false);
   const [showCreateProduct, setShowCreateProduct] = useState(false);
@@ -205,6 +215,11 @@ export default function VendorDashboard() {
   const [showCreatePromotion, setShowCreatePromotion] = useState(false);
   const [showEditProduct, setShowEditProduct] = useState<Product | null>(null);
   const [showResetPassword, setShowResetPassword] = useState<string | null>(null);
+  // Modal states
+const [showCategoryModal, setShowCategoryModal] = useState(false);
+const [showProductModal, setShowProductModal] = useState(false);
+const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
   
   // Form states
   const [staffForm, setStaffForm] = useState({
@@ -288,53 +303,65 @@ export default function VendorDashboard() {
     }
   }, [selectedBranchId, staffForm.branchId]);
 
-  const loadVendorData = async () => {
-    if (!currentUser?.companyId) return;
+const loadVendorData = async () => {
+  if (!currentUser?.companyId) return;
+  
+  try {
+    setLoading(true);
     
-    try {
-      setLoading(true);
-      
-      // 1. Load company data
-      const companyDoc = await getDoc(fsDoc(db, 'companies', currentUser.companyId));
-      if (companyDoc.exists()) {
-        setCompany({ id: companyDoc.id, ...companyDoc.data() } as Company);
-      }
+    // 1. Load company data
+    const companyDoc = await getDoc(fsDoc(db, 'companies', currentUser.companyId));
+    if (companyDoc.exists()) {
+      setCompany({ id: companyDoc.id, ...companyDoc.data() } as Company);
+    }
 
-      // 2. Load branches (only for this company)
-      const branchesQuery = query(
-        collection(db, 'branches'),
-        where('companyId', '==', currentUser.companyId)
-      );
-      const branchesSnapshot = await getDocs(branchesQuery);
-      const branchesData = branchesSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as Branch[];
-      setBranches(branchesData);
+    // 2. Load branches (only for this company)
+    const branchesQuery = query(
+      collection(db, 'branches'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const branchesSnapshot = await getDocs(branchesQuery);
+    const branchesData = branchesSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as Branch[];
+    setBranches(branchesData);
 
-      // 3. Load products (only for this company)
-      const productsQuery = query(
-        collection(db, 'products'),
-        where('companyId', '==', currentUser.companyId)
-      );
-      const productsSnapshot = await getDocs(productsQuery);
-      const productsData = productsSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as Product[];
-      setProducts(productsData);
+    // 3. Load products (only for this company)
+    const productsQuery = query(
+      collection(db, 'products'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const productsSnapshot = await getDocs(productsQuery);
+    const productsData = productsSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as Product[];
+    setProducts(productsData);
 
-      // 4. Load branch products (only for this company)
-      const branchProductsQuery = query(
-        collection(db, 'branch_products'),
-        where('companyId', '==', currentUser.companyId)
-      );
-      const branchProductsSnapshot = await getDocs(branchProductsQuery);
-      const branchProductsData = branchProductsSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as BranchProduct[];
-      setBranchProducts(branchProductsData);
+    // 4. Load branch products (only for this company)
+    const branchProductsQuery = query(
+      collection(db, 'branch_products'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const branchProductsSnapshot = await getDocs(branchProductsQuery);
+    const branchProductsData = branchProductsSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as BranchProduct[];
+    setBranchProducts(branchProductsData);
+
+    // 🆕 ADD THIS SECTION RIGHT HERE - 5. Load categories
+    const categoriesQuery = query(
+      collection(db, 'categories'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const categoriesSnapshot = await getDocs(categoriesQuery);
+    const categoriesData = categoriesSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as Category[];
+    setCategories(categoriesData);
 
       // 5. Load staff (only for this company)
       const staffQuery = query(
@@ -762,6 +789,51 @@ export default function VendorDashboard() {
     }
   };
 
+  // Create new category
+const createCategory = async (name: string, description: string = '') => {
+  if (!currentUser?.companyId || !name.trim()) return;
+
+  try {
+    const DEFAULT_COLORS = [
+      '#3B82F6', // blue
+      '#10B981', // green
+      '#EF4444', // red
+      '#F59E0B', // yellow
+      '#8B5CF6', // purple
+      '#EC4899', // pink
+      '#6366F1', // indigo
+      '#14B8A6', // teal
+    ];
+
+    const newCategory = {
+      name: name.trim(),
+      description: description.trim(), // Add this line
+      companyId: currentUser.companyId,
+      color: DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)],
+      createdAt: Timestamp.now()
+    };
+
+    await addDoc(collection(db, 'categories'), newCategory);
+    
+    // Refresh categories
+    const categoriesQuery = query(
+      collection(db, 'categories'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const categoriesSnapshot = await getDocs(categoriesQuery);
+    const categoriesData = categoriesSnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as Category[];
+    setCategories(categoriesData);
+
+    alert(`Category "${name}" created!`);
+  } catch (error) {
+    console.error('Error creating category:', error);
+    alert('Error creating category');
+  }
+};
+
   // Reset staff password
   const resetStaffPassword = async (staffId: string) => {
     if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
@@ -859,6 +931,105 @@ export default function VendorDashboard() {
     }
   };
 
+  // ========== ADD THESE 3 FUNCTIONS RIGHT HERE ==========
+
+// Create product from modal
+const createProductFromModal = async (productData: any) => {
+  if (!currentUser?.companyId) return;
+
+  try {
+    const productRef = await addDoc(collection(db, 'products'), {
+      ...productData,
+      companyId: currentUser.companyId,
+      createdBy: currentUser.id,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+
+    // Create branch products for all branches
+    const batchPromises = branches.map(async (branch) => {
+      await addDoc(collection(db, 'branch_products'), {
+        productId: productRef.id,
+        branchId: branch.id,
+        companyId: currentUser.companyId,
+        currentPrice: productData.basePrice,
+        stock: 0,
+        minStock: 10,
+        status: 'out-of-stock',
+        lastUpdated: Timestamp.now()
+      });
+    });
+
+    await Promise.all(batchPromises);
+
+    // Refresh data
+    await loadVendorData();
+    alert(`Product "${productData.name}" created successfully!`);
+
+  } catch (error: any) {
+    console.error('Error creating product:', error);
+    alert(`Error: ${error.message}`);
+  }
+};
+
+// Update existing product
+const updateProduct = async (productId: string, productData: any) => {
+  if (!currentUser?.companyId) return;
+
+  try {
+    await updateDoc(fsDoc(db, 'products', productId), {
+      ...productData,
+      updatedAt: Timestamp.now()
+    });
+
+    // If price changed, update branch products
+    if (productData.basePrice) {
+      await updateProductPrice(productId, productData.basePrice);
+    }
+
+    // Refresh data
+    await loadVendorData();
+    alert(`Product "${productData.name}" updated successfully!`);
+
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    alert(`Error: ${error.message}`);
+  }
+};
+
+// Handle edit product form submission
+const handleUpdateProduct = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!showEditProduct?.id || !currentUser?.companyId) return;
+
+  try {
+    await updateDoc(fsDoc(db, 'products', showEditProduct.id), {
+      name: showEditProduct.name,
+      description: showEditProduct.description,
+      sku: showEditProduct.sku,
+      category: showEditProduct.category,
+      basePrice: showEditProduct.basePrice,
+      imageUrl: showEditProduct.imageUrl,
+      updatedAt: Timestamp.now()
+    });
+
+    // If price changed, update branch products
+    if (showEditProduct.basePrice) {
+      await updateProductPrice(showEditProduct.id, showEditProduct.basePrice);
+    }
+
+    // Refresh data
+    await loadVendorData();
+    setShowEditProduct(null);
+    alert(`Product "${showEditProduct.name}" updated successfully!`);
+
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    alert(`Error: ${error.message}`);
+  }
+};
+
+
   const isBranchFiltered = selectedBranchId !== 'all' && selectedBranchId !== '';
   const filteredBranchProducts = isBranchFiltered
     ? branchProducts.filter((product) => product.branchId === selectedBranchId)
@@ -888,14 +1059,10 @@ export default function VendorDashboard() {
     return null;
   }
 
-  function updateProduct(event: FormEvent<HTMLFormElement>): void {
-    throw new Error('Function not implemented.');
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      
+
       <div className="hidden lg:flex flex-col w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen fixed left-0 top-0">
         {/* Logo & Company Info */}
         <div className="p-6 border-b border-gray-700">
@@ -1282,14 +1449,23 @@ export default function VendorDashboard() {
                     <h3 className="text-lg font-semibold">Product Management</h3>
                     <p className="text-gray-600">Manage products across all your branches</p>
                   </div>
-                  <div className="flex gap-3">
-                    <Button variant="outline">
-                      <Download className="h-4 w-4 mr-2" /> Export
-                    </Button>
-                    <Button onClick={() => setShowCreateProduct(true)}>
-                      <Plus className="h-4 w-4 mr-2" /> Add Product
-                    </Button>
-                  </div>
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={() => {
+                        setSelectedCategory(null);
+                        setShowCategoryModal(true);
+                      }}>
+                        <Tag className="h-4 w-4 mr-2" /> Manage Categories
+                      </Button>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" /> Export
+                      </Button>
+                      <Button onClick={() => {
+                        setSelectedProductForEdit(null);
+                        setShowProductModal(true);
+                      }}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Product
+                      </Button>
+                    </div>
                 </div>
               </div>
 
@@ -1889,24 +2065,40 @@ export default function VendorDashboard() {
                   />
                 </div>
 
-                {/* Category */}
+               {/* Category */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({...productForm, category: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                  >
-                    <option value="General">General</option>
-                    <option value="Dairy">Dairy</option>
-                    <option value="Beverages">Beverages</option>
-                    <option value="Produce">Produce</option>
-                    <option value="Meat">Meat</option>
-                    <option value="Bakery">Bakery</option>
-                    <option value="Frozen">Frozen</option>
-                    <option value="Snacks">Snacks</option>
-                  </select>
+                  <label className="text-sm font-medium text-gray-700">Category *</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={productForm.category}
+                      onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                      className="flex-1 border rounded-lg px-3 py-2"
+                      required
+                    >
+                      <option value="">Select a category...</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                      {categories.length === 0 && (
+                        <option value="General">General (no categories yet)</option>
+                      )}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCategory(null);
+                        setShowCategoryModal(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
+                
 
                 {/* Base Price */}
                 <div className="space-y-2">
@@ -1977,7 +2169,7 @@ export default function VendorDashboard() {
               <p className="text-gray-600 mt-1">Update product information</p>
             </div>
 
-            <form onSubmit={updateProduct} className="p-6 space-y-6">
+            <form onSubmit={handleUpdateProduct} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Product Name */}
                 <div className="space-y-2">
@@ -2000,23 +2192,37 @@ export default function VendorDashboard() {
                 </div>
 
                 {/* Category */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    value={showEditProduct.category}
-                    onChange={(e) => setShowEditProduct({...showEditProduct, category: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                  >
-                    <option value="General">General</option>
-                    <option value="Dairy">Dairy</option>
-                    <option value="Beverages">Beverages</option>
-                    <option value="Produce">Produce</option>
-                    <option value="Meat">Meat</option>
-                    <option value="Bakery">Bakery</option>
-                    <option value="Frozen">Frozen</option>
-                    <option value="Snacks">Snacks</option>
-                  </select>
-                </div>
+<div className="space-y-2">
+  <label className="text-sm font-medium text-gray-700">Category</label>
+  <div className="flex items-center gap-2">
+    <select
+      value={showEditProduct.category}
+      onChange={(e) => setShowEditProduct({...showEditProduct, category: e.target.value})}
+      className="flex-1 border rounded-lg px-3 py-2"
+    >
+      <option value="">Select a category...</option>
+      {categories.map(cat => (
+        <option key={cat.id} value={cat.name}>
+          {cat.name}
+        </option>
+      ))}
+    </select>
+    <Button
+  type="button"
+  variant="outline"
+  size="sm"
+  onClick={() => {
+    const newCategoryName = prompt("Enter new category name:");
+    if (newCategoryName) {
+      const description = prompt("Enter category description (optional):") || '';
+      createCategory(newCategoryName, description);
+    }
+  }}
+>
+  <Plus className="h-4 w-4" />
+</Button>
+  </div>
+</div>
 
                 {/* Base Price */}
                 <div className="space-y-2">
@@ -2585,6 +2791,33 @@ export default function VendorDashboard() {
           </div>
         </div>
       )}
-    </div>
+      
+      {/* Category Modal */}
+      <CategoryModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        companyId={currentUser?.companyId || ''}
+        category={selectedCategory}
+        onCategoryChange={loadVendorData}
+      />
+
+      {/* Product Modal */}
+      <ProductModal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        product={selectedProductForEdit}
+        categories={categories}
+        onSubmit={async (productData) => {
+          if (selectedProductForEdit) {
+            // Update existing product
+            await updateProduct(selectedProductForEdit.id, productData);
+          } else {
+            // Create new product
+            await createProductFromModal(productData);
+          }
+        }}
+      />
+
+    </div>  // ← This is the closing div of your main component
   );
 }
