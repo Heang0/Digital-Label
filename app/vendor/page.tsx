@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
@@ -196,6 +196,7 @@ export default function VendorDashboard() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [discountInputs, setDiscountInputs] = useState<Record<string, number>>({});
   const [assigningLabelId, setAssigningLabelId] = useState<string | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   
   // Modal states
   const [showCreateStaff, setShowCreateStaff] = useState(false);
@@ -271,6 +272,21 @@ export default function VendorDashboard() {
       loadVendorData();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!selectedBranchId && branches.length > 0) {
+      setSelectedBranchId(branches[0].id);
+    }
+  }, [branches, selectedBranchId]);
+
+  useEffect(() => {
+    if (selectedBranchId && selectedBranchId !== 'all' && !staffForm.branchId) {
+      setStaffForm((prev) => ({
+        ...prev,
+        branchId: selectedBranchId,
+      }));
+    }
+  }, [selectedBranchId, staffForm.branchId]);
 
   const loadVendorData = async () => {
     if (!currentUser?.companyId) return;
@@ -593,8 +609,6 @@ export default function VendorDashboard() {
     }
   };
 
-
-
   // --- Supermarket: price source + label assignment ---
   const getBranchPriceForProduct = (productId: string, branchId: string) => {
     const bp = branchProducts.find((x) => x.productId === productId && x.branchId === branchId);
@@ -758,27 +772,33 @@ export default function VendorDashboard() {
     try {
       // Note: In production, use Firebase Admin SDK or a Cloud Function
       // This is a demo approach
-      const staff = staffMembers.find(s => s.id === staffId);
-      if (!staff) {
-        alert('Staff not found');
-        return;
-      }
-
-      // Get the current user (vendor) to reauthenticate
-      const vendorUser = auth.currentUser;
-      if (!vendorUser || !vendorUser.email) {
-        alert('You need to be logged in');
-        return;
-      }
-
-      // For demo: Show what would happen
-      alert(`Password reset for ${staff.name}\nNew password would be set to: ${resetPasswordForm.newPassword}\n\nIn production, this would use Firebase Admin SDK.`);
       
+      // Find staff email
+      const staff = staffMembers.find(s => s.id === staffId);
+      if (!staff) return;
+
+      // Re-authenticate admin with current password (for demo)
+      const currentPassword = prompt('Please enter your password to confirm:');
+      if (!currentPassword) return;
+
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+
+      await reauthenticateWithCredential(auth.currentUser, credential);
+
+      // Update password
+      await updatePassword(auth.currentUser, resetPasswordForm.newPassword);
+
+      // Reset form
       setResetPasswordForm({
         newPassword: '',
         confirmPassword: ''
       });
       setShowResetPassword(null);
+      
+      alert('Password reset successfully!');
       
     } catch (error) {
       console.error('Error resetting password:', error);
@@ -839,6 +859,20 @@ export default function VendorDashboard() {
     }
   };
 
+  const isBranchFiltered = selectedBranchId !== 'all' && selectedBranchId !== '';
+  const filteredBranchProducts = isBranchFiltered
+    ? branchProducts.filter((product) => product.branchId === selectedBranchId)
+    : branchProducts;
+  const filteredStaffMembers = isBranchFiltered
+    ? staffMembers.filter((staff) => staff.branchId === selectedBranchId)
+    : staffMembers;
+  const filteredLabels = isBranchFiltered
+    ? labels.filter((label) => label.branchId === selectedBranchId)
+    : labels;
+  const selectedBranchName = isBranchFiltered
+    ? branches.find((branch) => branch.id === selectedBranchId)?.name ?? 'Selected Branch'
+    : 'All Branches';
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -854,9 +888,14 @@ export default function VendorDashboard() {
     return null;
   }
 
+  function updateProduct(event: FormEvent<HTMLFormElement>): void {
+    throw new Error('Function not implemented.');
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
+      
       <div className="hidden lg:flex flex-col w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen fixed left-0 top-0">
         {/* Logo & Company Info */}
         <div className="p-6 border-b border-gray-700">
@@ -924,7 +963,7 @@ export default function VendorDashboard() {
             }`}
           >
             <Users className="h-5 w-5" />
-            <span>Staff ({staffMembers.length})</span>
+            <span>Staff ({filteredStaffMembers.length})</span>
           </button>
 
           <button
@@ -936,7 +975,7 @@ export default function VendorDashboard() {
             }`}
           >
             <Tag className="h-5 w-5" />
-            <span>Labels ({labels.length})</span>
+            <span>Labels ({filteredLabels.length})</span>
           </button>
 
           <button
@@ -1001,14 +1040,36 @@ export default function VendorDashboard() {
                 <p className="text-gray-600">
                   {selectedTab === 'dashboard' && 'Overview of your retail operations'}
                   {selectedTab === 'products' && `Manage ${products.length} products across ${branches.length} branches`}
-                  {selectedTab === 'staff' && `Manage ${staffMembers.length} staff members`}
-                  {selectedTab === 'labels' && `Monitor ${labels.length} digital price labels`}
+                  {selectedTab === 'staff' && `Manage ${filteredStaffMembers.length} staff members for ${selectedBranchName}`}
+                  {selectedTab === 'labels' && `Monitor ${filteredLabels.length} digital price labels for ${selectedBranchName}`}
                   {selectedTab === 'promotions' && `Create and manage ${promotions.length} promotions`}
                   {selectedTab === 'reports' && 'View business analytics and reports'}
                 </p>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-600">Branch</span>
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900"
+                    value={selectedBranchId}
+                    onChange={(event) => setSelectedBranchId(event.target.value)}
+                    disabled={branches.length === 0}
+                  >
+                    {branches.length === 0 ? (
+                      <option value="">No branches</option>
+                    ) : (
+                      <>
+                        <option value="all">All branches</option>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
@@ -1041,7 +1102,7 @@ export default function VendorDashboard() {
                       <p className="text-sm text-gray-500">Total Products</p>
                       <p className="text-3xl font-bold mt-2">{products.length}</p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {branchProducts.filter(p => p.status === 'low-stock').length} low stock
+                        {filteredBranchProducts.filter(p => p.status === 'low-stock').length} low stock
                       </p>
                     </div>
                     <Package className="h-10 w-10 text-blue-500" />
@@ -1053,10 +1114,10 @@ export default function VendorDashboard() {
                     <div>
                       <p className="text-sm text-gray-500">Active Staff</p>
                       <p className="text-3xl font-bold mt-2">
-                        {staffMembers.filter(s => s.status === 'active').length}
+                        {filteredStaffMembers.filter(s => s.status === 'active').length}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        Across {branches.length} branches
+                        {selectedBranchName}
                       </p>
                     </div>
                     <Users className="h-10 w-10 text-green-500" />
@@ -1068,10 +1129,10 @@ export default function VendorDashboard() {
                     <div>
                       <p className="text-sm text-gray-500">Active Labels</p>
                       <p className="text-3xl font-bold mt-2">
-                        {labels.filter(l => l.status === 'active').length}
+                        {filteredLabels.filter(l => l.status === 'active').length}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {labels.filter(l => l.status === 'low-battery').length} low battery
+                        {filteredLabels.filter(l => l.status === 'low-battery').length} low battery
                       </p>
                     </div>
                     <Tag className="h-10 w-10 text-purple-500" />
@@ -1167,6 +1228,7 @@ export default function VendorDashboard() {
                               <div>
                                 <p className="font-medium">{product.name}</p>
                                 <p className="text-sm text-gray-500 truncate max-w-xs">{product.description}</p>
+                                <p className="text-xs text-gray-400">ID: {product.id.slice(0, 8)}</p>
                               </div>
                             </div>
                           </td>
@@ -1263,9 +1325,15 @@ export default function VendorDashboard() {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {products.map((product) => {
-                        const productBranches = branchProducts.filter(bp => bp.productId === product.id);
-                        const avgStock = productBranches.reduce((sum, bp) => sum + bp.stock, 0) / productBranches.length;
-                        const minStock = productBranches.reduce((min, bp) => Math.min(min, bp.stock), Infinity);
+                        const productBranches = filteredBranchProducts.filter(
+                          (bp) => bp.productId === product.id
+                        );
+                        const avgStock = productBranches.length > 0
+                          ? productBranches.reduce((sum, bp) => sum + bp.stock, 0) / productBranches.length
+                          : 0;
+                        const minStock = productBranches.length > 0
+                          ? productBranches.reduce((min, bp) => Math.min(min, bp.stock), Infinity)
+                          : 0;
                         
                         return (
                           <tr key={product.id} className="hover:bg-gray-50">
@@ -1281,6 +1349,7 @@ export default function VendorDashboard() {
                                 <div>
                                   <div className="font-medium text-gray-900">{product.name}</div>
                                   <div className="text-sm text-gray-500">{product.description}</div>
+                                  <div className="text-xs text-gray-400">ID: {product.id}</div>
                                 </div>
                               </div>
                             </td>
@@ -1299,7 +1368,7 @@ export default function VendorDashboard() {
                                 ${product.basePrice.toFixed(2)}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {productBranches.length} branches
+                                {selectedBranchName}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -1383,7 +1452,7 @@ export default function VendorDashboard() {
               <div className="bg-white rounded-xl border overflow-hidden">
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">Staff Members ({staffMembers.length})</h4>
+                    <h4 className="font-semibold">Staff Members ({filteredStaffMembers.length})</h4>
                     <div className="flex items-center gap-3">
                       <Button variant="outline" size="sm">
                         <Filter className="h-4 w-4 mr-2" /> Filter
@@ -1405,7 +1474,7 @@ export default function VendorDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {staffMembers.map((staff) => (
+                      {filteredStaffMembers.map((staff) => (
                         <tr key={staff.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -1422,7 +1491,8 @@ export default function VendorDashboard() {
                             <span className="text-sm text-gray-900">{staff.position}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">{staff.branchName}</span>
+                            <div className="text-sm text-gray-900">{staff.branchName}</div>
+                            <div className="text-xs text-gray-400">ID: {staff.branchId}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1566,13 +1636,16 @@ export default function VendorDashboard() {
               <p className="text-gray-600">Monitor and manage your digital price labels</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                {labels.map((label) => (
+                {filteredLabels.map((label) => (
                   <div key={label.id} className="border rounded-xl p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h4 className="font-semibold">{label.labelId}</h4>
                         <p className="text-sm text-gray-600">{label.productName}</p>
                         <p className="text-sm text-gray-500">{label.branchName}</p>
+                        <p className="text-xs text-gray-400">Label ID: {label.id}</p>
+                        <p className="text-xs text-gray-400">Product ID: {label.productId ?? 'Not set'}</p>
+                        <p className="text-xs text-gray-400">Branch ID: {label.branchId}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         label.status === 'active' ? 'bg-green-100 text-green-800' :
@@ -1737,11 +1810,11 @@ export default function VendorDashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Active Staff:</span>
-                      <span className="font-bold">{staffMembers.filter(s => s.status === 'active').length}</span>
+                      <span className="font-bold">{filteredStaffMembers.filter(s => s.status === 'active').length}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Active Labels:</span>
-                      <span className="font-bold">{labels.filter(l => l.status === 'active').length}</span>
+                      <span className="font-bold">{filteredLabels.filter(l => l.status === 'active').length}</span>
                     </div>
                   </div>
                 </div>
@@ -1752,19 +1825,19 @@ export default function VendorDashboard() {
                     <div className="flex items-center justify-between">
                       <span>In Stock:</span>
                       <span className="font-bold text-green-600">
-                        {branchProducts.filter(p => p.status === 'in-stock').length}
+                        {filteredBranchProducts.filter(p => p.status === 'in-stock').length}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Low Stock:</span>
                       <span className="font-bold text-yellow-600">
-                        {branchProducts.filter(p => p.status === 'low-stock').length}
+                        {filteredBranchProducts.filter(p => p.status === 'low-stock').length}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Out of Stock:</span>
                       <span className="font-bold text-red-600">
-                        {branchProducts.filter(p => p.status === 'out-of-stock').length}
+                        {filteredBranchProducts.filter(p => p.status === 'out-of-stock').length}
                       </span>
                     </div>
                   </div>
@@ -1843,7 +1916,6 @@ export default function VendorDashboard() {
                     <Input
                       type="number"
                       step="0.01"
-                      min="0"
                       value={productForm.basePrice}
                       onChange={(e) => setProductForm({...productForm, basePrice: parseFloat(e.target.value) || 0})}
                       className="pl-8"
@@ -1851,6 +1923,16 @@ export default function VendorDashboard() {
                       required
                     />
                   </div>
+                </div>
+
+                {/* Image URL */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Product Image URL</label>
+                  <Input
+                    value={productForm.imageUrl}
+                    onChange={(e) => setProductForm({...productForm, imageUrl: e.target.value})}
+                    placeholder="https://example.com/image.jpg"
+                  />
                 </div>
 
                 {/* Description */}
@@ -1863,16 +1945,6 @@ export default function VendorDashboard() {
                     placeholder="Product description..."
                   />
                 </div>
-
-                {/* Image URL */}
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Image URL (optional)</label>
-                  <Input
-                    value={productForm.imageUrl}
-                    onChange={(e) => setProductForm({...productForm, imageUrl: e.target.value})}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -1880,7 +1952,114 @@ export default function VendorDashboard() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  <Save className="h-4 w-4 mr-2" /> Create Product
+                  Create Product
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Edit className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Edit Product</h2>
+                </div>
+                <button onClick={() => setShowEditProduct(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-1">Update product information</p>
+            </div>
+
+            <form onSubmit={updateProduct} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Product Name */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Product Name *</label>
+                  <Input
+                    value={showEditProduct.name}
+                    onChange={(e) => setShowEditProduct({...showEditProduct, name: e.target.value})}
+                    required
+                  />
+                </div>
+
+                {/* SKU */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">SKU *</label>
+                  <Input
+                    value={showEditProduct.sku}
+                    onChange={(e) => setShowEditProduct({...showEditProduct, sku: e.target.value})}
+                    required
+                  />
+                </div>
+
+                {/* Category */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Category</label>
+                  <select
+                    value={showEditProduct.category}
+                    onChange={(e) => setShowEditProduct({...showEditProduct, category: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="General">General</option>
+                    <option value="Dairy">Dairy</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Produce">Produce</option>
+                    <option value="Meat">Meat</option>
+                    <option value="Bakery">Bakery</option>
+                    <option value="Frozen">Frozen</option>
+                    <option value="Snacks">Snacks</option>
+                  </select>
+                </div>
+
+                {/* Base Price */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Base Price ($) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={showEditProduct.basePrice}
+                      onChange={(e) => setShowEditProduct({...showEditProduct, basePrice: parseFloat(e.target.value) || 0})}
+                      className="pl-8"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Image URL */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Product Image URL</label>
+                  <Input
+                    value={showEditProduct.imageUrl}
+                    onChange={(e) => setShowEditProduct({...showEditProduct, imageUrl: e.target.value})}
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    value={showEditProduct.description}
+                    onChange={(e) => setShowEditProduct({...showEditProduct, description: e.target.value})}
+                    className="w-full border rounded-lg px-3 py-2 h-24"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowEditProduct(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Update Product
                 </Button>
               </div>
             </form>
@@ -1895,47 +2074,39 @@ export default function VendorDashboard() {
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Users className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-bold text-gray-900">Create Staff Member</h2>
+                  <Users className="h-6 w-6 text-green-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Add Staff Member</h2>
                 </div>
                 <button onClick={() => setShowCreateStaff(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <p className="text-gray-600 mt-1">Add new employee to your store</p>
+              <p className="text-gray-600 mt-1">Create a new staff account for your branch</p>
             </div>
 
             <form onSubmit={createStaff} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name */}
+                {/* Staff Name */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Full Name *</label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      value={staffForm.name}
-                      onChange={(e) => setStaffForm({...staffForm, name: e.target.value})}
-                      className="pl-10"
-                      placeholder="John Smith"
-                      required
-                    />
-                  </div>
+                  <Input
+                    value={staffForm.name}
+                    onChange={(e) => setStaffForm({...staffForm, name: e.target.value})}
+                    placeholder="e.g., John Doe"
+                    required
+                  />
                 </div>
 
                 {/* Email */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Email *</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      type="email"
-                      value={staffForm.email}
-                      onChange={(e) => setStaffForm({...staffForm, email: e.target.value})}
-                      className="pl-10"
-                      placeholder="john@store.com"
-                      required
-                    />
-                  </div>
+                  <label className="text-sm font-medium text-gray-700">Email Address *</label>
+                  <Input
+                    type="email"
+                    value={staffForm.email}
+                    onChange={(e) => setStaffForm({...staffForm, email: e.target.value})}
+                    placeholder="john@example.com"
+                    required
+                  />
                 </div>
 
                 {/* Position */}
@@ -1946,10 +2117,11 @@ export default function VendorDashboard() {
                     onChange={(e) => setStaffForm({...staffForm, position: e.target.value})}
                     className="w-full border rounded-lg px-3 py-2"
                   >
-                    <option value="Cashier">Cashier</option>
-                    <option value="Store Manager">Store Manager</option>
-                    <option value="Stock Clerk">Stock Clerk</option>
-                    <option value="Assistant Manager">Assistant Manager</option>
+                    <option>Cashier</option>
+                    <option>Manager</option>
+                    <option>Stock Clerk</option>
+                    <option>Sales Associate</option>
+                    <option>Supervisor</option>
                   </select>
                 </div>
 
@@ -1962,7 +2134,7 @@ export default function VendorDashboard() {
                     className="w-full border rounded-lg px-3 py-2"
                     required
                   >
-                    <option value="">Select Branch</option>
+                    <option value="">Select a branch</option>
                     {branches.map(branch => (
                       <option key={branch.id} value={branch.id}>{branch.name}</option>
                     ))}
@@ -1971,23 +2143,18 @@ export default function VendorDashboard() {
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Initial Password *</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      type="text"
-                      value={staffForm.password}
-                      onChange={(e) => setStaffForm({...staffForm, password: e.target.value})}
-                      className="pl-10"
-                      placeholder="welcome123"
-                      required
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500">Staff should change this on first login</p>
+                  <label className="text-sm font-medium text-gray-700">Temporary Password *</label>
+                  <Input
+                    type="text"
+                    value={staffForm.password}
+                    onChange={(e) => setStaffForm({...staffForm, password: e.target.value})}
+                    placeholder="Temporary password"
+                    required
+                  />
                 </div>
 
                 {/* Permissions */}
-                <div className="md:col-span-2 space-y-4">
+                <div className="md:col-span-2 space-y-2">
                   <label className="text-sm font-medium text-gray-700">Permissions</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <label className="flex items-center gap-2">
