@@ -1,3 +1,4 @@
+// app/admin/page.tsx - Professional Admin Dashboard
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -84,7 +85,41 @@ import {
   PieChart,
   LineChart,
   AlertTriangle,
-  Menu
+  Menu,
+  ChevronRight,
+  ShieldCheck,
+  Cloud,
+  Layers,
+  FileText,
+  Database as DbIcon,
+  Server as ServerIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Percent as PercentIcon,
+  CheckSquare,
+  XSquare,
+  PauseCircle,
+  PlayCircle,
+  UserPlus,
+  Building,
+  Store as StoreIcon,
+  Tag as TagIcon,
+  BarChart2,
+  Users as UsersIcon,
+  Home as HomeIcon,
+  Settings as SettingsIcon,
+  Activity as ActivityIcon,
+  Bell as BellIcon,
+  HelpCircle as HelpCircleIcon,
+  Download as DownloadIcon,
+  Upload as UploadIcon,
+  Calendar as CalendarIcon,
+  Star as StarIcon,
+  Award as AwardIcon,
+  Target as TargetIcon,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  AlertTriangle as AlertTriangleIcon
 } from 'lucide-react';
 
 interface User {
@@ -140,6 +175,9 @@ interface SystemMetrics {
   monthlyRevenue: number;
   activeSubscriptions: number;
   trialAccounts: number;
+  activeUsers24h: number;
+  totalRevenue: number;
+  conversionRate: number;
 }
 
 const formatDate = (value: unknown) => {
@@ -178,7 +216,7 @@ export default function AdminDashboard() {
   const [showPendingUsers, setShowPendingUsers] = useState(false);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'settings' | 'analytics'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'analytics' | 'settings'>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     totalUsers: 0,
@@ -190,7 +228,10 @@ export default function AdminDashboard() {
     databaseLoad: 68,
     monthlyRevenue: 12450,
     activeSubscriptions: 0,
-    trialAccounts: 0
+    trialAccounts: 0,
+    activeUsers24h: 1250,
+    totalRevenue: 124500,
+    conversionRate: 4.2
   });
 
   // Form states
@@ -242,12 +283,12 @@ export default function AdminDashboard() {
       setLoading(true);
       
       // Load users
-              const usersSnapshot = await getDocs(collection(db, 'users'));
-    const usersData = usersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...(doc.data() as User) // ADD TYPE ASSERTION HERE
-    }));
-    setUsers(usersData);
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const usersData = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as User)
+      }));
+      setUsers(usersData);
 
       // Load companies
       const companiesSnapshot = await getDocs(collection(db, 'companies'));
@@ -300,9 +341,12 @@ export default function AdminDashboard() {
         systemHealth: 99.8,
         apiResponseTime: 42,
         databaseLoad: 68,
-        monthlyRevenue: companiesData.length * 299, // Mock calculation
+        monthlyRevenue: companiesData.length * 299,
         activeSubscriptions,
-        trialAccounts
+        trialAccounts,
+        activeUsers24h: 1250,
+        totalRevenue: companiesData.length * 299 * 12,
+        conversionRate: 4.2
       });
 
     } catch (error) {
@@ -579,16 +623,32 @@ export default function AdminDashboard() {
   const vendorsCount = activeVendors.length;
   const staffCount = activeStaff.length;
   const companiesCount = companies.length;
+  
   const adminTabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'users', label: `Users (${vendorUsers.length})`, icon: Users },
-    { id: 'companies', label: `Companies (${companies.length})`, icon: Building2 },
-    { id: 'analytics', label: 'Analytics', icon: Activity },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'overview', label: 'Overview', icon: HomeIcon, color: 'text-blue-600' },
+    { id: 'users', label: 'Users', icon: UsersIcon, color: 'text-green-600' },
+    { id: 'companies', label: 'Companies', icon: Building2, color: 'text-purple-600' },
+    { id: 'analytics', label: 'Analytics', icon: BarChart2, color: 'text-orange-600' },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'text-gray-600' }
   ] as const;
 
   if (!dataReady && loading) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="h-16 w-16 animate-spin rounded-full border-[5px] border-gray-300 border-t-blue-600"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Loading Admin Console</h3>
+            <p className="text-gray-600 mt-1">Preparing dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!hasHydrated) {
@@ -599,34 +659,30 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white font-sans">
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 md:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 h-full w-full"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="absolute left-0 top-0 h-full w-72 bg-gray-900 text-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden">
+          <div className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-red-600 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center">
                   <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Admin Console</p>
-                  <p className="text-xs text-gray-400">LabelSync</p>
+                  <p className="font-bold">Admin Console</p>
+                  <p className="text-xs text-gray-400">LabelSync Enterprise</p>
                 </div>
               </div>
               <button
                 type="button"
-                className="p-2 rounded-md hover:bg-gray-800"
+                className="rounded-lg p-2 hover:bg-gray-800 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-1">
               {adminTabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -636,120 +692,147 @@ export default function AdminDashboard() {
                       setSelectedTab(tab.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
                       selectedTab === tab.id
-                        ? 'bg-gray-800 text-white'
+                        ? 'bg-gray-800 text-white shadow-lg'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
+                    <Icon className={`h-5 w-5 ${tab.color}`} />
+                    <span className="font-medium">{tab.label}</span>
+                    {tab.id === 'users' && vendorUsers.length > 0 && (
+                      <span className="ml-auto bg-blue-600 text-white text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center">
+                        {vendorUsers.length}
+                      </span>
+                    )}
+                    {tab.id === 'companies' && companies.length > 0 && (
+                      <span className="ml-auto bg-purple-600 text-white text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center">
+                        {companies.length}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+            <div className="absolute bottom-0 w-full p-6 border-t border-gray-800">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center">
+                  <span className="font-bold text-white">{currentUser.name.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="font-semibold">{currentUser.name}</p>
+                  <p className="text-xs text-gray-400">System Administrator</p>
+                </div>
+              </div>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="w-full border-gray-700 text-white hover:bg-gray-800"
+                size="sm"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       )}
+      
       {/* Header */}
       <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-xl">
         <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="md:hidden inline-flex items-center justify-center rounded-md border border-gray-700 bg-gray-800 h-10 w-10"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-r from-red-600 to-red-500 flex items-center justify-center shadow-lg">
-                <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Digital Label Admin</h1>
-                <p className="text-xs sm:text-sm text-gray-300">System Control Panel</p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden inline-flex items-center justify-center rounded-lg border border-gray-700 bg-gray-800 h-10 w-10 hover:bg-gray-700 transition-colors"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight">LabelSync Admin</h1>
+                  <p className="text-xs sm:text-sm text-gray-300">Enterprise Management Console</p>
+                </div>
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Search users, companies..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  className="pl-11 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <Button 
+                  onClick={refreshAdminData}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-300 hover:text-white hover:bg-gray-800 hidden sm:flex"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
                 <div className="text-right hidden sm:block">
-                  <p className="font-medium">{currentUser.name}</p>
-                  <p className="text-sm text-gray-300">System Administrator</p>
+                  <p className="font-semibold">{currentUser.name}</p>
+                  <p className="text-sm text-gray-300">Administrator</p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg">
-                  <span className="font-bold">{currentUser.name.charAt(0)}</span>
+                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
+                  <span className="font-bold text-white">{currentUser.name.charAt(0)}</span>
                 </div>
                 <Button 
                   onClick={handleLogout} 
-                  variant="outline" 
+                  variant="ghost"
                   size="sm"
-                  className="border-gray-700 text-white hover:bg-gray-800 w-full sm:w-auto"
+                  className="text-gray-300 hover:text-white hover:bg-gray-800"
                 >
-                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  <LogOut className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="hidden md:flex space-x-1 mt-8 border-b border-gray-700">
-            <button
-              onClick={() => setSelectedTab('overview')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'overview' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
-            >
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                <span>Overview</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setSelectedTab('users')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'users' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
-            >
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Users ({vendorUsers.length})</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setSelectedTab('companies')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'companies' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
-            >
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span>Companies ({companies.length})</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setSelectedTab('analytics')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'analytics' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
-            >
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                <span>Analytics</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setSelectedTab('settings')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'settings' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
-            >
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </div>
-            </button>
+          {/* Desktop Tabs */}
+          <div className="hidden md:flex space-x-2 mt-8">
+            {adminTabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedTab(tab.id)}
+                  className={`flex items-center gap-3 px-6 py-3 rounded-t-xl transition-all ${
+                    selectedTab === tab.id
+                      ? 'bg-white text-gray-900 shadow-lg'
+                      : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${selectedTab === tab.id ? tab.color : 'text-gray-400'}`} />
+                  <span className="font-medium">{tab.label}</span>
+                  {tab.id === 'users' && vendorUsers.length > 0 && (
+                    <span className={`ml-2 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center ${
+                      selectedTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-700 text-white'
+                    }`}>
+                      {vendorUsers.length}
+                    </span>
+                  )}
+                  {tab.id === 'companies' && companies.length > 0 && (
+                    <span className={`ml-2 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center ${
+                      selectedTab === tab.id ? 'bg-purple-100 text-purple-600' : 'bg-gray-700 text-white'
+                    }`}>
+                      {companies.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -757,16 +840,16 @@ export default function AdminDashboard() {
       {loading && dataReady && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4 text-gray-700">
-            <div className="h-12 w-12 animate-spin rounded-full border-[6px] border-gray-300 border-t-gray-700"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-[6px] border-gray-300 border-t-blue-600"></div>
             <div className="text-sm font-semibold tracking-wide uppercase">Refreshing data...</div>
           </div>
         </div>
       )}
 
       <main className="container mx-auto px-4 py-8">
-        {/* Quick Stats - Always visible */}
+        {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl border border-blue-500 p-6 text-white shadow-xl">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl border border-blue-400 p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-100">Pending Approvals</p>
@@ -781,7 +864,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl border border-purple-500 p-6 text-white shadow-xl">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl border border-purple-400 p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-100">Active Vendors</p>
@@ -796,7 +879,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-2xl border border-green-500 p-6 text-white shadow-xl">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl border border-green-400 p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-100">Staff Members</p>
@@ -811,7 +894,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-2xl border border-orange-500 p-6 text-white shadow-xl">
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl border border-orange-400 p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-orange-100">System Health</p>
@@ -921,7 +1004,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button 
                   onClick={() => setShowCreateVendor(true)}
-                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-xl transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
                   <Building2 className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:scale-110 transition-transform" />
                   <span className="text-sm font-semibold text-gray-900">Create Vendor</span>
@@ -929,7 +1012,7 @@ export default function AdminDashboard() {
                 </button>
                 <button 
                   onClick={() => setSelectedTab('users')}
-                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-xl transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
                   <Users className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:scale-110 transition-transform" />
                   <span className="text-sm font-semibold text-gray-900">Manage Users</span>
@@ -937,7 +1020,7 @@ export default function AdminDashboard() {
                 </button>
                 <button 
                   onClick={() => setSelectedTab('companies')}
-                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-xl transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
                   <Store className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:scale-110 transition-transform" />
                   <span className="text-sm font-semibold text-gray-900">View Companies</span>
@@ -945,7 +1028,7 @@ export default function AdminDashboard() {
                 </button>
                 <button 
                   onClick={refreshAdminData}
-                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
+                  className="p-6 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:shadow-xl transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
                   <RefreshCw className="h-8 w-8 mx-auto mb-3 text-orange-600 group-hover:scale-110 transition-transform" />
                   <span className="text-sm font-semibold text-gray-900">Refresh Data</span>
@@ -959,7 +1042,7 @@ export default function AdminDashboard() {
               <h3 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h3>
               <div className="space-y-4">
                 {companies.slice(0, 3).map((company) => (
-                  <div key={company.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div key={company.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
                         <Building2 className="h-5 w-5 text-blue-600" />
@@ -996,7 +1079,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" className="border-gray-300">
-                    <Download className="h-4 w-4 mr-2" /> Export
+                    <DownloadIcon className="h-4 w-4 mr-2" /> Export
                   </Button>
                   <Button variant="outline" className="border-gray-300">
                     <Filter className="h-4 w-4 mr-2" /> Filter
@@ -1127,7 +1210,7 @@ export default function AdminDashboard() {
                 </div>
                 <Button 
                   onClick={() => setShowCreateVendor(true)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg hover:shadow-xl"
                 >
                   <Plus className="h-4 w-4 mr-2" /> Add Company
                 </Button>
@@ -1136,7 +1219,7 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {companies.map((company) => (
-                <div key={company.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <div key={company.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
@@ -1197,7 +1280,6 @@ export default function AdminDashboard() {
                       variant="outline" 
                       className="flex-1 border-gray-300"
                       onClick={() => {
-                        // View company details
                         router.push(`/admin/companies/${company.id}`);
                       }}
                     >
@@ -1240,7 +1322,7 @@ export default function AdminDashboard() {
               <h3 className="text-xl font-bold text-gray-900 mb-6">System Analytics</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="border rounded-xl p-6">
+                <div className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Platform Usage</h4>
                     <Users className="h-5 w-5 text-blue-500" />
@@ -1261,7 +1343,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="border rounded-xl p-6">
+                <div className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Company Stats</h4>
                     <Building2 className="h-5 w-5 text-purple-500" />
@@ -1282,7 +1364,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="border rounded-xl p-6">
+                <div className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Labels</h4>
                     <Tag className="h-5 w-5 text-orange-500" />
@@ -1303,7 +1385,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="border rounded-xl p-6 md:col-span-2">
+                <div className="border border-gray-200 rounded-2xl p-6 md:col-span-2 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">System Health</h4>
                     <Activity className="h-5 w-5 text-green-500" />
@@ -1374,7 +1456,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="border rounded-xl p-6">
+                <div className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Revenue</h4>
                     <DollarSign className="h-5 w-5 text-green-500" />
@@ -1501,15 +1583,15 @@ export default function AdminDashboard() {
                   Database Management
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                  <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 text-center transition-colors">
                     <DownloadCloud className="h-6 w-6 mx-auto mb-2 text-blue-500" />
                     <span className="text-sm font-medium">Backup Now</span>
                   </button>
-                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                  <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 text-center transition-colors">
                     <UploadCloud className="h-6 w-6 mx-auto mb-2 text-green-500" />
                     <span className="text-sm font-medium">Restore Backup</span>
                   </button>
-                  <button className="p-4 border rounded-lg hover:bg-gray-50 text-center">
+                  <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 text-center transition-colors">
                     <RefreshCw className="h-6 w-6 mx-auto mb-2 text-purple-500" />
                     <span className="text-sm font-medium">Optimize Database</span>
                   </button>
@@ -1520,17 +1602,18 @@ export default function AdminDashboard() {
         )}
       </main>
 
+      {/* Modals (Edit User, Edit Company, Create Vendor) */}
       {/* Edit User Modal */}
       {showEditUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <UserIcon className="h-6 w-6 text-blue-600" />
                   <h2 className="text-xl font-bold text-gray-900">Edit User</h2>
                 </div>
-                <button onClick={() => setShowEditUser(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <button onClick={() => setShowEditUser(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1544,6 +1627,7 @@ export default function AdminDashboard() {
                   value={editUserForm.name}
                   onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
                   required
+                  className="rounded-lg"
                 />
               </div>
               <div className="space-y-2">
@@ -1553,6 +1637,7 @@ export default function AdminDashboard() {
                   value={editUserForm.email}
                   onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
                   required
+                  className="rounded-lg"
                 />
               </div>
               <div className="space-y-2">
@@ -1562,7 +1647,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setEditUserForm({ ...editUserForm, status: e.target.value as 'active' | 'pending' | 'suspended' })
                   }
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="active">Active</option>
                   <option value="pending">Pending</option>
@@ -1571,14 +1656,14 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button type="button" variant="outline" onClick={() => sendResetEmail(editUserForm.email)}>
+                <Button type="button" variant="outline" onClick={() => sendResetEmail(editUserForm.email)} className="rounded-lg">
                   <Mail className="h-4 w-4 mr-2" /> Send Reset Email
                 </Button>
                 <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowEditUser(null)}>
+                  <Button type="button" variant="outline" onClick={() => setShowEditUser(null)} className="rounded-lg">
                     Cancel
                   </Button>
-                  <Button type="submit">Save</Button>
+                  <Button type="submit" className="rounded-lg">Save</Button>
                 </div>
               </div>
             </form>
@@ -1588,15 +1673,15 @@ export default function AdminDashboard() {
 
       {/* Edit Company Modal */}
       {showEditCompany && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-6 w-6 text-blue-600" />
                   <h2 className="text-xl font-bold text-gray-900">Edit Company</h2>
                 </div>
-                <button onClick={() => setShowEditCompany(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <button onClick={() => setShowEditCompany(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1611,6 +1696,7 @@ export default function AdminDashboard() {
                     value={editCompanyForm.name}
                     onChange={(e) => setEditCompanyForm({ ...editCompanyForm, name: e.target.value })}
                     required
+                    className="rounded-lg"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1619,6 +1705,7 @@ export default function AdminDashboard() {
                     type="email"
                     value={editCompanyForm.email}
                     onChange={(e) => setEditCompanyForm({ ...editCompanyForm, email: e.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1626,6 +1713,7 @@ export default function AdminDashboard() {
                   <Input
                     value={editCompanyForm.phone}
                     onChange={(e) => setEditCompanyForm({ ...editCompanyForm, phone: e.target.value })}
+                    className="rounded-lg"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -1633,7 +1721,7 @@ export default function AdminDashboard() {
                   <textarea
                     value={editCompanyForm.address}
                     onChange={(e) => setEditCompanyForm({ ...editCompanyForm, address: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 h-24"
+                    className="w-full border rounded-lg px-3 py-2 h-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1643,7 +1731,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setEditCompanyForm({ ...editCompanyForm, subscription: e.target.value as 'basic' | 'pro' | 'enterprise' })
                     }
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="basic">Basic</option>
                     <option value="pro">Pro</option>
@@ -1657,7 +1745,7 @@ export default function AdminDashboard() {
                     onChange={(e) =>
                       setEditCompanyForm({ ...editCompanyForm, status: e.target.value as 'active' | 'pending' | 'suspended' })
                     }
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="active">Active</option>
                     <option value="pending">Pending</option>
@@ -1667,10 +1755,10 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setShowEditCompany(null)}>
+                <Button type="button" variant="outline" onClick={() => setShowEditCompany(null)} className="rounded-lg">
                   Cancel
                 </Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" className="rounded-lg">Save Changes</Button>
               </div>
             </form>
           </div>
@@ -1679,8 +1767,8 @@ export default function AdminDashboard() {
 
       {/* Create Vendor Modal */}
       {showCreateVendor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1707,7 +1795,7 @@ export default function AdminDashboard() {
                     <Input
                       value={vendorForm.companyName}
                       onChange={(e) => setVendorForm({...vendorForm, companyName: e.target.value})}
-                      className="pl-10"
+                      className="pl-10 rounded-lg"
                       placeholder="Retail Chain Inc."
                       required
                     />
@@ -1722,7 +1810,7 @@ export default function AdminDashboard() {
                     <Input
                       value={vendorForm.contactName}
                       onChange={(e) => setVendorForm({...vendorForm, contactName: e.target.value})}
-                      className="pl-10"
+                      className="pl-10 rounded-lg"
                       placeholder="John Smith"
                       required
                     />
@@ -1738,7 +1826,7 @@ export default function AdminDashboard() {
                       type="email"
                       value={vendorForm.email}
                       onChange={(e) => setVendorForm({...vendorForm, email: e.target.value})}
-                      className="pl-10"
+                      className="pl-10 rounded-lg"
                       placeholder="contact@company.com"
                       required
                     />
@@ -1753,7 +1841,7 @@ export default function AdminDashboard() {
                     <Input
                       value={vendorForm.phone}
                       onChange={(e) => setVendorForm({...vendorForm, phone: e.target.value})}
-                      className="pl-10"
+                      className="pl-10 rounded-lg"
                       placeholder="+1 (555) 123-4567"
                       required
                     />
@@ -1768,7 +1856,7 @@ export default function AdminDashboard() {
                     <textarea
                       value={vendorForm.address}
                       onChange={(e) => setVendorForm({...vendorForm, address: e.target.value})}
-                      className="w-full border rounded-xl px-3 py-2 pl-10 min-h-[80px]"
+                      className="w-full border rounded-xl px-3 py-2 pl-10 min-h-[80px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="123 Business St, City, State, ZIP"
                     />
                   </div>
@@ -1783,7 +1871,7 @@ export default function AdminDashboard() {
                       type="text"
                       value={vendorForm.password}
                       onChange={(e) => setVendorForm({...vendorForm, password: e.target.value})}
-                      className="pl-10"
+                      className="pl-10 rounded-lg"
                       placeholder="changeme123"
                       required
                     />
@@ -1797,7 +1885,7 @@ export default function AdminDashboard() {
                   <select
                     value={vendorForm.subscription}
                     onChange={(e) => setVendorForm({...vendorForm, subscription: e.target.value as any})}
-                    className="w-full border rounded-xl px-3 py-2"
+                    className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="basic">Basic ($99/month)</option>
                     <option value="pro">Professional ($299/month)</option>
@@ -1811,13 +1899,13 @@ export default function AdminDashboard() {
                   type="button" 
                   variant="outline" 
                   onClick={() => setShowCreateVendor(false)}
-                  className="border-gray-300"
+                  className="border-gray-300 rounded-lg"
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit"
-                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                  className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-lg shadow-lg"
                 >
                   Create Vendor
                 </Button>

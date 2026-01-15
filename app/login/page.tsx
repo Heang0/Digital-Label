@@ -67,11 +67,29 @@ export default function LoginPage() {
 
       if (!userData) throw new Error('User data not found in database');
 
-      setUser(userData);
+      const isDemoStaff = selectedDemo === 'staff' || userData.email === 'staff.demo@store.com';
+      const normalizedUser = isDemoStaff
+        ? {
+            ...userData,
+            permissions: {
+              canViewProducts: true,
+              canUpdateStock: true,
+              canReportIssues: true,
+              canViewReports: true,
+              canChangePrices: true,
+              canCreateProducts: true,
+              canCreateLabels: true,
+              canCreatePromotions: true,
+              maxPriceChange: 0,
+            },
+          }
+        : userData;
 
-      if (userData.role === 'admin') router.push('/admin');
-      else if (userData.role === 'vendor') router.push('/vendor');
-      else if (userData.role === 'staff') router.push('/staff');
+      setUser(normalizedUser);
+
+      if (normalizedUser.role === 'admin') router.push('/admin');
+      else if (normalizedUser.role === 'vendor') router.push('/vendor');
+      else if (normalizedUser.role === 'staff') router.push('/staff');
       else router.push('/vendor');
     } catch (error: any) {
       setIsLoading(false);
@@ -204,7 +222,7 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="********"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -256,7 +274,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-6 text-center text-xs text-gray-500">
-            © 2026 Digital Label. All rights reserved.
+            ┬⌐ 2026 Digital Label. All rights reserved.
           </p>
         </div>
       </div>

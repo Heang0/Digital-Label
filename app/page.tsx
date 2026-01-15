@@ -1,5 +1,9 @@
-﻿// app/page.tsx
+﻿'use client';
+
+// app/page.tsx
 import Link from 'next/link';
+import { useState } from 'react';
+import { Inter } from 'next/font/google';
 import { 
   ArrowRight, 
   Building2, 
@@ -10,11 +14,16 @@ import {
   CheckCircle,
   Store,
   Clock,
+  Menu,
+  X,
   Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const brandFont = Inter({ subsets: ['latin'], display: 'swap' });
+
 export default function Home() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const features = [
     {
       icon: Building2,
@@ -68,7 +77,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen ${brandFont.className}`}>
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur">
         <div className="container mx-auto px-4">
@@ -100,7 +109,7 @@ export default function Home() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4">
               <Link href="/login">
                 <Button variant="outline" size="sm">
                   Sign In
@@ -112,8 +121,48 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
+            {/* Mobile menu toggle */}
+            <button
+              type="button"
+              className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700"
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+              aria-expanded={mobileOpen}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+        {mobileOpen && (
+          <div className="md:hidden border-t bg-white">
+            <div className="container mx-auto px-4 py-4 space-y-3">
+              <a href="#features" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700">
+                Features
+              </a>
+              <a href="#usecases" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700">
+                Use Cases
+              </a>
+              <a href="#pricing" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700">
+                Pricing
+              </a>
+              <a href="#contact" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700">
+                Contact
+              </a>
+              <div className="flex flex-col gap-2 pt-2">
+                <Link href="/login">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button size="sm" className="w-full">
+                    Get Started Free
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -335,7 +384,7 @@ export default function Home() {
                 <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
                   <Store className="h-5 w-5 text-white" />
                 </div>
-                    <span className="text-xl font-bold text-gray-900">
+                    <span className="text-xl font-bold text-white">
                       Digital Label
                     </span>
               </div>
@@ -376,10 +425,15 @@ export default function Home() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>© 2024 LabelSync Pro. All rights reserved.</p>
+            <p>© 2026 Digital Label. All rights reserved.</p>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+
+
+
+
+
