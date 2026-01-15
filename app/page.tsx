@@ -3,7 +3,6 @@
 // app/page.tsx
 import Link from 'next/link';
 import { useState } from 'react';
-import { Inter } from 'next/font/google';
 import { 
   ArrowRight, 
   Building2, 
@@ -19,8 +18,6 @@ import {
   Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-const brandFont = Inter({ subsets: ['latin'], display: 'swap' });
 
 export default function Home() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -77,7 +74,7 @@ export default function Home() {
   ];
 
   return (
-    <div className={`min-h-screen ${brandFont.className}`}>
+    <div className="min-h-screen bg-white">
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur">
         <div className="container mx-auto px-4">
@@ -166,35 +163,78 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50 to-white">
-        <div className="container mx-auto px-4 py-20 md:py-32">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Zap className="h-4 w-4" />
-              Central Control for Your Chain Stores
+      <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white">
+        <div className="absolute inset-0">
+          <div className="absolute -top-40 right-0 h-80 w-80 rounded-full bg-blue-100/60 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-slate-100 blur-2xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_45%)]" />
+        </div>
+        <div className="container mx-auto px-4 py-16 md:py-28 relative">
+          <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold tracking-wide">
+                <Zap className="h-4 w-4 text-blue-300" />
+                Retail pricing, unified in seconds
+              </div>
+
+              <h1 className="mt-6 text-4xl md:text-6xl font-semibold text-slate-900 leading-tight">
+                A modern command center for digital shelf labels.
+              </h1>
+
+              <p className="mt-5 text-lg text-slate-600 max-w-xl">
+                Push price updates, promos, and stock alerts to every aisle instantly. Keep teams aligned with
+                real-time visibility across all stores.
+              </p>
+
+              <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                <Link href="/register">
+                  <Button size="lg" className="gap-2">
+                    Start Free Trial
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="#demo">
+                  <Button variant="outline" size="lg" className="border-slate-300 text-slate-900 hover:bg-slate-100">
+                    Watch Demo
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3 text-xs text-slate-500">
+                <span className="rounded-full border border-slate-200 px-3 py-1">Instant price sync</span>
+                <span className="rounded-full border border-slate-200 px-3 py-1">Branch-level control</span>
+                <span className="rounded-full border border-slate-200 px-3 py-1">Offline-safe labels</span>
+              </div>
             </div>
-            
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Manage Digital Price Labels
-              <span className="text-blue-600 block">Across All Your Stores</span>
-            </h1>
-            
-            <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-              LabelSync Pro is a SaaS platform that allows retail chains to update prices instantly across all branches from a single dashboard. No more manual label changes.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register">
-                <Button size="lg" className="gap-2">
-                  Start Free Trial
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="#demo">
-                <Button variant="outline" size="lg">
-                  Watch Demo
-                </Button>
-              </Link>
+
+            <div className="relative">
+              <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur p-6 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-slate-900">Live Price Broadcast</div>
+                  <span className="text-xs text-emerald-600 font-medium">Active</span>
+                </div>
+                <div className="mt-6 space-y-4">
+                  {[
+                    { label: 'Lucky TTP', status: 'Synced', value: '+124 labels' },
+                    { label: 'Lucky271', status: 'Syncing', value: '12 updates' },
+                    { label: 'Downtown', status: 'Queued', value: '3 promos' },
+                  ].map((row) => (
+                    <div key={row.label} className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-900">{row.label}</span>
+                        <span className="text-xs text-slate-500">{row.value}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                        {row.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 rounded-2xl bg-slate-900 px-4 py-3 text-xs text-slate-200">
+                  Next sync window: 00:00:12
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -367,7 +407,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/login">
-              <Button variant="outline" size="lg" className="text-white border-white hover:bg-white/10">
+              <Button variant="outline" size="lg" className="text-white border-white bg-white/10 hover:bg-white/20">
                 Schedule Demo
               </Button>
             </Link>

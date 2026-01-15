@@ -1,7 +1,7 @@
 // app/admin/page.tsx - Professional Admin Dashboard
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { auth, db, logOut } from '@/lib/firebase';
@@ -210,6 +210,7 @@ export default function AdminDashboard() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataReady, setDataReady] = useState(false);
+  const [minLoadingDone, setMinLoadingDone] = useState(false);
   const [showCreateVendor, setShowCreateVendor] = useState(false);
   const [showEditUser, setShowEditUser] = useState<User | null>(null);
   const [showEditCompany, setShowEditCompany] = useState<Company | null>(null);
@@ -233,6 +234,7 @@ export default function AdminDashboard() {
     totalRevenue: 124500,
     conversionRate: 4.2
   });
+  const minLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form states
   const [vendorForm, setVendorForm] = useState({
@@ -268,6 +270,26 @@ export default function AdminDashboard() {
       if (currentUser.role === 'staff') router.push('/staff');
     }
   }, [currentUser, hasHydrated, router]);
+
+  useEffect(() => {
+    if (!loading) return;
+    setMinLoadingDone(false);
+    if (minLoadingTimerRef.current) {
+      clearTimeout(minLoadingTimerRef.current);
+    }
+    minLoadingTimerRef.current = setTimeout(() => {
+      setMinLoadingDone(true);
+      minLoadingTimerRef.current = null;
+    }, 1500);
+  }, [loading]);
+
+  useEffect(() => {
+    return () => {
+      if (minLoadingTimerRef.current) {
+        clearTimeout(minLoadingTimerRef.current);
+      }
+    };
+  }, []);
 
   // Load data
   useEffect(() => {
@@ -632,27 +654,23 @@ export default function AdminDashboard() {
     { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'text-gray-600' }
   ] as const;
 
-  if (!dataReady && loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
-        <div className="flex flex-col items-center gap-6">
-          <div className="relative">
-            <div className="h-16 w-16 animate-spin rounded-full border-[5px] border-gray-300 border-t-blue-600"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Shield className="h-8 w-8 text-blue-600" />
-            </div>
-          </div>
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900">Loading Admin Console</h3>
-            <p className="text-gray-600 mt-1">Preparing dashboard...</p>
-          </div>
-        </div>
+  const loadingShell = (
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
+        <p className="text-sm font-medium text-slate-600">Loading...</p>
       </div>
-    );
+    </div>
+  );
+
+  const shouldShowLoading = loading || !minLoadingDone;
+
+  if (!dataReady && shouldShowLoading) {
+    return loadingShell;
   }
 
-  if (!hasHydrated) {
-    return null;
+  if (!hasHydrated && shouldShowLoading) {
+    return loadingShell;
   }
   if (!currentUser || currentUser.role !== 'admin') {
     return null;
@@ -727,7 +745,7 @@ export default function AdminDashboard() {
               <Button
                 onClick={handleLogout}
                 variant="outline"
-                className="w-full border-gray-700 text-white hover:bg-gray-800"
+                className="w-full border-gray-700 bg-gray-900/40 text-white hover:bg-gray-800"
                 size="sm"
               >
                 <LogOut className="h-4 w-4 mr-2" />
@@ -755,7 +773,7 @@ export default function AdminDashboard() {
                   <Shield className="h-6 w-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight">LabelSync Admin</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Digital Label Admin</h1>
                   <p className="text-xs sm:text-sm text-gray-300">Enterprise Management Console</p>
                 </div>
               </div>
