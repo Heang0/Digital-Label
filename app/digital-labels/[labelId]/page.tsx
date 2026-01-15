@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -21,7 +21,7 @@ interface Label {
   discountPrice?: number | null;
 }
 
-export default function DigitalLabelPage() {
+function DigitalLabelContent() {
   const params = useParams<{ labelId: string }>();
   const searchParams = useSearchParams();
   const { user } = useUserStore();
@@ -186,5 +186,21 @@ export default function DigitalLabelPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DigitalLabelPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 text-gray-900">
+          <div className="max-w-3xl mx-auto bg-white border rounded-xl p-6 text-sm text-gray-600">
+            Loading label...
+          </div>
+        </div>
+      }
+    >
+      <DigitalLabelContent />
+    </Suspense>
   );
 }
