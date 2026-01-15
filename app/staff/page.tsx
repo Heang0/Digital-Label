@@ -111,6 +111,7 @@ interface DigitalLabel {
   labelCode?: string;
   productId: string | null;
   productName?: string;
+  productSku?: string | null;
   branchId: string;
   currentPrice: number | null;
   basePrice?: number | null;
@@ -119,8 +120,8 @@ interface DigitalLabel {
   discountPrice?: number | null;
   battery: number;
   status: 'active' | 'inactive' | 'low-battery' | 'error' | 'syncing';
-  lastSync: Timestamp;
-  location: string;
+  lastSync?: Timestamp | null;
+  location?: string;
 }
 
 interface Task {
@@ -287,17 +288,29 @@ export default function StaffDashboard() {
       const labelsSnapshot = await getDocs(labelsQuery);
       const labelsData = await Promise.all(
         labelsSnapshot.docs.map(async (docSnap) => {
-          const labelData = docSnap.data();
+          const labelData = docSnap.data() as any;
           const productId = labelData.productId as string | null | undefined;
           const productDoc = productId ? await getDoc(fsDoc(db, 'products', productId)) : null;
           const productData = productDoc && productDoc.exists() ? (productDoc.data() as any) : null;
+          const battery = Number.isFinite(labelData.battery) ? Number(labelData.battery) : 0;
           return {
             id: docSnap.id,
             ...labelData,
             labelId: labelData.labelId ?? labelData.labelCode ?? docSnap.id,
+            labelCode: labelData.labelCode ?? null,
             productId: productId ?? null,
             productName: productData?.name ?? labelData.productName ?? (productId ? 'Unknown Product' : 'Unassigned'),
-            productSku: productData?.sku ?? labelData.productSku ?? null
+            productSku: productData?.sku ?? labelData.productSku ?? null,
+            branchId: labelData.branchId ?? currentUser.branchId ?? '',
+            currentPrice: labelData.currentPrice ?? null,
+            basePrice: labelData.basePrice ?? null,
+            finalPrice: labelData.finalPrice ?? null,
+            discountPercent: labelData.discountPercent ?? null,
+            discountPrice: labelData.discountPrice ?? null,
+            battery,
+            status: labelData.status ?? 'inactive',
+            lastSync: labelData.lastSync ?? null,
+            location: labelData.location ?? ''
           } as DigitalLabel;
         })
       );
