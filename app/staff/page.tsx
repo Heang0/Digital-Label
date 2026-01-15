@@ -153,8 +153,8 @@ interface Category {
   name: string;
   description?: string;
   color?: string;
-  companyId?: string;
-  createdAt?: Timestamp;
+  companyId: string;
+  createdAt: Timestamp;
 }
 
 export default function StaffDashboard() {
