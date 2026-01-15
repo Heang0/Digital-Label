@@ -10,9 +10,12 @@ interface Product {
   name: string;
   description: string;
   sku: string;
+  productCode?: string;
   category: string;
   basePrice: number;
   imageUrl?: string;
+  stock?: number;
+  minStock?: number;
 }
 
 interface ProductModalProps {
@@ -34,9 +37,12 @@ export default function ProductModal({
     name: '',
     description: '',
     sku: '',
+    productCode: '',
     category: 'General',
     basePrice: 0,
     imageUrl: '',
+    stock: 0,
+    minStock: 10,
   });
   const [loading, setLoading] = useState(false);
 
@@ -46,25 +52,31 @@ export default function ProductModal({
         name: product.name,
         description: product.description,
         sku: product.sku,
+        productCode: product.productCode || '',
         category: product.category,
         basePrice: product.basePrice,
         imageUrl: product.imageUrl || '',
+        stock: product.stock ?? 0,
+        minStock: product.minStock ?? 10,
       });
     } else {
       setFormData({
         name: '',
         description: '',
         sku: '',
-        category: categories.length > 0 ? categories[0].name : '',
+        productCode: '',
+        category: categories.length > 0 ? categories[0].name : 'General',
         basePrice: 0,
         imageUrl: '',
+        stock: 0,
+        minStock: 10,
       });
     }
   }, [product, categories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.sku.trim() || formData.basePrice <= 0) {
+    if (!formData.name.trim() || formData.basePrice <= 0) {
       alert('Please fill in all required fields');
       return;
     }
@@ -122,19 +134,31 @@ export default function ProductModal({
             {/* SKU */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                SKU *
+                SKU (auto if empty)
               </label>
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  className="pl-10"
-                  placeholder="MILK-ORG-001"
-                  required
-                  disabled={loading}
-                />
-              </div>
+              <Input
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                className="pl-10"
+                placeholder="PR-00001"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+            {/* Product Code */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Product Code (auto if empty)
+              </label>
+              <Input
+                value={formData.productCode}
+                onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
+                placeholder="PR-VE001-00001"
+                disabled={loading}
+              />
             </div>
 
             {/* Category */}
@@ -156,9 +180,6 @@ export default function ProductModal({
                   </option>
                 ))}
               </select>
-              {categories.length === 0 && (
-                <p className="text-xs text-gray-500">Add a category first to continue.</p>
-              )}
             </div>
 
             {/* Base Price */}
@@ -180,6 +201,34 @@ export default function ProductModal({
                   disabled={loading}
                 />
               </div>
+            </div>
+
+            {/* Stock */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Stock (selected branch)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
+                disabled={loading}
+              />
+            </div>
+
+            {/* Min Stock */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Min Stock
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.minStock}
+                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
+                disabled={loading}
+              />
             </div>
 
             {/* Image URL */}

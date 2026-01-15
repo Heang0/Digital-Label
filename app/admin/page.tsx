@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { auth, db, logOut } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
 import { 
   doc as fsDoc, 
   setDoc, 
@@ -82,7 +83,8 @@ import {
   Target,
   PieChart,
   LineChart,
-  AlertTriangle
+  AlertTriangle,
+  Menu
 } from 'lucide-react';
 
 interface User {
@@ -103,6 +105,9 @@ interface User {
     canReportIssues: boolean;
     canViewReports: boolean;
     canChangePrices: boolean;
+    canCreateProducts?: boolean;
+    canCreateLabels?: boolean;
+    canCreatePromotions?: boolean;
     maxPriceChange?: number;
   };
 }
@@ -118,6 +123,7 @@ interface Company {
   ownerId: string;
   ownerName?: string;
   createdAt: Timestamp;
+  code?: string;
   labelsCount?: number;
   branchesCount?: number;
   staffCount?: number;
@@ -136,19 +142,44 @@ interface SystemMetrics {
   trialAccounts: number;
 }
 
+const formatDate = (value: unknown) => {
+  if (!value) return '--';
+  if (value instanceof Date) return value.toLocaleDateString();
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    const dateValue = (value as { toDate: () => Date }).toDate();
+    return dateValue instanceof Date && !Number.isNaN(dateValue.getTime())
+      ? dateValue.toLocaleDateString()
+      : '--';
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const dateValue = new Date(value);
+    return Number.isNaN(dateValue.getTime()) ? '--' : dateValue.toLocaleDateString();
+  }
+  return '--';
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user: currentUser, clearUser } = useUserStore();
+  const { user: currentUser, clearUser, hasHydrated } = useUserStore();
+
+  const getCompanyDisplayCode = (company: Company) => {
+    const raw = company.code || `VE${company.id.slice(-3).toUpperCase()}`;
+    return raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  };
   
   // States
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const [showCreateVendor, setShowCreateVendor] = useState(false);
+  const [showEditUser, setShowEditUser] = useState<User | null>(null);
+  const [showEditCompany, setShowEditCompany] = useState<Company | null>(null);
   const [showPendingUsers, setShowPendingUsers] = useState(false);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'settings' | 'analytics'>('overview');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     totalUsers: 0,
     totalCompanies: 0,
@@ -172,25 +203,41 @@ export default function AdminDashboard() {
     password: 'changeme123',
     subscription: 'basic' as 'basic' | 'pro' | 'enterprise',
   });
+  const [editUserForm, setEditUserForm] = useState({
+    name: '',
+    email: '',
+    status: 'active' as 'active' | 'pending' | 'suspended',
+  });
+  const [editCompanyForm, setEditCompanyForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    subscription: 'basic' as 'basic' | 'pro' | 'enterprise',
+    status: 'active' as 'active' | 'pending' | 'suspended',
+  });
 
   // Redirect if not admin
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!currentUser) {
       router.push('/login');
     } else if (currentUser.role !== 'admin') {
       if (currentUser.role === 'vendor') router.push('/vendor');
       if (currentUser.role === 'staff') router.push('/staff');
     }
-  }, [currentUser, router]);
+  }, [currentUser, hasHydrated, router]);
 
   // Load data
   useEffect(() => {
+    if (!hasHydrated) return;
     if (currentUser?.role === 'admin') {
       loadData();
     }
-  }, [currentUser]);
+  }, [currentUser, hasHydrated]);
 
-  const loadData = async () => {
+  const loadData = async (minDelayMs = 0) => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       
@@ -261,9 +308,16 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (minDelayMs > elapsed) {
+        await new Promise((resolve) => setTimeout(resolve, minDelayMs - elapsed));
+      }
       setLoading(false);
+      setDataReady(true);
     }
   };
+
+  const refreshAdminData = () => loadData(1800);
 
   // Handle logout
   const handleLogout = async () => {
@@ -276,6 +330,9 @@ export default function AdminDashboard() {
   const createVendor = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const companySeq = await nextGlobalSequence("nextCompanyNumber");
+      const vendorCode = makeVendorCode(companySeq);
+
       // 1. Create auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -302,6 +359,7 @@ export default function AdminDashboard() {
       // 3. Create company document
       await setDoc(fsDoc(db, 'companies', companyId), {
         id: companyId,
+        code: vendorCode,
         name: vendorForm.companyName,
         email: vendorForm.email,
         phone: vendorForm.phone,
@@ -400,15 +458,119 @@ export default function AdminDashboard() {
     }
   };
 
+  const openEditUserModal = (user: User) => {
+    setShowEditUser(user);
+    setEditUserForm({
+      name: user.name || '',
+      email: user.email || '',
+      status: user.status || 'active',
+    });
+  };
+
+  const updateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showEditUser?.id) return;
+    try {
+      await updateDoc(fsDoc(db, 'users', showEditUser.id), {
+        name: editUserForm.name.trim(),
+        email: editUserForm.email.trim(),
+        status: editUserForm.status,
+        updatedAt: Timestamp.now(),
+      });
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === showEditUser.id
+            ? {
+                ...user,
+                name: editUserForm.name.trim(),
+                email: editUserForm.email.trim(),
+                status: editUserForm.status,
+              }
+            : user
+        )
+      );
+      setShowEditUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Error updating user');
+    }
+  };
+
+  const sendResetEmail = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Password reset email sent.');
+    } catch (error: any) {
+      console.error('Error sending password reset email:', error);
+      alert(error?.message || 'Error sending password reset email');
+    }
+  };
+
+  const requestPasswordReset = (user: User) => {
+    if (!user.email) {
+      alert('User does not have an email address.');
+      return;
+    }
+    if (!confirm(`Send a password reset email to ${user.email}?`)) return;
+    sendResetEmail(user.email);
+  };
+
+  const openEditCompanyModal = (company: Company) => {
+    setShowEditCompany(company);
+    setEditCompanyForm({
+      name: company.name || '',
+      email: company.email || '',
+      phone: company.phone || '',
+      address: company.address || '',
+      subscription: company.subscription || 'basic',
+      status: company.status || 'active',
+    });
+  };
+
+  const updateCompanyInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showEditCompany?.id) return;
+    try {
+      await updateDoc(fsDoc(db, 'companies', showEditCompany.id), {
+        name: editCompanyForm.name.trim(),
+        email: editCompanyForm.email.trim(),
+        phone: editCompanyForm.phone.trim(),
+        address: editCompanyForm.address.trim(),
+        subscription: editCompanyForm.subscription,
+        status: editCompanyForm.status,
+        updatedAt: Timestamp.now(),
+      });
+      setCompanies((prev) =>
+        prev.map((company) =>
+          company.id === showEditCompany.id
+            ? {
+                ...company,
+                name: editCompanyForm.name.trim(),
+                email: editCompanyForm.email.trim(),
+                phone: editCompanyForm.phone.trim(),
+                address: editCompanyForm.address.trim(),
+                subscription: editCompanyForm.subscription,
+                status: editCompanyForm.status,
+              }
+            : company
+        )
+      );
+      setShowEditCompany(null);
+    } catch (error) {
+      console.error('Error updating company:', error);
+      alert('Error updating company');
+    }
+  };
+
   // Filter data
-  const filteredUsers = users.filter(user =>
+  const vendorUsers = users.filter((user) => user.role === 'vendor');
+  const filteredUsers = vendorUsers.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.includes(searchTerm.toLowerCase())
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const pendingUsers = users.filter(user => user.status === 'pending');
-  const activeVendors = users.filter(user => user.role === 'vendor' && user.status === 'active');
+  const pendingUsers = vendorUsers.filter(user => user.status === 'pending');
+  const activeVendors = vendorUsers.filter(user => user.status === 'active');
   const activeStaff = users.filter(user => user.role === 'staff' && user.status === 'active');
   const activeCompanies = companies.filter(company => company.status === 'active');
   const pendingCompanies = companies.filter(company => company.status === 'pending');
@@ -417,51 +579,111 @@ export default function AdminDashboard() {
   const vendorsCount = activeVendors.length;
   const staffCount = activeStaff.length;
   const companiesCount = companies.length;
+  const adminTabs = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'users', label: `Users (${vendorUsers.length})`, icon: Users },
+    { id: 'companies', label: `Companies (${companies.length})`, icon: Building2 },
+    { id: 'analytics', label: 'Analytics', icon: Activity },
+    { id: 'settings', label: 'Settings', icon: Settings }
+  ] as const;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="mt-6 text-lg font-medium text-gray-700">Loading admin dashboard</p>
-          <p className="text-gray-500">Preparing system analytics...</p>
-        </div>
-      </div>
-    );
+  if (!dataReady && loading) {
+    return null;
   }
 
+  if (!hasHydrated) {
+    return null;
+  }
   if (!currentUser || currentUser.role !== 'admin') {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-72 bg-gray-900 text-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-red-600 flex items-center justify-center">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Admin Console</p>
+                  <p className="text-xs text-gray-400">LabelSync</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="p-2 rounded-md hover:bg-gray-800"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              {adminTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setSelectedTab(tab.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      selectedTab === tab.id
+                        ? 'bg-gray-800 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-xl">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-red-600 to-red-500 flex items-center justify-center shadow-lg">
-                <Shield className="h-7 w-7" />
+        <div className="container mx-auto px-4 sm:px-6 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden inline-flex items-center justify-center rounded-md border border-gray-700 bg-gray-800 h-10 w-10"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-r from-red-600 to-red-500 flex items-center justify-center shadow-lg">
+                <Shield className="h-6 w-6 sm:h-7 sm:w-7" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">LabelSync Pro Admin</h1>
-                <p className="text-gray-300">System Control Panel</p>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Digital Label Admin</h1>
+                <p className="text-xs sm:text-sm text-gray-300">System Control Panel</p>
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Search users, companies..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  className="pl-10 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                 />
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between gap-3">
                 <div className="text-right hidden sm:block">
                   <p className="font-medium">{currentUser.name}</p>
                   <p className="text-sm text-gray-300">System Administrator</p>
@@ -473,7 +695,7 @@ export default function AdminDashboard() {
                   onClick={handleLogout} 
                   variant="outline" 
                   size="sm"
-                  className="border-gray-700 text-white hover:bg-gray-800"
+                  className="border-gray-700 text-white hover:bg-gray-800 w-full sm:w-auto"
                 >
                   <LogOut className="h-4 w-4 mr-2" /> Sign Out
                 </Button>
@@ -482,7 +704,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-1 mt-8 border-b border-gray-700">
+          <div className="hidden md:flex space-x-1 mt-8 border-b border-gray-700">
             <button
               onClick={() => setSelectedTab('overview')}
               className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-all ${selectedTab === 'overview' ? 'bg-white text-gray-900 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
@@ -498,7 +720,7 @@ export default function AdminDashboard() {
             >
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <span>Users ({users.length})</span>
+                <span>Users ({vendorUsers.length})</span>
               </div>
             </button>
             <button
@@ -531,6 +753,15 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
+
+      {loading && dataReady && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 text-gray-700">
+            <div className="h-12 w-12 animate-spin rounded-full border-[6px] border-gray-300 border-t-gray-700"></div>
+            <div className="text-sm font-semibold tracking-wide uppercase">Refreshing data...</div>
+          </div>
+        </div>
+      )}
 
       <main className="container mx-auto px-4 py-8">
         {/* Quick Stats - Always visible */}
@@ -713,7 +944,7 @@ export default function AdminDashboard() {
                   <p className="text-xs text-gray-500 mt-1">All retail chains</p>
                 </button>
                 <button 
-                  onClick={loadData}
+                  onClick={refreshAdminData}
                   className="p-6 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:shadow-lg transition-all text-center group bg-gradient-to-b from-white to-gray-50"
                 >
                   <RefreshCw className="h-8 w-8 mx-auto mb-3 text-orange-600 group-hover:scale-110 transition-transform" />
@@ -736,7 +967,7 @@ export default function AdminDashboard() {
                       <div>
                         <p className="font-medium text-gray-900">{company.name}</p>
                         <p className="text-sm text-gray-500">
-                          Joined {company.createdAt.toDate().toLocaleDateString()} • {company.subscription} Plan
+                          Joined {formatDate(company.createdAt)} • {company.subscription} Plan
                         </p>
                       </div>
                     </div>
@@ -761,7 +992,7 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">User Management</h3>
-                  <p className="text-gray-600">Manage all platform users and permissions</p>
+                  <p className="text-gray-600">Manage vendor accounts and permissions</p>
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" className="border-gray-300">
@@ -832,10 +1063,24 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.createdAt.toDate().toLocaleDateString()}
+                          {formatDate(user.createdAt)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditUserModal(user)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => requestPasswordReset(user)}
+                            >
+                              <Mail className="h-4 w-4 mr-2" /> Reset PW
+                            </Button>
                             {user.status === 'pending' && (
                               <Button 
                                 size="sm" 
@@ -900,6 +1145,7 @@ export default function AdminDashboard() {
                       <div>
                         <h4 className="font-bold text-gray-900">{company.name}</h4>
                         <p className="text-sm text-gray-500">{company.email}</p>
+                        <p className="text-xs text-gray-400">Code: {getCompanyDisplayCode(company)}</p>
                       </div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -956,6 +1202,14 @@ export default function AdminDashboard() {
                       }}
                     >
                       <Eye className="h-4 w-4 mr-2" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 border-gray-300"
+                      onClick={() => openEditCompanyModal(company)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" /> Edit
                     </Button>
                     <Button 
                       size="sm" 
@@ -1265,6 +1519,163 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {/* Edit User Modal */}
+      {showEditUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <UserIcon className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Edit User</h2>
+                </div>
+                <button onClick={() => setShowEditUser(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-1">Update vendor account details</p>
+            </div>
+
+            <form onSubmit={updateUser} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Name *</label>
+                <Input
+                  value={editUserForm.name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Email *</label>
+                <Input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Status</label>
+                <select
+                  value={editUserForm.status}
+                  onChange={(e) =>
+                    setEditUserForm({ ...editUserForm, status: e.target.value as 'active' | 'pending' | 'suspended' })
+                  }
+                  className="w-full border rounded-lg px-3 py-2"
+                >
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button type="button" variant="outline" onClick={() => sendResetEmail(editUserForm.email)}>
+                  <Mail className="h-4 w-4 mr-2" /> Send Reset Email
+                </Button>
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" onClick={() => setShowEditUser(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Save</Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Company Modal */}
+      {showEditCompany && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Edit Company</h2>
+                </div>
+                <button onClick={() => setShowEditCompany(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mt-1">Update company information</p>
+            </div>
+
+            <form onSubmit={updateCompanyInfo} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Company Name *</label>
+                  <Input
+                    value={editCompanyForm.name}
+                    onChange={(e) => setEditCompanyForm({ ...editCompanyForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Email</label>
+                  <Input
+                    type="email"
+                    value={editCompanyForm.email}
+                    onChange={(e) => setEditCompanyForm({ ...editCompanyForm, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Phone</label>
+                  <Input
+                    value={editCompanyForm.phone}
+                    onChange={(e) => setEditCompanyForm({ ...editCompanyForm, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Address</label>
+                  <textarea
+                    value={editCompanyForm.address}
+                    onChange={(e) => setEditCompanyForm({ ...editCompanyForm, address: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 h-24"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Subscription</label>
+                  <select
+                    value={editCompanyForm.subscription}
+                    onChange={(e) =>
+                      setEditCompanyForm({ ...editCompanyForm, subscription: e.target.value as 'basic' | 'pro' | 'enterprise' })
+                    }
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="basic">Basic</option>
+                    <option value="pro">Pro</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    value={editCompanyForm.status}
+                    onChange={(e) =>
+                      setEditCompanyForm({ ...editCompanyForm, status: e.target.value as 'active' | 'pending' | 'suspended' })
+                    }
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowEditCompany(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create Vendor Modal */}
       {showCreateVendor && (

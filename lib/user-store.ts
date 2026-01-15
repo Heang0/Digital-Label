@@ -15,6 +15,9 @@ interface User {
     canReportIssues: boolean;
     canViewReports: boolean;
     canChangePrices: boolean;
+    canCreateProducts?: boolean;
+    canCreateLabels?: boolean;
+    canCreatePromotions?: boolean;
     maxPriceChange?: number;
   };
 }
@@ -23,6 +26,8 @@ interface UserStore {
   user: User | null;
   setUser: (user: User | null) => void;
   clearUser: () => void;
+  hasHydrated: boolean;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useUserStore = create<UserStore>()(
@@ -31,9 +36,14 @@ export const useUserStore = create<UserStore>()(
       user: null,
       setUser: (user) => set({ user }),
       clearUser: () => set({ user: null }),
+      hasHydrated: false,
+      setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
       name: 'user-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

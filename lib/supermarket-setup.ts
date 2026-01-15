@@ -31,19 +31,9 @@ export async function ensureDefaultBranch(companyId: string) {
 export async function generateLabelsForBranch(params: {
   companyId: string;
   branchId: string;
+  count?: number;
 }) {
-  const { companyId, branchId } = params;
-
-  // prevent duplicate generation
-  const existing = await getDocs(
-    query(
-      collection(db, "labels"),
-      where("companyId", "==", companyId),
-      where("branchId", "==", branchId),
-      limit(1)
-    )
-  );
-  if (!existing.empty) return { created: 0, skipped: true };
+  const { companyId, branchId, count = 6 } = params;
 
   const layout = [
     { aisle: "Dairy", shelves: ["Shelf 1", "Shelf 2", "Shelf 3"] },
@@ -51,39 +41,49 @@ export async function generateLabelsForBranch(params: {
   ];
 
   const batch = writeBatch(db);
-  let counter = 1;
+  const existing = await getDocs(
+    query(
+      collection(db, "labels"),
+      where("companyId", "==", companyId),
+      where("branchId", "==", branchId)
+    )
+  );
+  let counter = existing.size + 1;
   let created = 0;
 
-  for (const a of layout) {
-    for (const shelf of a.shelves) {
-      const labelCode = `DL-${String(counter).padStart(3, "0")}`;
-      counter++;
+  for (let i = 0; i < count; i++) {
+    const layoutIndex = i % layout.length;
+    const aisle = layout[layoutIndex].aisle;
+    const shelf =
+      layout[layoutIndex].shelves[i % layout[layoutIndex].shelves.length];
 
-      const ref = doc(collection(db, "labels"));
-      batch.set(ref, {
-        companyId,
-        branchId,
-        labelId: labelCode,
-        labelCode,
-        aisle: a.aisle,
-        shelf,
+    const labelCode = `DL-${String(counter).padStart(3, "0")}`;
+    counter++;
 
-        productId: null,
-        productName: null,
-        productSku: null,
+    const ref = doc(collection(db, "labels"));
+    batch.set(ref, {
+      companyId,
+      branchId,
+      labelId: labelCode,
+      labelCode,
+      aisle,
+      shelf,
 
-        basePrice: null,
-        currentPrice: null,
+      productId: null,
+      productName: null,
+      productSku: null,
 
-        discountPercent: null,
-        discountPrice: null,
+      basePrice: null,
+      currentPrice: null,
 
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      discountPercent: null,
+      discountPrice: null,
 
-      created++;
-    }
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    created++;
   }
 
   await batch.commit();

@@ -71,20 +71,20 @@ export default function CategoryModal({
 
     setLoading(true);
     try {
+      const trimmedName = formData.name.trim();
+      const trimmedDescription = formData.description.trim();
+      const payload = {
+        name: trimmedName,
+        color: formData.color,
+        ...(trimmedDescription ? { description: trimmedDescription } : {})
+      };
+
       if (category?.id) {
         // Update existing category
-        await updateCategory(category.id, {
-          name: formData.name.trim(),
-          description: formData.description.trim() || undefined,
-          color: formData.color,
-        });
+        await updateCategory(category.id, payload);
       } else {
         // Create new category
-        await createCategory(companyId, {
-          name: formData.name.trim(),
-          description: formData.description.trim() || undefined,
-          color: formData.color,
-        });
+        await createCategory(companyId, payload);
       }
 
       onCategoryChange();

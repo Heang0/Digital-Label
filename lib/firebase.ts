@@ -12,15 +12,15 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-// Your Firebase config - directly in code
+// Firebase config via env (set NEXT_PUBLIC_FIREBASE_* for Vercel)
 const firebaseConfig = {
-  apiKey: "AIzaSyCfgE3QkbaBoMZCBmU_twXH2lQu192bJH0",
-  authDomain: "digital-label-8620b.firebaseapp.com",
-  projectId: "digital-label-8620b",
-  storageBucket: "digital-label-8620b.firebasestorage.app",
-  messagingSenderId: "342078286952",
-  appId: "1:342078286952:web:c125a1ae12edac51029fdd",
-  measurementId: "G-QHGBZ7RD29"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || ''
 };
 
 // Initialize Firebase
@@ -61,6 +61,8 @@ export const getUserData = async (userId: string) => {
         role: userData.role || 'staff',
         companyId: userData.companyId || null,
         branchId: userData.branchId || null,
+        position: userData.position || '',
+        permissions: userData.permissions || null,
       };
     }
     

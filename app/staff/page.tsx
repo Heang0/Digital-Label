@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
+import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
 import { db, logOut } from '@/lib/firebase';
+import ProductModal from '@/components/modals/ProductModal';
+import CategoryModal from '@/components/modals/CategoryModal';
 import { 
   doc as fsDoc,
   getDoc, 
@@ -12,6 +15,7 @@ import {
   query, 
   where, 
   updateDoc,
+  deleteDoc,
   Timestamp,
   addDoc
 } from 'firebase/firestore';
@@ -56,6 +60,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { generateLabelsForBranch } from '@/lib/supermarket-setup';
+import { makeProductCodeForVendor, makeSku, nextBranchSequence } from '@/lib/id-generator';
 
 // INTERFACES
 interface Branch {
@@ -68,11 +74,18 @@ interface Branch {
   status: 'active' | 'inactive';
 }
 
+interface Company {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   sku: string;
+  productCode?: string;
   category: string;
   basePrice: number;
   imageUrl?: string;
@@ -96,12 +109,16 @@ interface DigitalLabel {
   id: string;
   labelId: string;
   labelCode?: string;
-  productId: string;
+  productId: string | null;
   productName?: string;
   branchId: string;
-  currentPrice: number;
+  currentPrice: number | null;
+  basePrice?: number | null;
+  finalPrice?: number | null;
+  discountPercent?: number | null;
+  discountPrice?: number | null;
   battery: number;
-  status: 'active' | 'inactive' | 'low-battery' | 'error';
+  status: 'active' | 'inactive' | 'low-battery' | 'error' | 'syncing';
   lastSync: Timestamp;
   location: string;
 }
@@ -130,20 +147,38 @@ interface IssueReport {
   reportedBy: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  companyId?: string;
+  createdAt?: Timestamp;
+}
+
 export default function StaffDashboard() {
   const router = useRouter();
-  const { user: currentUser, clearUser } = useUserStore();
+  const { user: currentUser, clearUser, hasHydrated } = useUserStore();
   
   // States
   const [selectedTab, setSelectedTab] = useState<'dashboard' | 'inventory' | 'labels' | 'issues' | 'reports'>('dashboard');
   const [loading, setLoading] = useState(true);
+  const [company, setCompany] = useState<Company | null>(null);
   const [branch, setBranch] = useState<Branch | null>(null);
   const [branchProducts, setBranchProducts] = useState<BranchProduct[]>([]);
   const [labels, setLabels] = useState<DigitalLabel[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [issues, setIssues] = useState<IssueReport[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showReportIssue, setShowReportIssue] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [labelGenerateCount, setLabelGenerateCount] = useState(6);
+  const [promotionPercent, setPromotionPercent] = useState(10);
+  const [labelCategoryFilter, setLabelCategoryFilter] = useState<Record<string, string>>({});
+  const [discountInputs, setDiscountInputs] = useState<Record<string, number>>({});
   
   // Form states
   const [issueForm, setIssueForm] = useState({
@@ -157,23 +192,47 @@ export default function StaffDashboard() {
     change: number;
     reason?: string;
   } | null>(null);
+  const productsForBranch = useMemo(() => {
+    const map = new Map<string, Product>();
+    branchProducts.forEach((bp) => {
+      if (bp.productDetails) {
+        map.set(bp.productDetails.id, bp.productDetails);
+      }
+    });
+    return Array.from(map.values());
+  }, [branchProducts]);
+  const getLabelDisplayId = (label: DigitalLabel) => label.labelId || label.labelCode || label.id;
+  const sortedLabels = useMemo(() => {
+    const items = [...labels];
+    items.sort((a, b) => {
+      const aMatch = getLabelDisplayId(a).match(/\d+/);
+      const bMatch = getLabelDisplayId(b).match(/\d+/);
+      const aNum = aMatch ? Number(aMatch[0]) : Number.MAX_SAFE_INTEGER;
+      const bNum = bMatch ? Number(bMatch[0]) : Number.MAX_SAFE_INTEGER;
+      if (aNum !== bNum) return aNum - bNum;
+      return getLabelDisplayId(a).localeCompare(getLabelDisplayId(b));
+    });
+    return items;
+  }, [labels]);
 
   // Redirect if not staff
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!currentUser) {
       router.push('/login');
     } else if (currentUser.role !== 'staff') {
       if (currentUser.role === 'admin') router.push('/admin');
       if (currentUser.role === 'vendor') router.push('/vendor');
     }
-  }, [currentUser, router]);
+  }, [currentUser, hasHydrated, router]);
 
   // Load staff data
   useEffect(() => {
+    if (!hasHydrated) return;
     if (currentUser?.role === 'staff' && currentUser.branchId && currentUser.companyId) {
       loadStaffData();
     }
-  }, [currentUser]);
+  }, [currentUser, hasHydrated]);
 
   const loadStaffData = async () => {
     if (!currentUser?.branchId || !currentUser.companyId) return;
@@ -181,6 +240,12 @@ export default function StaffDashboard() {
     try {
       setLoading(true);
       
+      // 0. Load company data
+      const companyDoc = await getDoc(fsDoc(db, 'companies', currentUser.companyId));
+      if (companyDoc.exists()) {
+        setCompany({ id: companyDoc.id, ...companyDoc.data() } as Company);
+      }
+
       // 1. Load branch data
       const branchDoc = await getDoc(fsDoc(db, 'branches', currentUser.branchId));
       if (branchDoc.exists()) {
@@ -200,7 +265,9 @@ export default function StaffDashboard() {
         branchProductsSnapshot.docs.map(async (docSnap) => {
           const bpData = docSnap.data();
           const productDoc = await getDoc(fsDoc(db, 'products', bpData.productId));
-          const productDetails = productDoc.exists() ? productDoc.data() as Product : undefined;
+          const productDetails = productDoc.exists()
+            ? ({ id: productDoc.id, ...(productDoc.data() as Product) } as Product)
+            : undefined;
           
           return {
             id: docSnap.id,
@@ -221,43 +288,37 @@ export default function StaffDashboard() {
       const labelsData = await Promise.all(
         labelsSnapshot.docs.map(async (docSnap) => {
           const labelData = docSnap.data();
-          const productDoc = await getDoc(fsDoc(db, 'products', labelData.productId));
+          const productId = labelData.productId as string | null | undefined;
+          const productDoc = productId ? await getDoc(fsDoc(db, 'products', productId)) : null;
+          const productData = productDoc && productDoc.exists() ? (productDoc.data() as any) : null;
           return {
             id: docSnap.id,
             ...labelData,
             labelId: labelData.labelId ?? labelData.labelCode ?? docSnap.id,
-            productName: productDoc.exists() ? (productDoc.data() as any).name : 'Unknown Product'
+            productId: productId ?? null,
+            productName: productData?.name ?? labelData.productName ?? (productId ? 'Unknown Product' : 'Unassigned'),
+            productSku: productData?.sku ?? labelData.productSku ?? null
           } as DigitalLabel;
         })
       );
       setLabels(labelsData);
 
-      // 4. Load tasks (mock for now - can be extended to Firestore)
-      const mockTasks: Task[] = [
-        {
-          id: '1',
-          title: 'Restock milk in Aisle 4',
-          description: 'Organic milk is running low, needs restocking',
-          priority: 'high',
-          status: 'pending',
-          dueDate: 'Today, 4 PM',
-          assignedBy: 'Store Manager',
-          branchId: currentUser.branchId
-        },
-        {
-          id: '2',
-          title: 'Check label battery #DL-002',
-          description: 'Label showing low battery warning',
-          priority: 'medium',
-          status: 'in-progress',
-          dueDate: 'Tomorrow',
-          assignedBy: 'System Alert',
-          branchId: currentUser.branchId
-        },
-      ];
-      setTasks(mockTasks);
+      // 4. Load categories (only for this company)
+      const categoriesQuery = query(
+        collection(db, 'categories'),
+        where('companyId', '==', currentUser.companyId)
+      );
+      const categoriesSnapshot = await getDocs(categoriesQuery);
+      const categoriesData = categoriesSnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as any)
+      })) as Category[];
+      setCategories(categoriesData);
 
-      // 5. Load issues (only for this branch)
+      // 5. Load tasks (disabled until dynamic tasks are implemented)
+      setTasks([]);
+
+      // 6. Load issues (only for this branch)
       const issuesQuery = query(
         collection(db, 'issue_reports'),
         where('branchId', '==', currentUser.branchId)
@@ -266,11 +327,16 @@ export default function StaffDashboard() {
       const issuesData = await Promise.all(
         issuesSnapshot.docs.map(async (docSnap) => {
           const issueData = docSnap.data();
-          const productDoc = await getDoc(fsDoc(db, 'products', issueData.productId));
+          const productId = issueData.productId as string | null | undefined;
+          const productDoc = productId ? await getDoc(fsDoc(db, 'products', productId)) : null;
           return {
             id: docSnap.id,
             ...issueData,
-            productName: productDoc.exists() ? (productDoc.data() as any).name : 'Unknown Product'
+            productName: productDoc && productDoc.exists()
+              ? (productDoc.data() as any).name
+              : productId
+                ? 'Unknown Product'
+                : 'Unknown Product'
           } as IssueReport;
         })
       );
@@ -291,7 +357,16 @@ export default function StaffDashboard() {
   };
 
   // Update stock
-  const updateStock = async (productId: string, change: number, reason?: string) => {
+  const updateStock = async (
+    productId: string,
+    value: number,
+    reason?: string,
+    mode: 'adjust' | 'set' = 'adjust'
+  ) => {
+    if (!canUpdateStock) {
+      alert('You do not have permission to update stock.');
+      return;
+    }
     if (!currentUser?.branchId || !currentUser.companyId) return;
 
     try {
@@ -303,46 +378,520 @@ export default function StaffDashboard() {
       );
       const bpSnapshot = await getDocs(bpQuery);
       
-      if (!bpSnapshot.empty) {
-        const bpDoc = bpSnapshot.docs[0];
-        const bpData = bpDoc.data();
-        const newStock = bpData.stock + change;
-        
-        // Update stock
-        await updateDoc(fsDoc(db, 'branch_products', bpDoc.id), {
-          stock: newStock,
-          status: newStock <= 0 ? 'out-of-stock' : 
-                  newStock <= bpData.minStock ? 'low-stock' : 'in-stock',
-          lastUpdated: Timestamp.now()
-        });
-
-        // Log the stock change
-        await addDoc(collection(db, 'inventory_logs'), {
-          productId,
-          branchId: currentUser.branchId,
-          companyId: currentUser.companyId,
-          change,
-          newStock,
-          reason: reason || 'Manual adjustment',
-          changedBy: currentUser.id,
-          changedByName: currentUser.name,
-          timestamp: Timestamp.now()
-        });
-
-        // Refresh data
-        await loadStaffData();
-        setStockUpdateForm(null);
-        alert('Stock updated successfully!');
+      if (bpSnapshot.empty) {
+        alert('Stock record not found for this product.');
+        return;
       }
+
+      const updates = bpSnapshot.docs.map((bpDoc) => {
+        const bpData = bpDoc.data();
+        const newStock = mode === 'set' ? value : bpData.stock + value;
+        if (newStock < 0) {
+          throw new Error('Stock cannot be negative.');
+        }
+        const change = newStock - bpData.stock;
+        return {
+          bpDoc,
+          bpData,
+          newStock,
+          change,
+        };
+      });
+
+      await Promise.all(
+        updates.map(({ bpDoc, bpData, newStock }) =>
+          updateDoc(fsDoc(db, 'branch_products', bpDoc.id), {
+            stock: newStock,
+            status: newStock <= 0 ? 'out-of-stock' :
+              newStock <= bpData.minStock ? 'low-stock' : 'in-stock',
+            lastUpdated: Timestamp.now()
+          })
+        )
+      );
+
+      await Promise.all(
+        updates.map(({ newStock, change }) =>
+          addDoc(collection(db, 'inventory_logs'), {
+            productId,
+            branchId: currentUser.branchId,
+            companyId: currentUser.companyId,
+            change,
+            newStock,
+            reason: reason || 'Manual adjustment',
+            changedBy: currentUser.id,
+            changedByName: currentUser.name,
+            timestamp: Timestamp.now()
+          })
+        )
+      );
+
+      const updatesById = new Map(
+        updates.map(({ bpDoc, bpData, newStock }) => [bpDoc.id, { bpData, newStock }])
+      );
+      setBranchProducts((prev) =>
+        prev.map((bp) => {
+          const update = updatesById.get(bp.id);
+          if (!update) return bp;
+          const { bpData, newStock } = update;
+          return {
+            ...bp,
+            stock: newStock,
+            status:
+              newStock <= 0
+                ? 'out-of-stock'
+                : newStock <= bpData.minStock
+                  ? 'low-stock'
+                  : 'in-stock',
+          };
+        })
+      );
+      setStockUpdateForm(null);
+      alert('Stock updated successfully!');
     } catch (error) {
       console.error('Error updating stock:', error);
       alert('Error updating stock');
     }
   };
 
+  const createProductFromStaff = async (productData: any) => {
+    if (!canManageProducts) {
+      alert('You do not have permission to create products.');
+      return;
+    }
+    if (!currentUser?.companyId || !currentUser.branchId) return;
+
+    try {
+      const productSeq = await nextBranchSequence(currentUser.branchId, "nextProductNumber");
+      const vendorCode = getCompanyDisplayCode();
+      const productCode = productData.productCode?.trim() || makeProductCodeForVendor(vendorCode, productSeq);
+      const sku = productData.sku?.trim() || makeSku(productSeq);
+
+      const branchProductList = branchProducts
+        .map((bp) => bp.productDetails)
+        .filter(Boolean) as Product[];
+      const productCodeConflict = branchProductList.some(
+        (product) => (product.productCode || '').toLowerCase() === productCode.toLowerCase()
+      );
+      if (productCodeConflict) {
+        alert('Product code already exists for this branch.');
+        return;
+      }
+      const skuConflict = branchProductList.some(
+        (product) => (product.sku || '').toLowerCase() === sku.toLowerCase()
+      );
+      if (skuConflict) {
+        alert('SKU already exists for this branch.');
+        return;
+      }
+
+      const productRef = await addDoc(collection(db, 'products'), {
+        ...productData,
+        productCode,
+        sku,
+        category: productData.category || 'General',
+        companyId: currentUser.companyId,
+        createdBy: currentUser.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+
+      const stock = Number(productData.stock ?? 0);
+      const minStock = Number(productData.minStock ?? 10);
+      const status =
+        stock <= 0
+          ? 'out-of-stock'
+          : stock <= minStock
+            ? 'low-stock'
+            : 'in-stock';
+
+      await addDoc(collection(db, 'branch_products'), {
+        productId: productRef.id,
+        branchId: currentUser.branchId,
+        companyId: currentUser.companyId,
+        currentPrice: productData.basePrice,
+        stock,
+        minStock,
+        status,
+        lastUpdated: Timestamp.now()
+      });
+
+      await loadStaffData();
+      alert(`Product "${productData.name}" created successfully!`);
+    } catch (error: any) {
+      console.error('Error creating product:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  const handleGenerateLabels = async () => {
+    if (!canManageLabels) {
+      alert('You do not have permission to create labels.');
+      return;
+    }
+    if (!currentUser?.companyId || !currentUser.branchId) return;
+
+    try {
+      const count = Math.max(1, Math.floor(Number(labelGenerateCount || 0)));
+      if (!Number.isFinite(count)) {
+        alert('Enter a valid number of labels.');
+        return;
+      }
+      const result = await generateLabelsForBranch({
+        companyId: currentUser.companyId,
+        branchId: currentUser.branchId,
+        count,
+      });
+      await loadStaffData();
+      alert(`Created ${result.created} labels for this branch.`);
+    } catch (error: any) {
+      console.error('Error generating labels:', error);
+      alert(error.message || 'Could not generate labels.');
+    }
+  };
+
+  const getBranchPriceForProduct = (productId: string) => {
+    const bp = branchProducts.find((item) => item.productId === productId);
+    if (bp?.currentPrice != null) return Number(bp.currentPrice);
+    const product = bp?.productDetails ?? productsForBranch.find((p) => p.id === productId);
+    return Number(product?.basePrice ?? 0);
+  };
+
+  const assignProductToLabel = async (labelId: string, productId: string) => {
+    if (!canManageLabels) {
+      alert('You do not have permission to assign labels.');
+      return;
+    }
+    const product = productsForBranch.find((p) => p.id === productId);
+    if (!product) {
+      alert('Select a valid product.');
+      return;
+    }
+    const basePrice = getBranchPriceForProduct(productId);
+    if (!basePrice) {
+      alert('Set a product price before assigning this label.');
+      return;
+    }
+    try {
+      await updateDoc(fsDoc(db, 'labels', labelId), {
+        productId,
+        productName: product.name,
+        productSku: product.sku,
+        currentPrice: basePrice,
+        basePrice,
+        finalPrice: basePrice,
+        lastSync: Timestamp.now(),
+        status: 'syncing',
+      });
+      setLabels((prev) =>
+        prev.map((label) =>
+          label.id === labelId
+            ? {
+                ...label,
+                productId,
+                productName: product.name,
+                productSku: product.sku,
+                currentPrice: basePrice,
+                basePrice,
+                finalPrice: basePrice,
+                lastSync: Timestamp.now(),
+                status: 'syncing',
+              }
+            : label
+        )
+      );
+    } catch (error) {
+      console.error('Error assigning product to label:', error);
+      alert('Failed to assign product.');
+    }
+  };
+
+  const clearLabelAssignment = async (labelId: string) => {
+    if (!canManageLabels) return;
+    if (!confirm('Clear product assignment for this label?')) return;
+    try {
+      await updateDoc(fsDoc(db, 'labels', labelId), {
+        productId: null,
+        productName: null,
+        productSku: null,
+        currentPrice: null,
+        basePrice: null,
+        finalPrice: null,
+        discountPercent: null,
+        discountPrice: null,
+        lastSync: Timestamp.now(),
+        status: 'inactive',
+      });
+      setLabels((prev) =>
+        prev.map((label) =>
+          label.id === labelId
+            ? {
+                ...label,
+                productId: null,
+                productName: null,
+                productSku: null,
+                currentPrice: null,
+                basePrice: null,
+                finalPrice: null,
+                discountPercent: null,
+                discountPrice: null,
+                lastSync: Timestamp.now(),
+                status: 'inactive',
+              }
+            : label
+        )
+      );
+    } catch (error) {
+      console.error('Error clearing label assignment:', error);
+      alert('Failed to clear label.');
+    }
+  };
+
+  const handleAutoAssignLabels = async () => {
+    if (!canManageLabels) {
+      alert('You do not have permission to assign labels.');
+      return;
+    }
+    const unassignedLabels = labels.filter((label) => !label.productId);
+    if (unassignedLabels.length === 0) {
+      alert('All labels already have products.');
+      return;
+    }
+    if (productsForBranch.length === 0) {
+      alert('Create products before assigning labels.');
+      return;
+    }
+    const usedProductIds = new Set(labels.map((label) => label.productId).filter(Boolean) as string[]);
+    const availableProducts = productsForBranch.filter((product) => !usedProductIds.has(product.id));
+    if (availableProducts.length === 0) {
+      alert('All products are already assigned.');
+      return;
+    }
+    const assignments = unassignedLabels.slice(0, availableProducts.length).map((label, index) => ({
+      label,
+      product: availableProducts[index],
+    }));
+    try {
+      const now = Timestamp.now();
+      await Promise.all(
+        assignments.map(({ label, product }) => {
+          const basePrice = getBranchPriceForProduct(product.id);
+          return updateDoc(fsDoc(db, 'labels', label.id), {
+            productId: product.id,
+            productName: product.name,
+            productSku: product.sku,
+            currentPrice: basePrice,
+            basePrice,
+            finalPrice: basePrice,
+            lastSync: now,
+            status: 'syncing',
+          });
+        })
+      );
+      setLabels((prev) =>
+        prev.map((label) => {
+          const assignment = assignments.find((item) => item.label.id === label.id);
+          if (!assignment) return label;
+          const basePrice = getBranchPriceForProduct(assignment.product.id);
+          return {
+            ...label,
+            productId: assignment.product.id,
+            productName: assignment.product.name,
+            productSku: assignment.product.sku,
+            currentPrice: basePrice,
+            basePrice,
+            finalPrice: basePrice,
+            lastSync: now,
+            status: 'syncing',
+          };
+        })
+      );
+      alert(`Assigned ${assignments.length} products to labels.`);
+    } catch (error) {
+      console.error('Error auto-assigning labels:', error);
+      alert('Failed to auto-assign labels.');
+    }
+  };
+
+  const deleteAllLabelsForBranch = async () => {
+    if (!canManageLabels) return;
+    if (!currentUser?.branchId) return;
+    if (!confirm('Delete all labels for this branch?')) return;
+    try {
+      const branchLabels = labels.filter((label) => label.branchId === currentUser.branchId);
+      await Promise.all(branchLabels.map((label) => deleteDoc(fsDoc(db, 'labels', label.id))));
+      setLabels((prev) => prev.filter((label) => label.branchId !== currentUser.branchId));
+    } catch (error) {
+      console.error('Error deleting labels:', error);
+      alert('Failed to delete labels.');
+    }
+  };
+
+  const clearAllLabelsForBranch = async () => {
+    if (!canManageLabels) return;
+    if (!currentUser?.branchId) return;
+    if (!confirm('Clear all labels for this branch?')) return;
+    try {
+      const branchLabels = labels.filter((label) => label.branchId === currentUser.branchId);
+      const now = Timestamp.now();
+      await Promise.all(
+        branchLabels.map((label) =>
+          updateDoc(fsDoc(db, 'labels', label.id), {
+            productId: null,
+            productName: null,
+            productSku: null,
+            basePrice: null,
+            currentPrice: null,
+            finalPrice: null,
+            discountPercent: null,
+            discountPrice: null,
+            lastSync: now,
+            status: 'inactive',
+          })
+        )
+      );
+      setLabels((prev) =>
+        prev.map((label) =>
+          label.branchId === currentUser.branchId
+            ? {
+                ...label,
+                productId: null,
+                productName: null,
+                productSku: null,
+                basePrice: null,
+                currentPrice: null,
+                finalPrice: null,
+                discountPercent: null,
+                discountPrice: null,
+                lastSync: now,
+                status: 'inactive',
+              }
+            : label
+        )
+      );
+    } catch (error) {
+      console.error('Error clearing labels:', error);
+      alert('Failed to clear labels.');
+    }
+  };
+
+  const openDigitalLabelsScreen = () => {
+    if (!currentUser?.companyId || !currentUser.branchId) return;
+    window.open(
+      `/digital-labels?companyId=${currentUser.companyId}&branchId=${currentUser.branchId}`,
+      '_blank'
+    );
+  };
+
+  const applyPromotionToAllLabels = async () => {
+    if (!canManagePromotions) {
+      alert('You do not have permission to create promotions.');
+      return;
+    }
+
+    const percent = Number(promotionPercent);
+    if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+      alert('Enter a valid percent between 1 and 100.');
+      return;
+    }
+
+    const targetLabels = labels.filter((label) => label.productId);
+    if (targetLabels.length === 0) {
+      alert('No labels available to apply this promotion.');
+      return;
+    }
+
+    try {
+      await Promise.all(
+        targetLabels.map((label) => {
+          const productId = label.productId as string;
+          const basePrice = getBranchPriceForProduct(productId);
+          return applyDiscountToLabel({
+            labelId: label.id,
+            basePrice,
+            percent,
+          });
+        })
+      );
+      await loadStaffData();
+      alert(`Applied ${percent}% promotion to ${targetLabels.length} labels.`);
+    } catch (error: any) {
+      console.error('Error applying promotion:', error);
+      alert(error.message || 'Could not apply promotion.');
+    }
+  };
+
+  const reloadCategories = async () => {
+    if (!currentUser?.companyId) return;
+    const categoriesQuery = query(
+      collection(db, 'categories'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const categoriesSnapshot = await getDocs(categoriesQuery);
+    const categoriesData = categoriesSnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as any)
+    })) as Category[];
+    setCategories(categoriesData);
+  };
+
+  const removeProductFromBranch = async (productId: string) => {
+    if (!currentUser?.branchId) return;
+    if (!confirm('Remove this product from your branch?')) return;
+
+    try {
+      const bpQuery = query(
+        collection(db, 'branch_products'),
+        where('productId', '==', productId),
+        where('branchId', '==', currentUser.branchId)
+      );
+      const bpSnapshot = await getDocs(bpQuery);
+      await Promise.all(bpSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
+
+      const labelQuery = query(
+        collection(db, 'labels'),
+        where('branchId', '==', currentUser.branchId),
+        where('productId', '==', productId)
+      );
+      const labelSnapshot = await getDocs(labelQuery);
+      await Promise.all(
+        labelSnapshot.docs.map((docSnap) =>
+          updateDoc(docSnap.ref, {
+            productId: null,
+            productName: null,
+            currentPrice: null,
+            lastSync: Timestamp.now(),
+            status: 'inactive'
+          })
+        )
+      );
+
+      await loadStaffData();
+      alert('Product removed from this branch.');
+    } catch (error: any) {
+      console.error('Error removing product from branch:', error);
+      alert(error.message || 'Could not remove product.');
+    }
+  };
+
+  const deleteLabel = async (labelId: string) => {
+    if (!confirm('Delete this label?')) return;
+    try {
+      await deleteDoc(fsDoc(db, 'labels', labelId));
+      setLabels((prev) => prev.filter((label) => label.id !== labelId));
+      alert('Label deleted.');
+    } catch (error: any) {
+      console.error('Error deleting label:', error);
+      alert(error.message || 'Could not delete label.');
+    }
+  };
+
   // Report issue
   const reportIssue = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canReportIssues) {
+      alert('You do not have permission to report issues.');
+      return;
+    }
     if (!currentUser?.branchId || !currentUser.companyId) return;
 
     try {
@@ -404,22 +953,52 @@ export default function StaffDashboard() {
     ));
   };
 
+  const getCompanyDisplayCode = () => {
+    const raw = company?.code || (company?.id ? `VE${company.id.slice(-3).toUpperCase()}` : 'VE000');
+    return raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  };
+
   // Check staff permissions
-  const canUpdateStock = currentUser ? true : false; // You can check actual permissions from user data
-  const canReportIssues = currentUser ? true : false;
+  const staffPermissions = currentUser?.permissions ?? {
+    canViewProducts: false,
+    canUpdateStock: false,
+    canReportIssues: false,
+    canViewReports: false,
+    canChangePrices: false,
+    canCreateProducts: false,
+    canCreateLabels: false,
+    canCreatePromotions: false,
+    maxPriceChange: 0,
+  };
+  const canViewProducts = staffPermissions.canViewProducts;
+  const canUpdateStock = staffPermissions.canUpdateStock;
+  const canReportIssues = staffPermissions.canReportIssues;
+  const canViewReports = staffPermissions.canViewReports;
+  const canManageProducts = Boolean(staffPermissions.canCreateProducts);
+  const canManageLabels = Boolean(staffPermissions.canCreateLabels);
+  const canManagePromotions = Boolean(staffPermissions.canCreatePromotions);
+  const modalCategories = categories.length > 0 ? categories : [{ id: 'general', name: 'General' }];
+  useEffect(() => {
+    if (selectedTab === 'inventory' && !(canViewProducts || canManageProducts)) {
+      setSelectedTab('dashboard');
+      return;
+    }
+    if (selectedTab === 'labels' && !(canViewProducts || canReportIssues || canManageLabels)) {
+      setSelectedTab('dashboard');
+      return;
+    }
+    if (selectedTab === 'issues' && !canReportIssues) {
+      setSelectedTab('dashboard');
+      return;
+    }
+    if (selectedTab === 'reports' && !canViewReports) {
+      setSelectedTab('dashboard');
+    }
+  }, [selectedTab, canViewProducts, canReportIssues, canViewReports]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto"></div>
-          <p className="mt-6 text-lg font-medium text-gray-700">Loading your dashboard</p>
-          <p className="text-gray-500">Preparing your tasks and reports...</p>
-        </div>
-      </div>
-    );
+  if (!hasHydrated) {
+    return null;
   }
-
   if (!currentUser || currentUser.role !== 'staff') {
     return null;
   }
@@ -474,39 +1053,45 @@ export default function StaffDashboard() {
           >
             Dashboard
           </button>
-          <button
-            onClick={() => setSelectedTab('inventory')}
-            className={cn(
-              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-              selectedTab === 'inventory' 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-          >
-            Inventory
-          </button>
-          <button
-            onClick={() => setSelectedTab('labels')}
-            className={cn(
-              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-              selectedTab === 'labels' 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-          >
-            Labels
-          </button>
-          <button
-            onClick={() => setSelectedTab('issues')}
-            className={cn(
-              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-              selectedTab === 'issues' 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-          >
-            Issues
-          </button>
+          {canViewProducts && (
+            <button
+              onClick={() => setSelectedTab('inventory')}
+              className={cn(
+                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                selectedTab === 'inventory' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Inventory
+            </button>
+          )}
+          {(canViewProducts || canReportIssues || canManageLabels) && (
+            <button
+              onClick={() => setSelectedTab('labels')}
+              className={cn(
+                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                selectedTab === 'labels' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Labels
+            </button>
+          )}
+          {canReportIssues && (
+            <button
+              onClick={() => setSelectedTab('issues')}
+              className={cn(
+                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                selectedTab === 'issues' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Issues
+            </button>
+          )}
         </div>
       </header>
 
@@ -560,7 +1145,7 @@ export default function StaffDashboard() {
               <span className="font-medium">Dashboard</span>
             </button>
 
-            {canUpdateStock && (
+            {(canViewProducts || canManageProducts) && (
               <button
                 onClick={() => setSelectedTab('inventory')}
                 className={cn(
@@ -575,18 +1160,20 @@ export default function StaffDashboard() {
               </button>
             )}
 
-            <button
-              onClick={() => setSelectedTab('labels')}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                selectedTab === 'labels' 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
-              )}
-            >
-              <Tag className="h-5 w-5" />
-              <span className="font-medium">Labels</span>
-            </button>
+            {(canViewProducts || canReportIssues || canManageLabels) && (
+              <button
+                onClick={() => setSelectedTab('labels')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                  selectedTab === 'labels' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
+                )}
+              >
+                <Tag className="h-5 w-5" />
+                <span className="font-medium">Labels</span>
+              </button>
+            )}
 
             {canReportIssues && (
               <button
@@ -603,18 +1190,20 @@ export default function StaffDashboard() {
               </button>
             )}
 
-            <button
-              onClick={() => setSelectedTab('reports')}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                selectedTab === 'reports' 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
-              )}
-            >
-              <BarChart className="h-5 w-5" />
-              <span className="font-medium">Reports</span>
-            </button>
+            {canViewReports && (
+              <button
+                onClick={() => setSelectedTab('reports')}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                  selectedTab === 'reports' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
+                )}
+              >
+                <BarChart className="h-5 w-5" />
+                <span className="font-medium">Reports</span>
+              </button>
+            )}
           </nav>
 
           {/* Bottom Actions */}
@@ -723,17 +1312,17 @@ export default function StaffDashboard() {
             {selectedTab === 'dashboard' && (
               <div className="space-y-6">
                 {/* Dashboard Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h2>
                     <p className="text-gray-600">Welcome back, {currentUser.name}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2 w-full sm:w-auto">
                       <RefreshCw className="h-4 w-4" />
                       Refresh
                     </Button>
-                    <Button size="sm" className="flex items-center gap-2">
+                    <Button size="sm" className="flex items-center gap-2 w-full sm:w-auto">
                       <Download className="h-4 w-4" />
                       Export
                     </Button>
@@ -741,94 +1330,93 @@ export default function StaffDashboard() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <div className="bg-white rounded-xl border p-4 sm:p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <Package className="h-6 w-6 text-blue-600" />
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <Package className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                       </div>
                       <span className="text-sm text-green-600 font-medium">+5%</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">{branchProducts.length}</h3>
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{branchProducts.length}</h3>
                     <p className="text-gray-600">Total Products</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                  <div className="bg-white rounded-xl border p-4 sm:p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-6 w-6 text-green-600" />
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                        <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                       </div>
                       <span className="text-sm text-green-600 font-medium">+2%</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
                       {branchProducts.filter(p => p.status === 'in-stock').length}
                     </h3>
                     <p className="text-gray-600">In Stock</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                  <div className="bg-white rounded-xl border p-4 sm:p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-yellow-600" />
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                        <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
                       </div>
                       <span className="text-sm text-red-600 font-medium">-3%</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
                       {branchProducts.filter(p => p.status === 'low-stock').length}
                     </h3>
                     <p className="text-gray-600">Low Stock</p>
                   </div>
 
-                  <div className="bg-white rounded-xl border p-6 shadow-sm">
+                  <div className="bg-white rounded-xl border p-4 sm:p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <Tag className="h-6 w-6 text-purple-600" />
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <Tag className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
                       </div>
                       <span className="text-sm text-green-600 font-medium">+8%</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">{labels.length}</h3>
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{labels.length}</h3>
                     <p className="text-gray-600">Active Labels</p>
                   </div>
                 </div>
 
                 {/* Tasks and Alerts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Tasks */}
-                  <div className="bg-white rounded-xl border p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
+                  {tasks.length > 0 && (
+                    <div className="bg-white rounded-xl border p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                       <h3 className="text-lg font-semibold text-gray-900">Today's Tasks</h3>
-                      <Button size="sm" variant="outline">View All</Button>
                     </div>
-                    <div className="space-y-4">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="flex items-start gap-4 p-4 rounded-lg border">
-                          <div className={`h-3 w-3 rounded-full mt-2 ${
-                            task.priority === 'high' ? 'bg-red-500' :
-                            task.priority === 'medium' ? 'bg-yellow-500' :
-                            'bg-green-500'
-                          }`} />
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">{task.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                              <span>Due: {task.dueDate}</span>
-                              <span>By: {task.assignedBy}</span>
+                      <div className="space-y-4">
+                        {tasks.map((task) => (
+                          <div key={task.id} className="flex items-start gap-4 p-4 rounded-lg border">
+                            <div className={`h-3 w-3 rounded-full mt-2 ${
+                              task.priority === 'high' ? 'bg-red-500' :
+                              task.priority === 'medium' ? 'bg-yellow-500' :
+                              'bg-green-500'
+                            }`} />
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{task.title}</h4>
+                              <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                <span>Due: {task.dueDate}</span>
+                                <span>By: {task.assignedBy}</span>
+                              </div>
                             </div>
+                            {task.status === 'pending' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => completeTask(task.id)}
+                              >
+                                Complete
+                              </Button>
+                            )}
                           </div>
-                          {task.status === 'pending' && (
-                            <Button 
-                              size="sm" 
-                              onClick={() => completeTask(task.id)}
-                            >
-                              Complete
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Alerts */}
                   <div className="bg-white rounded-xl border p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-900">Alerts & Issues</h3>
@@ -851,7 +1439,7 @@ export default function StaffDashboard() {
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900">{issue.issue}</h4>
                             <p className="text-sm text-gray-600 mt-1">
-                              Label: {issue.labelId} • Product: {issue.productName}
+                              Label: {issue.labelId} / Product: {issue.productName}
                             </p>
                             <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                               <span>Reported: {issue.reportedAt?.toDate().toLocaleDateString()}</span>
@@ -874,7 +1462,7 @@ export default function StaffDashboard() {
             )}
 
             {/* Inventory Tab */}
-            {selectedTab === 'inventory' && (
+            {selectedTab === 'inventory' && (canViewProducts || canManageProducts) && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -893,7 +1481,67 @@ export default function StaffDashboard() {
                       <Button variant="outline">
                         <Filter className="h-4 w-4 mr-2" /> Filter
                       </Button>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" /> Export
+                      </Button>
+                      {canManageProducts && (
+                        <Button onClick={() => setShowProductModal(true)}>
+                          <Plus className="h-4 w-4 mr-2" /> Add Product
+                        </Button>
+                      )}
                     </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
+                  <div className="p-6 border-b">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Categories ({categories.length})</h4>
+                        <p className="text-sm text-gray-600">Organize products by category.</p>
+                      </div>
+                      {canManageProducts && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedCategory(null);
+                            setShowCategoryModal(true);
+                          }}
+                        >
+                          <Tag className="h-4 w-4 mr-2" /> New Category
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="divide-y">
+                    {categories.length === 0 ? (
+                      <div className="p-6 text-sm text-gray-600">
+                        No categories yet.
+                      </div>
+                    ) : (
+                      categories.map((cat) => (
+                        <div key={cat.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <span className="h-3 w-3 rounded-full bg-gray-300" />
+                            <div className="font-medium text-gray-900">{cat.name}</div>
+                          </div>
+                          {canManageProducts && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedCategory(cat);
+                                  setShowCategoryModal(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -925,7 +1573,7 @@ export default function StaffDashboard() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                              <span className="font-mono text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded">
                                 {bp.productDetails?.sku}
                               </span>
                             </td>
@@ -950,28 +1598,41 @@ export default function StaffDashboard() {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => updateStock(bp.productId, 10, 'Restocked')}
+                                  disabled={!canUpdateStock}
+                                  onClick={() => updateStock(bp.productId, 10, 'Restocked', 'adjust')}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => updateStock(bp.productId, -5, 'Sold')}
+                                  disabled={!canUpdateStock}
+                                  onClick={() => updateStock(bp.productId, -5, 'Sold', 'adjust')}
                                 >
                                   <Minus className="h-4 w-4" />
                                 </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline"
+                                  disabled={!canUpdateStock}
                                   onClick={() => setStockUpdateForm({
                                     productId: bp.productId,
-                                    change: 0,
+                                    change: bp.stock,
                                     reason: ''
                                   })}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
+                                {canManageProducts && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-rose-600 hover:text-rose-700"
+                                    onClick={() => removeProductFromBranch(bp.productId)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -984,24 +1645,98 @@ export default function StaffDashboard() {
             )}
 
             {/* Labels Tab */}
-            {selectedTab === 'labels' && (
+            {selectedTab === 'labels' && (canViewProducts || canReportIssues || canManageLabels) && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Digital Label Status - {branch?.name}</h3>
+
+                    {(canManageLabels || canManagePromotions) && (
+                      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                        {canManageLabels && (
+                          <div className="flex flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-700">Create labels</p>
+                              <p className="text-xs text-gray-500">Generate new labels for this branch.</p>
+                            </div>
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={labelGenerateCount}
+                              onChange={(e) => setLabelGenerateCount(Number(e.target.value || 1))}
+                              className="w-24 bg-white"
+                            />
+                            <Button onClick={handleGenerateLabels}>
+                              Generate
+                            </Button>
+                          </div>
+                        )}
+                        {canManageLabels && (
+                          <div className="flex flex-1 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Label actions</p>
+                              <p className="text-xs text-gray-500">Assign or remove branch labels.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="outline" onClick={handleAutoAssignLabels}>
+                                Auto-Assign Products
+                              </Button>
+                              <Button variant="outline" onClick={clearAllLabelsForBranch}>
+                                Clear All Labels
+                              </Button>
+                              <Button variant="outline" onClick={deleteAllLabelsForBranch}>
+                                Delete All Labels
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {canManagePromotions && (
+                          <div className="flex flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-700">Branch promotion</p>
+                              <p className="text-xs text-gray-500">Apply a percent discount to all labels.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={promotionPercent}
+                                onChange={(e) => setPromotionPercent(Number(e.target.value || 0))}
+                                className="w-24 bg-white"
+                              />
+                              <span className="text-sm text-gray-600">%</span>
+                            </div>
+                            <Button onClick={applyPromotionToAllLabels}>
+                              Apply
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(canManageLabels || canManagePromotions) && (
+                      <div className="mb-6 flex justify-end">
+                        <Button variant="outline" onClick={openDigitalLabelsScreen}>
+                          Open Digital Labels Screen
+                        </Button>
+                      </div>
+                    )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {labels.map((label) => (
+                    {sortedLabels.map((label) => (
                       <div key={label.id} className="border rounded-xl p-6 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h4 className="font-semibold text-gray-900">{label.labelId}</h4>
-                            <p className="text-sm text-gray-600">{label.productName}</p>
+                            <h4 className="font-semibold text-gray-900">{label.labelId || label.labelCode || label.id}</h4>
+                            <p className="text-sm text-gray-600">{label.productName || 'Unassigned'}</p>
                             <p className="text-xs text-gray-500">{label.location}</p>
                           </div>
                           <span className={cn(
                             "px-3 py-1 rounded-full text-xs font-semibold",
                             label.status === 'active' ? 'bg-green-100 text-green-800' :
                             label.status === 'low-battery' ? 'bg-yellow-100 text-yellow-800' :
+                            label.status === 'syncing' ? 'bg-blue-100 text-blue-800' :
                             'bg-red-100 text-red-800'
                           )}>
                             {label.status}
@@ -1011,7 +1746,11 @@ export default function StaffDashboard() {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Current Price:</span>
-                            <span className="font-bold">${label.currentPrice.toFixed(2)}</span>
+                            <span className="font-bold">
+                              {Number.isFinite(label.currentPrice)
+                                ? `$${Number(label.currentPrice).toFixed(2)}`
+                                : '--'}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Battery:</span>
@@ -1032,14 +1771,180 @@ export default function StaffDashboard() {
                           </div>
                         </div>
 
-                        <div className="pt-4 border-t">
+                        <div className="pt-4 border-t space-y-3">
+                          {canManageLabels && (
+                            <div className="space-y-3">
+                              <div className="grid gap-2">
+                                <div className="text-xs font-medium text-gray-600">Assign product</div>
+                                <select
+                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  value={labelCategoryFilter[label.id] || ''}
+                                  onChange={(e) =>
+                                    setLabelCategoryFilter((prev) => ({
+                                      ...prev,
+                                      [label.id]: e.target.value,
+                                    }))
+                                  }
+                                >
+                                  <option value="">All categories</option>
+                                  {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.name}>
+                                      {cat.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  value={label.productId || ''}
+                                  onChange={(e) => {
+                                    const productId = e.target.value;
+                                    if (!productId) return;
+                                    assignProductToLabel(label.id, productId);
+                                  }}
+                                >
+                                  <option value="">Select product...</option>
+                                  {(labelCategoryFilter[label.id]
+                                    ? productsForBranch.filter((p) => p.category === labelCategoryFilter[label.id])
+                                    : productsForBranch
+                                  ).map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                      {product.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-[110px_1fr_90px] gap-2 items-center">
+                                <Input
+                                  type="number"
+                                  placeholder="Percent"
+                                  value={discountInputs[label.id] ?? ''}
+                                  onChange={(e) =>
+                                    setDiscountInputs((prev) => ({
+                                      ...prev,
+                                      [label.id]: Number(e.target.value),
+                                    }))
+                                  }
+                                  className="bg-white text-sm"
+                                />
+                                <Button
+                                  onClick={async () => {
+                                    const percent = discountInputs[label.id];
+                                    if (!percent || percent <= 0 || percent > 100) {
+                                      alert('Enter a value between 1 and 100.');
+                                      return;
+                                    }
+                                    if (!label.productId) {
+                                      alert('Assign a product before applying a discount.');
+                                      return;
+                                    }
+                                    const basePrice = getBranchPriceForProduct(label.productId);
+                                    if (!basePrice) {
+                                      alert('Set a base price first.');
+                                      return;
+                                    }
+                                    try {
+                                      await applyDiscountToLabel({
+                                        labelId: label.id,
+                                        basePrice,
+                                        percent,
+                                      });
+                                      const discountPrice = Math.round(basePrice * (1 - percent / 100) * 100) / 100;
+                                      setLabels((prev) =>
+                                        prev.map((item) =>
+                                          item.id === label.id
+                                            ? {
+                                                ...item,
+                                                basePrice,
+                                                currentPrice: basePrice,
+                                                finalPrice: discountPrice,
+                                                discountPercent: percent,
+                                                discountPrice,
+                                                lastSync: Timestamp.now(),
+                                                status: 'syncing',
+                                              }
+                                            : item
+                                        )
+                                      );
+                                    } catch (error) {
+                                      console.error('Error applying label discount:', error);
+                                      alert('Failed to apply discount.');
+                                    }
+                                  }}
+                                >
+                                  Apply
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={async () => {
+                                    if (!label.productId) {
+                                      alert('Assign a product before clearing.');
+                                      return;
+                                    }
+                                    const basePrice = getBranchPriceForProduct(label.productId);
+                                    if (!basePrice) {
+                                      alert('Set a base price first.');
+                                      return;
+                                    }
+                                    try {
+                                      await clearDiscountFromLabel({
+                                        labelId: label.id,
+                                        basePrice,
+                                      });
+                                      setLabels((prev) =>
+                                        prev.map((item) =>
+                                          item.id === label.id
+                                            ? {
+                                                ...item,
+                                                basePrice,
+                                                currentPrice: basePrice,
+                                                finalPrice: basePrice,
+                                                discountPercent: null,
+                                                discountPrice: null,
+                                                lastSync: Timestamp.now(),
+                                                status: 'syncing',
+                                              }
+                                            : item
+                                        )
+                                      );
+                                    } catch (error) {
+                                      console.error('Error clearing label discount:', error);
+                                      alert('Failed to clear discount.');
+                                    }
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Button variant="outline" onClick={() => clearLabelAssignment(label.id)}>
+                                  Clear Label
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className="text-rose-600 hover:text-rose-700"
+                                  onClick={() => deleteLabel(label.id)}
+                                >
+                                  Delete Label
+                                </Button>
+                              </div>
+                              <a
+                                className="block text-xs text-blue-600 underline"
+                                href={`/digital-labels/${label.id}?companyId=${currentUser?.companyId}&branchId=${currentUser?.branchId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Open Label Screen
+                              </a>
+                            </div>
+                          )}
                           <Button 
                             size="sm" 
                             variant="outline" 
                             className="w-full"
+                            disabled={!canReportIssues}
                             onClick={() => {
                               setIssueForm({
-                                labelId: label.labelId,
+                                labelId: label.labelId || label.labelCode || label.id,
                                 issue: '',
                                 priority: 'medium'
                               });
@@ -1127,7 +2032,7 @@ export default function StaffDashboard() {
             )}
 
             {/* Reports Tab */}
-            {selectedTab === 'reports' && (
+            {selectedTab === 'reports' && canViewReports && (
               <div className="bg-white rounded-xl border p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Reports</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1280,12 +2185,12 @@ export default function StaffDashboard() {
             <form onSubmit={(e) => {
               e.preventDefault();
               if (stockUpdateForm.change !== 0) {
-                updateStock(stockUpdateForm.productId, stockUpdateForm.change, stockUpdateForm.reason);
+                updateStock(stockUpdateForm.productId, stockUpdateForm.change, stockUpdateForm.reason, 'set');
               }
             }} className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Quantity Change *</label>
+                  <label className="text-sm font-medium text-gray-700">New Stock *</label>
                   <div className="flex gap-2">
                     <Button 
                       type="button"
@@ -1318,7 +2223,7 @@ export default function StaffDashboard() {
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Positive number to add stock, negative to remove
+                    Set the final stock value for this branch.
                   </p>
                 </div>
 
@@ -1347,6 +2252,21 @@ export default function StaffDashboard() {
           </div>
         </div>
       )}
+
+      <ProductModal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        categories={modalCategories}
+        onSubmit={createProductFromStaff}
+      />
+
+      <CategoryModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        companyId={currentUser?.companyId || ''}
+        category={selectedCategory}
+        onCategoryChange={reloadCategories}
+      />
     </div>
   );
 }

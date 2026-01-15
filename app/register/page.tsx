@@ -16,6 +16,9 @@ import {
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { signUp, logOut, db } from '@/lib/firebase';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,15 +34,58 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [plan, setPlan] = useState<'basic' | 'pro' | 'enterprise'>('pro');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      alert('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
-    
-    // Simulate registration
-    setTimeout(() => {
+    try {
+      const companySeq = await nextGlobalSequence('nextCompanyNumber');
+      const vendorCode = makeVendorCode(companySeq);
+
+      const userCredential = await signUp(formData.email, formData.password);
+      const userId = userCredential.user.uid;
+      const companyId = `company_${userId}`;
+
+      await setDoc(doc(db, 'users', userId), {
+        id: userId,
+        email: formData.email,
+        name: formData.fullName,
+        role: 'vendor',
+        companyId,
+        status: 'pending',
+        createdAt: Timestamp.now(),
+        phone: formData.phone,
+        createdBy: 'self-register'
+      });
+
+      await setDoc(doc(db, 'companies', companyId), {
+        id: companyId,
+        code: vendorCode,
+        name: formData.companyName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        contactPerson: formData.fullName,
+        subscription: plan,
+        status: 'pending',
+        ownerId: userId,
+        ownerName: formData.fullName,
+        createdAt: Timestamp.now(),
+        createdBy: 'self-register'
+      });
+
+      await logOut();
       setIsLoading(false);
       router.push('/login');
-    }, 2000);
+    } catch (error: any) {
+      console.error('Error registering vendor:', error);
+      alert(error?.message || 'Failed to register. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,7 +262,7 @@ export default function RegisterPage() {
                     <Input
                       name="password"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="********"
                       value={formData.password}
                       onChange={handleChange}
                       className="pl-10"
@@ -235,7 +281,7 @@ export default function RegisterPage() {
                     <Input
                       name="confirmPassword"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="********"
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       className="pl-10"
