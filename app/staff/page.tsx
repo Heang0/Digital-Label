@@ -1328,22 +1328,70 @@ export default function StaffDashboard() {
                   </button>
                 </div>
               </div>
-              <div className="p-4">
+              <div className="p-4 pb-36">
                 <p className="text-sm text-gray-400 mb-4">Welcome, {currentUser.name}</p>
                 <div className="space-y-2">
                   <button onClick={() => { setSelectedTab('dashboard'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg bg-gray-800">
                     Dashboard
                   </button>
-                  <button onClick={() => { setSelectedTab('inventory'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
-                    Inventory
-                  </button>
-                  <button onClick={() => { setSelectedTab('labels'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
-                    Labels
-                  </button>
-                  <button onClick={() => { setSelectedTab('issues'); setShowMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800">
-                    Issues
-                  </button>
+                  {(canViewProducts || canManageProducts) && (
+                    <button
+                      onClick={() => {
+                        setSelectedTab('inventory');
+                        setShowMobileMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800"
+                    >
+                      Inventory
+                    </button>
+                  )}
+                  {(canViewProducts || canReportIssues || canManageLabels) && (
+                    <button
+                      onClick={() => {
+                        setSelectedTab('labels');
+                        setShowMobileMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800"
+                    >
+                      Labels
+                    </button>
+                  )}
+                  {canReportIssues && (
+                    <button
+                      onClick={() => {
+                        setSelectedTab('issues');
+                        setShowMobileMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-800"
+                    >
+                      Issues
+                    </button>
+                  )}
                 </div>
+              </div>
+
+              {/* Mobile Bottom Actions */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700 space-y-2">
+                <button
+                  onClick={() => {
+                    loadStaffData();
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                  <span className="font-medium">Refresh Data</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowMobileMenu(false);
+                    await handleLogout();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-red-900/30 hover:text-red-100 transition-colors"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-medium">Sign Out</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1554,27 +1602,29 @@ export default function StaffDashboard() {
                       <h3 className="text-lg font-semibold text-gray-900">Inventory Management</h3>
                       <p className="text-gray-600">Monitor and update product stock levels</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full">
+                      <div className="relative w-full sm:w-auto flex-1 min-w-[220px]">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <Input
                           placeholder="Search products..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10 w-64"
+                          className="pl-10 w-full sm:w-64"
                         />
                       </div>
-                      <Button variant="outline">
-                        <Filter className="h-4 w-4 mr-2" /> Filter
-                      </Button>
-                      <Button variant="outline">
-                        <Download className="h-4 w-4 mr-2" /> Export
-                      </Button>
-                      {canManageProducts && (
-                        <Button onClick={() => setShowProductModal(true)}>
-                          <Plus className="h-4 w-4 mr-2" /> Add Product
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <Filter className="h-4 w-4 mr-2" /> Filter
                         </Button>
-                      )}
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <Download className="h-4 w-4 mr-2" /> Export
+                        </Button>
+                        {canManageProducts && (
+                          <Button onClick={() => setShowProductModal(true)} className="w-full sm:w-auto">
+                            <Plus className="h-4 w-4 mr-2" /> Add Product
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
