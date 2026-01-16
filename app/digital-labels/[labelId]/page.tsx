@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
 
@@ -45,33 +45,36 @@ function DigitalLabelContent() {
   }, []);
 
   useEffect(() => {
-    const load = async () => {
-      if (!params?.labelId) return;
-      setLoading(true);
-      try {
-        const snap = await getDoc(doc(db, 'labels', params.labelId));
-        if (snap.exists()) {
-          const data = snap.data() as any;
-          const productId = data?.productId as string | undefined;
-          if (productId && (!data.productSku || !data.productName || !data.productDescription)) {
-            const productSnap = await getDoc(doc(db, 'products', productId));
-            if (productSnap.exists()) {
-              const product = productSnap.data() as any;
-              data.productSku = data.productSku ?? product?.sku ?? null;
-              data.productName = data.productName ?? product?.name ?? null;
-              data.productDescription = data.productDescription ?? product?.description ?? null;
-            }
-          }
-          setLabel({ ...data, id: snap.id } as Label);
-        } else {
+    if (!params?.labelId) return;
+    setLoading(true);
+    const labelRef = doc(db, 'labels', params.labelId);
+    const unsubscribe = onSnapshot(
+      labelRef,
+      async (snap) => {
+        if (!snap.exists()) {
           setLabel(null);
+          setLoading(false);
+          return;
         }
-      } finally {
+        const data = snap.data() as any;
+        const productId = data?.productId as string | undefined;
+        if (productId && (!data.productSku || !data.productName || !data.productDescription)) {
+          const productSnap = await getDoc(doc(db, 'products', productId));
+          if (productSnap.exists()) {
+            const product = productSnap.data() as any;
+            data.productSku = data.productSku ?? product?.sku ?? null;
+            data.productName = data.productName ?? product?.name ?? null;
+            data.productDescription = data.productDescription ?? product?.description ?? null;
+          }
+        }
+        setLabel({ id: snap.id, ...data } as Label);
+        setLoading(false);
+      },
+      () => {
         setLoading(false);
       }
-    };
-
-    load();
+    );
+    return () => unsubscribe();
   }, [params?.labelId]);
 
   useEffect(() => {

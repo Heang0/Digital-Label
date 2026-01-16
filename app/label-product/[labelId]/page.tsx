@@ -25,6 +25,7 @@ interface Label {
   productId?: string | null;
   productName?: string | null;
   productSku?: string | null;
+  productDescription?: string | null;
   branchId?: string;
   companyId?: string;
   currentPrice?: number | null;
@@ -60,6 +61,18 @@ export default function LabelProductPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [branchProduct, setBranchProduct] = useState<BranchProduct | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const normalizeNumericInput = (value: string) => {
+    if (value === '') return '';
+    const isNegative = value.startsWith('-');
+    const raw = isNegative ? value.slice(1) : value;
+    if (raw.startsWith('0') && raw.length > 1 && !raw.startsWith('0.')) {
+      const stripped = raw.replace(/^0+(?=\d)/, '');
+      return `${isNegative ? '-' : ''}${stripped}`;
+    }
+    return value;
+  };
   const [formState, setFormState] = useState({
     name: '',
     description: '',
@@ -225,6 +238,7 @@ export default function LabelProductPage() {
 
     setSaving(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
     try {
       await updateDoc(doc(db, 'products', product.id), {
         name,
@@ -260,6 +274,7 @@ export default function LabelProductPage() {
       await updateDoc(doc(db, 'labels', label.id), {
         productName: name,
         productSku: product.sku ?? null,
+        productDescription: formState.description.trim(),
         currentPrice: branchPrice,
         basePrice: branchPrice,
         finalPrice,
@@ -283,6 +298,7 @@ export default function LabelProductPage() {
           ? {
               ...prev,
               productName: name,
+              productDescription: formState.description.trim(),
               currentPrice: branchPrice,
               basePrice: branchPrice,
               discountPercent: effectiveDiscount,
@@ -298,6 +314,7 @@ export default function LabelProductPage() {
             }
           : prev
       );
+      setSuccessMessage('Changes saved successfully.');
     } catch (error) {
       console.error('Error saving label product:', error);
       setErrorMessage('Could not save changes.');
@@ -367,7 +384,10 @@ export default function LabelProductPage() {
                 step="0.01"
                 value={formState.branchPrice}
                 onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, branchPrice: e.target.value }))
+                  setFormState((prev) => ({
+                    ...prev,
+                    branchPrice: normalizeNumericInput(e.target.value),
+                  }))
                 }
                 disabled={!canEdit}
               />
@@ -381,7 +401,10 @@ export default function LabelProductPage() {
                 step="1"
                 value={formState.discountPercent}
                 onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, discountPercent: e.target.value }))
+                  setFormState((prev) => ({
+                    ...prev,
+                    discountPercent: normalizeNumericInput(e.target.value),
+                  }))
                 }
                 disabled={!canEdit}
               />
@@ -408,6 +431,23 @@ export default function LabelProductPage() {
           </div>
         </div>
       </div>
+      {successMessage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setSuccessMessage(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Saved</h3>
+            <p className="mt-2 text-sm text-gray-600">{successMessage}</p>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => setSuccessMessage(null)}>OK</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

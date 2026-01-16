@@ -19,6 +19,7 @@ import {
   getDoc, 
   getDocs, 
   collection, 
+  onSnapshot,
   query, 
   where, 
   updateDoc,
@@ -440,6 +441,34 @@ const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | n
       setLabelModal(null);
     }
   }, [selectedTab]);
+
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+    const labelsQuery = query(
+      collection(db, 'labels'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const unsubscribe = onSnapshot(labelsQuery, (snapshot) => {
+      const productsById = new Map(products.map((product) => [product.id, product]));
+      const branchesById = new Map(branches.map((branch) => [branch.id, branch]));
+      const labelsData = snapshot.docs.map((docSnap) => {
+        const labelRaw = docSnap.data() as any;
+        const product = labelRaw?.productId ? productsById.get(labelRaw.productId) : undefined;
+        const branch = labelRaw?.branchId ? branchesById.get(labelRaw.branchId) : undefined;
+
+        return {
+          ...labelRaw,
+          id: docSnap.id,
+          labelId: labelRaw?.labelId ?? labelRaw?.labelCode ?? docSnap.id,
+          productName: labelRaw?.productName ?? product?.name ?? 'Unknown Product',
+          productSku: labelRaw?.productSku ?? product?.sku ?? 'Unknown SKU',
+          branchName: branch?.name ?? 'Unknown Branch'
+        } as DigitalLabel;
+      });
+      setLabels(labelsData);
+    });
+    return () => unsubscribe();
+  }, [currentUser?.companyId, products, branches]);
 
   const openLabelNotice = (
     title: string,

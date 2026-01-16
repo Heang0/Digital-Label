@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, ArrowRight, Building2, Lock, Mail, Store, Users } from 'lucide-react';
 import { signIn, getUserData } from '@/lib/firebase';
@@ -19,6 +19,7 @@ type DemoAccount = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setUser } = useUserStore();
 
   const [email, setEmail] = useState('');
@@ -87,10 +88,18 @@ export default function LoginPage() {
 
       setUser(normalizedUser);
 
-      if (normalizedUser.role === 'admin') router.push('/admin');
-      else if (normalizedUser.role === 'vendor') router.push('/vendor');
-      else if (normalizedUser.role === 'staff') router.push('/staff');
-      else router.push('/vendor');
+      const nextPath = searchParams.get('next');
+      if (nextPath && nextPath.startsWith('/')) {
+        router.push(nextPath);
+      } else if (normalizedUser.role === 'admin') {
+        router.push('/admin');
+      } else if (normalizedUser.role === 'vendor') {
+        router.push('/vendor');
+      } else if (normalizedUser.role === 'staff') {
+        router.push('/staff');
+      } else {
+        router.push('/vendor');
+      }
     } catch (error: any) {
       setIsLoading(false);
 

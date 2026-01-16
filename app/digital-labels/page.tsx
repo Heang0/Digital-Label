@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { collection, getDoc, getDocs, query, where, doc as fsDoc } from 'firebase/firestore';
+import { collection, getDoc, onSnapshot, query, where, doc as fsDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
 
@@ -44,100 +44,105 @@ function DigitalLabelsContent() {
   useEffect(() => {
     if (!companyId) return;
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const companySnap = await getDoc(fsDoc(db, 'companies', companyId));
-        if (companySnap.exists()) {
-          const data = companySnap.data() as any;
-          setCompanyName(data?.name ?? null);
-          setCompanyCode(data?.code ?? null);
-        } else {
-          setCompanyName(null);
-          setCompanyCode(null);
-        }
-        if (branchId) {
-          const branchSnap = await getDoc(fsDoc(db, 'branches', branchId));
-          if (branchSnap.exists()) {
-            const data = branchSnap.data() as any;
-            setBranchName(data?.name ?? null);
-            setBranchCode(data?.code ?? null);
-          } else {
-            setBranchName(null);
-            setBranchCode(null);
-          }
+    let active = true;
+    const loadMeta = async () => {
+      const companySnap = await getDoc(fsDoc(db, 'companies', companyId));
+      if (companySnap.exists()) {
+        const data = companySnap.data() as any;
+        setCompanyName(data?.name ?? null);
+        setCompanyCode(data?.code ?? null);
+      } else {
+        setCompanyName(null);
+        setCompanyCode(null);
+      }
+      if (branchId) {
+        const branchSnap = await getDoc(fsDoc(db, 'branches', branchId));
+        if (branchSnap.exists()) {
+          const data = branchSnap.data() as any;
+          setBranchName(data?.name ?? null);
+          setBranchCode(data?.code ?? null);
         } else {
           setBranchName(null);
           setBranchCode(null);
         }
-
-        const baseQuery = query(
-          collection(db, 'labels'),
-          where('companyId', '==', companyId)
-        );
-        const labelsQuery = branchId
-          ? query(baseQuery, where('branchId', '==', branchId))
-          : baseQuery;
-
-        const snapshot = await getDocs(labelsQuery);
-        const rawLabels = snapshot.docs.map((docSnap) => ({
-          ...(docSnap.data() as any),
-          id: docSnap.id,
-        })) as Label[];
-
-        const missingProductIds = Array.from(
-          new Set(
-            rawLabels
-              .filter(
-                (label) =>
-                  (!label.productSku || !label.productName || !label.productDescription) &&
-                  label.productId
-              )
-              .map((label) => label.productId as string)
-          )
-        );
-
-        if (missingProductIds.length === 0) {
-          setLabels(rawLabels);
-          return;
-        }
-
-        const productEntries = await Promise.all(
-          missingProductIds.map(async (productId) => {
-            const productSnap = await getDoc(fsDoc(db, 'products', productId));
-            if (!productSnap.exists()) return null;
-            const data = productSnap.data() as any;
-            return [
-              productId,
-              { name: data?.name, sku: data?.sku, description: data?.description }
-            ] as const;
-          })
-        );
-        const productMap = new Map(
-          productEntries.filter(Boolean) as Array<
-            readonly [string, { name?: string; sku?: string; description?: string }]
-          >
-        );
-
-        setLabels(
-          rawLabels.map((label) => {
-            const productId = label.productId ?? undefined;
-            const product = productId ? productMap.get(productId) : undefined;
-            return {
-              ...label,
-              productName: label.productName ?? product?.name ?? label.productName,
-              productSku: label.productSku ?? product?.sku ?? label.productSku,
-              productDescription:
-                label.productDescription ?? product?.description ?? label.productDescription,
-            };
-          })
-        );
-      } finally {
-        setLoading(false);
+      } else {
+        setBranchName(null);
+        setBranchCode(null);
       }
     };
 
-    load();
+    const baseQuery = query(
+      collection(db, 'labels'),
+      where('companyId', '==', companyId)
+    );
+    const labelsQuery = branchId
+      ? query(baseQuery, where('branchId', '==', branchId))
+      : baseQuery;
+
+    setLoading(true);
+    loadMeta().catch(() => undefined);
+    const unsubscribe = onSnapshot(labelsQuery, async (snapshot) => {
+      if (!active) return;
+      const rawLabels = snapshot.docs.map((docSnap) => ({
+        ...(docSnap.data() as any),
+        id: docSnap.id,
+      })) as Label[];
+
+      const missingProductIds = Array.from(
+        new Set(
+          rawLabels
+            .filter(
+              (label) =>
+                (!label.productSku || !label.productName || !label.productDescription) &&
+                label.productId
+            )
+            .map((label) => label.productId as string)
+        )
+      );
+
+      if (missingProductIds.length === 0) {
+        setLabels(rawLabels);
+        setLoading(false);
+        return;
+      }
+
+      const productEntries = await Promise.all(
+        missingProductIds.map(async (productId) => {
+          const productSnap = await getDoc(fsDoc(db, 'products', productId));
+          if (!productSnap.exists()) return null;
+          const data = productSnap.data() as any;
+          return [
+            productId,
+            { name: data?.name, sku: data?.sku, description: data?.description }
+          ] as const;
+        })
+      );
+      const productMap = new Map(
+        productEntries.filter(Boolean) as Array<
+          readonly [string, { name?: string; sku?: string; description?: string }]
+        >
+      );
+
+      setLabels(
+        rawLabels.map((label) => {
+          const productId = label.productId ?? undefined;
+          const product = productId ? productMap.get(productId) : undefined;
+          return {
+            ...label,
+            productName: label.productName ?? product?.name ?? label.productName,
+            productSku: label.productSku ?? product?.sku ?? label.productSku,
+            productDescription:
+              label.productDescription ?? product?.description ?? label.productDescription,
+          };
+        })
+      );
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [companyId, branchId]);
 
   const formatShortId = (value: string, prefix: string) => {
