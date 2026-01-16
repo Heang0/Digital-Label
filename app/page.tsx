@@ -74,7 +74,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white scroll-smooth">
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur">
         <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
@@ -264,6 +264,71 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Proof / Gallery Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
+          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                See digital labels in real stores
+              </h2>
+              <p className="mt-4 text-lg text-gray-600 max-w-xl">
+                Digital Label helps retailers update pricing in real time and keep shelves accurate—fast, clean,
+                and consistent across every branch.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3 text-sm">
+                {["Crisp shelf display", "Real-time adjustments", "Multi-store rollout", "Mobile-friendly ops"].map(
+                  (tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-gray-700"
+                    >
+                      {tag}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* 4 images - same size, responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                {
+                  src: 'https://theenterpriseworld.com/wp-content/uploads/2024/09/7-Dynamic-Pricing-in-Retail_-How-Electronic-Shelf-Labels-Enable-Real-Time-Adjustments-Source-enterpriseappstoday.com_.jpg',
+                  alt: 'Electronic shelf labels in a retail aisle',
+                },
+                {
+                  src: 'https://www.globalbrandsmagazine.com/wp-content/uploads/2025/02/Electronic-Shelf-Labels.webp',
+                  alt: 'Electronic shelf label display close-up',
+                },
+                {
+                  src: 'https://www.marketresearchintellect.com/images/blogs/retail-revolution-digital-shelf-labels-transforming-storefronts.webp',
+                  alt: 'Digital shelf labels transforming store pricing',
+                },
+                {
+                  src: 'https://www.electronicshelftags.com/wp-content/uploads/2025/08/digital-labels-fopr-clothing-4.png',
+                  alt: 'Digital labels used in clothing retail',
+                },
+              ].map((img) => (
+                <div
+                  key={img.src}
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm"
+                >
+                  <div className="relative h-48 w-full sm:h-56 md:h-64">
+                    <img
+                      src={img.src}
+                      alt={img.alt}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-white">
         <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
@@ -386,6 +451,164 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Pricing</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Simple plans for single stores to large retail chains.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                name: 'Starter',
+                price: '$0',
+                note: 'Perfect for trying the platform',
+                items: ['1 store', 'Basic label sync', 'Email support'],
+                cta: 'Start Free',
+                href: '/register',
+                highlight: false,
+              },
+              {
+                name: 'Growth',
+                price: '$29',
+                note: 'For growing retail teams',
+                items: ['Up to 10 stores', 'Role permissions', 'Promotions & scheduling'],
+                cta: 'Get Started',
+                href: '/register',
+                highlight: true,
+              },
+              {
+                name: 'Enterprise',
+                price: 'Custom',
+                note: 'For large chains & integrations',
+                items: ['Unlimited stores', 'SLA & onboarding', 'Custom integrations'],
+                cta: 'Contact Sales',
+                href: '#contact',
+                highlight: false,
+              },
+            ].map((plan) => (
+              <div
+                key={plan.name}
+                className={[
+                  'rounded-3xl border bg-white p-8 shadow-sm',
+                  plan.highlight ? 'border-blue-600 ring-4 ring-blue-100' : 'border-gray-200',
+                ].join(' ')}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+                    <p className="mt-2 text-sm text-gray-600">{plan.note}</p>
+                  </div>
+                  {plan.highlight && (
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                      Popular
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-end gap-2">
+                    <div className="text-4xl font-bold text-gray-900">{plan.price}</div>
+                    {plan.price !== 'Custom' && <div className="text-sm text-gray-500">/mo</div>}
+                  </div>
+                </div>
+
+                <ul className="mt-6 space-y-3 text-sm text-gray-700">
+                  {plan.items.map((it) => (
+                    <li key={it} className="flex items-start gap-2">
+                      <CheckCircle className="mt-0.5 h-4 w-4 text-green-500" />
+                      <span>{it}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-8">
+                  <Link href={plan.href}>
+                    <Button
+                      size="lg"
+                      className={plan.highlight ? 'w-full' : 'w-full bg-slate-900 hover:bg-slate-800'}
+                      variant={plan.highlight ? 'default' : 'default'}
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center text-sm text-gray-500">
+            Need help choosing a plan?{' '}
+            <a href="#contact" className="font-medium text-blue-600 hover:underline">
+              Talk to us
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section id="contact" className="py-20 bg-white">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Contact</h2>
+              <p className="mt-4 text-lg text-gray-600 max-w-xl">
+                Want a demo or enterprise pricing? Send us a message and we’ll get back quickly.
+              </p>
+              <div className="mt-6 space-y-3 text-sm text-gray-700">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Fast onboarding support</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Training for staff & vendors</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Integration options (POS, inventory)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6 sm:p-8">
+              <form className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-blue-500"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-blue-500"
+                    placeholder="you@company.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Message</label>
+                  <textarea
+                    className="mt-2 min-h-[120px] w-full rounded-xl border border-gray-200 bg-white p-4 text-sm outline-none focus:border-blue-500"
+                    placeholder="Tell us what you need..."
+                  />
+                </div>
+                <Button type="button" size="lg" className="w-full">
+                  Send message
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       </section>

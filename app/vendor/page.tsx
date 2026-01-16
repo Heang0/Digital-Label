@@ -2453,6 +2453,15 @@ const updateProduct = async (productId: string, productData: any) => {
     { id: 'settings', label: 'Settings', icon: Settings },
   ] as const;
 
+
+const mobileTabs = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+  { id: 'products', label: 'Products', icon: Package },
+  { id: 'labels', label: 'Labels', icon: Tag },
+  { id: 'promotions', label: 'Deals', icon: Percent },
+  { id: 'settings', label: 'Settings', icon: Settings },
+] as const;
+
   const updateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editBranchForm.id) return;
@@ -2803,7 +2812,7 @@ const updateProduct = async (productId: string, productData: any) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
@@ -2813,7 +2822,7 @@ const updateProduct = async (productId: string, productData: any) => {
           />
           <div className="absolute left-0 top-0 flex h-full w-72 flex-col bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center">
                   <Store className="h-6 w-6" />
                 </div>
@@ -2956,89 +2965,167 @@ const updateProduct = async (productId: string, productData: any) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64 text-gray-900">
-        {/* Top Bar */}
-        <header className="bg-white/95 backdrop-blur border-b sticky top-0 z-30">
-          <div className="px-4 py-3 sm:px-6 sm:py-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex w-full items-start gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMobileNavOpen(true)}
-                  className="inline-flex lg:hidden items-center justify-center rounded-lg border border-gray-200 bg-white h-10 w-10"
-                >
-                  <List className="h-5 w-5" />
-                </button>
-                <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 capitalize leading-tight break-words">
-                    {selectedTab === 'dashboard' && `${company?.name || 'My'} Dashboard`}
-                    {selectedTab === 'products' && 'Product Management'}
-                    {selectedTab === 'staff' && 'Staff Management'}
-                    {selectedTab === 'labels' && 'Digital Labels'}
-                    {selectedTab === 'promotions' && 'Promotions & Discounts'}
-                    {selectedTab === 'reports' && 'Business Reports'}
-                    {selectedTab === 'settings' && 'Settings'}
-                  </h1>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {selectedTab === 'dashboard' && 'Overview of your retail operations'}
-                    {selectedTab === 'products' && (isBranchFiltered
-                      ? `Manage ${visibleProducts.length} products for ${selectedBranchName}`
-                      : `Manage ${products.length} products across ${branches.length} branches`)}
-                    {selectedTab === 'staff' && `Manage ${filteredStaffMembers.length} staff members for ${selectedBranchName}`}
-                    {selectedTab === 'labels' && `Monitor ${filteredLabels.length} digital price labels for ${selectedBranchName}`}
-                    {selectedTab === 'promotions' && `Create and manage ${promotions.length} promotions`}
-                    {selectedTab === 'reports' && 'View business analytics and reports'}
-                    {selectedTab === 'settings' && 'Manage your company profile and preferences'}
-                  </p>
-                </div>
-              </div>
+      <div className="w-full lg:pl-64 text-gray-900">
+              {/* MOBILE HEADER (phone only) */}
+<header className="sticky top-0 z-30 border-b bg-white text-gray-900 shadow-sm lg:hidden">
+  <div className="pt-[env(safe-area-inset-top)]">
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white"
+          aria-label="Open menu"
+        >
+          <List className="h-5 w-5" />
+        </button>
 
-              <div className="flex w-full flex-col gap-2 lg:w-auto">
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                  <div className="relative w-full min-w-[260px] flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      placeholder="Search..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-10 w-full rounded-full border border-gray-200 bg-white pl-10"
-                    />
-                  </div>
-                  <select
-                    className="hidden h-10 w-full max-w-[200px] flex-none rounded-full border border-gray-200 bg-white px-4 text-sm text-gray-900 shadow-sm sm:block"
-                    value={selectedBranchId}
-                    onChange={(event) => setSelectedBranchId(event.target.value)}
-                    disabled={branches.length === 0}
-                  >
-                    {branches.length === 0 ? (
-                      <option value="">No branches</option>
-                    ) : (
-                      <>
-                        <option value="all">All branches</option>
-                        {branches.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-full flex-none rounded-full px-4 sm:w-auto"
-                    onClick={loadVendorData}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-                  </Button>
-                </div>
-              </div>
+        <div className="flex min-w-0 items-center gap-3 ml-2 flex-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600 text-white">
+            <UserIcon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">
+              {company?.name || "Vendor"}
+            </div>
+            <div className="text-xs text-gray-500 truncate">
+              {currentUser?.role || "Manager"}
             </div>
           </div>
-        </header>
+        </div>
 
-        <main className="p-4 sm:p-6">
+        <button
+          type="button"
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* Tabs row */}
+  <div className="border-t">
+    <div className="hide-scrollbar flex gap-7 overflow-x-auto px-4">
+      {mobileTabs.map((tab) => {
+        const isActive = selectedTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setSelectedTab(tab.id)}
+            className={`relative whitespace-nowrap py-3 text-sm font-medium transition-colors ${
+              isActive ? "text-blue-600" : "text-gray-600"
+            }`}
+          >
+            {tab.label}
+            <span
+              className={`absolute left-0 right-0 -bottom-[1px] h-[3px] rounded-full ${
+                isActive ? "bg-blue-600" : "bg-transparent"
+              }`}
+            />
+          </button>
+        );
+      })}
+    </div>
+  </div>
+
+  <style jsx global>{`
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+  `}</style>
+</header>
+
+{/* DESKTOP HEADER (laptop only) */}
+<header className="sticky top-0 z-30 border-b bg-white text-gray-900 shadow-sm hidden lg:block">
+  <div className="px-4 py-3 sm:px-6 sm:py-4">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex w-full items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 capitalize leading-tight break-words">
+            {selectedTab === "dashboard" && `${company?.name || "My"} Dashboard`}
+            {selectedTab === "products" && "Product Management"}
+            {selectedTab === "staff" && "Staff Management"}
+            {selectedTab === "labels" && "Digital Labels"}
+            {selectedTab === "promotions" && "Promotions & Discounts"}
+            {selectedTab === "reports" && "Business Reports"}
+            {selectedTab === "settings" && "Settings"}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            {selectedTab === "dashboard" && "Overview of your retail operations"}
+            {selectedTab === "products" &&
+              (isBranchFiltered
+                ? `Manage ${visibleProducts.length} products for ${selectedBranchName}`
+                : `Manage ${products.length} products across ${branches.length} branches`)}
+            {selectedTab === "staff" &&
+              `Manage ${filteredStaffMembers.length} staff members for ${selectedBranchName}`}
+            {selectedTab === "labels" &&
+              `Monitor ${filteredLabels.length} digital price labels for ${selectedBranchName}`}
+            {selectedTab === "promotions" &&
+              `Create and manage ${promotions.length} promotions`}
+            {selectedTab === "reports" && "View business analytics and reports"}
+            {selectedTab === "settings" &&
+              "Manage your company profile and preferences"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex w-full flex-col gap-2 lg:w-auto">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {/* Search Bar */}
+          <div className="relative w-full sm:flex-[1.5] sm:min-w-[240px] lg:min-w-[320px]">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              placeholder="Search..."
+              className="w-full h-10 sm:h-11 rounded-full border border-gray-300 bg-white pl-11 pr-4 text-sm text-gray-900 shadow-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            />
+          </div>
+
+          {/* Branch Selector (DESKTOP ONLY) */}
+          <select
+            className="hidden lg:block h-10 rounded-full border border-gray-200 bg-white text-gray-900 px-4 text-sm shadow-sm w-[180px]"
+            value={selectedBranchId}
+            onChange={(event) => setSelectedBranchId(event.target.value)}
+            disabled={branches.length === 0}
+          >
+            {branches.length === 0 ? (
+              <option value="">No branches</option>
+            ) : (
+              <>
+                <option value="all">All branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
+
+          {/* Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 w-full rounded-full px-4 border-gray-200 bg-white text-gray-900 hover:bg-gray-50 sm:w-auto sm:px-4"
+            onClick={loadVendorData}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+        <main className="p-4 sm:p-6 pb-24 lg:pb-6">
           {showBlockingLoader && (
             <div className="mb-6 flex items-center gap-2 text-sm text-gray-600">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
@@ -3051,7 +3138,7 @@ const updateProduct = async (productId: string, productData: any) => {
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
                 <div className="bg-white rounded-xl border p-4 sm:p-6 overflow-hidden">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm text-gray-500">Total Products</p>
                       <p className="text-2xl sm:text-3xl font-bold mt-2">{products.length}</p>
@@ -3156,7 +3243,67 @@ const updateProduct = async (productId: string, productData: any) => {
                     View All Products
                   </Button>
                 </div>
-                <div className="overflow-x-auto">
+                
+{/* Mobile list (app style) */}
+<div className="sm:hidden space-y-3">
+  {searchedProducts.slice(0, 5).map((product) => (
+    <div key={product.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="h-14 w-14 flex-none rounded-xl object-cover"
+          />
+        ) : (
+          <div className="h-14 w-14 flex-none rounded-xl bg-blue-100 flex items-center justify-center">
+            <Package className="h-6 w-6 text-blue-600" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-gray-900">{product.name}</p>
+              <p className="truncate text-xs text-gray-500">{product.description}</p>
+              <p className="mt-1 text-[11px] text-gray-400">SKU: {product.sku}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-gray-900">${product.basePrice.toFixed(2)}</p>
+              <p className="text-[11px] text-gray-500">{product.category}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 flex-1 rounded-xl"
+              onClick={() => {
+                const branchStock = getDisplayStockForProduct(product.id);
+                setShowEditProduct({
+                  ...product,
+                  stock: branchStock.stock,
+                  minStock: branchStock.minStock
+                });
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 flex-1 rounded-xl text-rose-600"
+              onClick={() => deleteProduct(product.id)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+<div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
@@ -3331,17 +3478,17 @@ const updateProduct = async (productId: string, productData: any) => {
                     <h3 className="text-lg font-semibold">Product Management</h3>
                     <p className="text-gray-600">Manage products across all your branches</p>
                   </div>
-                    <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => {
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto h-11 rounded-xl" variant="outline" onClick={() => {
                         setSelectedCategory(null);
                         setShowCategoryModal(true);
                       }}>
                         <Tag className="h-4 w-4 mr-2" /> New Category
                       </Button>
-                      <Button variant="outline">
+                      <Button className="w-full sm:w-auto h-11 rounded-xl" variant="outline">
                         <Download className="h-4 w-4 mr-2" /> Export
                       </Button>
-                      <Button onClick={() => {
+                      <Button className="w-full sm:w-auto h-11 rounded-xl" onClick={() => {
                         setSelectedProductForEdit(null);
                         setShowProductModal(true);
                       }}>
@@ -3407,21 +3554,123 @@ const updateProduct = async (productId: string, productData: any) => {
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold">All Products ({searchedProducts.length})</h4>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                       <Input
                         placeholder="Search products..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-48"
+                        className="w-full sm:w-64"
                       />
-                      <Button variant="outline" size="sm">
+                      <Button className="w-full sm:w-auto h-11 rounded-xl" variant="outline" size="sm">
                         <Filter className="h-4 w-4 mr-2" /> Filter
                       </Button>
                     </div>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                
+{/* Mobile list (app style) */}
+<div className="sm:hidden divide-y rounded-2xl border bg-white">
+  {paginatedProducts.map((product) => {
+    const branchStock = getDisplayStockForProduct(product.id);
+    const stockValue = Number(branchStock.stock ?? 0);
+    const minStockValue = Number(branchStock.minStock ?? 10);
+    const status =
+      stockValue <= 0 ? 'Out' : stockValue <= minStockValue ? 'Low' : 'Good';
+    const statusStyle =
+      stockValue <= 0
+        ? 'bg-rose-100 text-rose-700'
+        : stockValue <= minStockValue
+          ? 'bg-amber-100 text-amber-800'
+          : 'bg-emerald-100 text-emerald-700';
+
+    return (
+      <div key={product.id} className="p-4">
+        <div className="flex gap-3">
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="h-14 w-14 flex-none rounded-xl object-cover"
+            />
+          ) : (
+            <div className="h-14 w-14 flex-none rounded-xl bg-blue-100 flex items-center justify-center">
+              <Package className="h-6 w-6 text-blue-600" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-gray-900">{product.name}</p>
+                <p className="truncate text-xs text-gray-500">{product.description}</p>
+                <p className="mt-1 text-[11px] text-gray-400">Code: {getProductDisplayCode(product)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-900">${product.basePrice.toFixed(2)}</p>
+                <span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusStyle}`}>
+                  {status}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+              <div className="rounded-xl bg-gray-50 p-2">
+                <div className="text-[11px] text-gray-500">SKU</div>
+                <div className="font-mono text-gray-900">{product.sku}</div>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-2">
+                <div className="text-[11px] text-gray-500">Stock</div>
+                <div className="font-semibold text-gray-900">{stockValue}</div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 flex-1 rounded-xl"
+                onClick={() => {
+                  const branchStock = getDisplayStockForProduct(product.id);
+                  setShowEditProduct({
+                    ...product,
+                    stock: branchStock.stock,
+                    minStock: branchStock.minStock
+                  });
+                }}
+              >
+                <Edit className="mr-2 h-4 w-4" /> Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 flex-1 rounded-xl"
+                onClick={() => {
+                  const newPrice = parseFloat(
+                    prompt(`Enter new price for ${product.name}:`, product.basePrice.toString()) || '0'
+                  );
+                  if (newPrice > 0) updateProductPrice(product.id, newPrice);
+                }}
+              >
+                <DollarSign className="mr-2 h-4 w-4" /> Price
+              </Button>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2 h-9 w-full rounded-xl text-rose-600"
+              onClick={() => deleteProduct(product.id)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+<div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
@@ -3624,7 +3873,61 @@ const updateProduct = async (productId: string, productData: any) => {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                
+{/* Mobile list (app style) */}
+<div className="sm:hidden divide-y rounded-2xl border bg-white">
+  {searchedStaffMembers.map((staff) => (
+    <div key={staff.id} className="p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 flex-none rounded-2xl bg-blue-100 flex items-center justify-center">
+          <span className="font-bold text-blue-700">{staff.name?.charAt(0) || 'S'}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-gray-900">{staff.name}</p>
+              <p className="truncate text-xs text-gray-500">{staff.email}</p>
+              <p className="mt-1 text-[11px] text-gray-400">{staff.position} • {staff.branchName}</p>
+            </div>
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              staff.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+            }`}>
+              {staff.status}
+            </span>
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" className="h-9 flex-1 rounded-xl" onClick={() => openEditStaffModal(staff)}>
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Button>
+            <Button size="sm" variant="outline" className="h-9 flex-1 rounded-xl" onClick={() => setShowResetPassword(staff.id)}>
+              <Lock className="mr-2 h-4 w-4" /> Password
+            </Button>
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2 h-9 w-full rounded-xl"
+            onClick={() => toggleStaffStatus(staff.id, staff.status)}
+          >
+            {staff.status === 'active' ? (
+              <>
+                <EyeOff className="mr-2 h-4 w-4" /> Disable
+              </>
+            ) : (
+              <>
+                <Eye className="mr-2 h-4 w-4" /> Enable
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+<div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
@@ -4153,20 +4456,20 @@ const updateProduct = async (productId: string, productData: any) => {
           )}
 
           {selectedTab === 'reports' && (
-            <div className="bg-white rounded-xl border p-6">
-              <h3 className="text-lg font-semibold mb-4">Business Reports</h3>
-              <p className="text-gray-600">Analytics and insights for your retail business</p>
+            <div className="bg-white rounded-2xl border p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-4">Business Reports</h3>
+              <p className="text-sm text-gray-600">Analytics and insights for your retail business</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="border rounded-xl p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
+                <div className="border rounded-2xl p-4 sm:p-6">
                   <h4 className="font-semibold mb-4">Sales Summary</h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span>Total Products:</span>
+                      <span className="text-sm text-gray-600">Total Products</span>
                       <span className="font-bold">{products.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Total Branches:</span>
+                      <span className="text-sm text-gray-600">Total Branches</span>
                       <span className="font-bold">{branches.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -4174,13 +4477,13 @@ const updateProduct = async (productId: string, productData: any) => {
                       <span className="font-bold">{filteredStaffMembers.filter(s => s.status === 'active').length}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Active Labels:</span>
+                      <span className="text-sm text-gray-600">Active Labels</span>
                       <span className="font-bold">{filteredLabels.filter(l => l.status === 'active').length}</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="border rounded-xl p-6">
+                <div className="border rounded-2xl p-4 sm:p-6">
                   <h4 className="font-semibold mb-4">Stock Status</h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -4196,7 +4499,7 @@ const updateProduct = async (productId: string, productData: any) => {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Out of Stock:</span>
+                      <span className="text-sm text-gray-600">Out of Stock</span>
                       <span className="font-bold text-red-600">
                         {filteredBranchProducts.filter(p => p.status === 'out-of-stock').length}
                       </span>
@@ -4217,7 +4520,55 @@ const updateProduct = async (productId: string, productData: any) => {
                     {searchedIssues.length} total
                   </div>
                 </div>
-                <div className="mt-4 overflow-x-auto">
+
+<div className="mt-4">
+  {/* Mobile list (app style) */}
+  <div className="sm:hidden space-y-3">
+    {searchedIssues.slice(0, 8).map((issue) => (
+      <div key={issue.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900">
+              Label: <span className="font-mono">{issue.labelId}</span>
+            </p>
+            <p className="mt-1 truncate text-xs text-gray-500">
+              {issue.productName || 'Unknown Product'}
+            </p>
+            <p className="mt-2 text-sm text-gray-700">{issue.issue}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Branch: {issue.branchName || issue.branchId}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <span
+              className={`px-2 py-1 rounded-full text-[11px] font-medium ${
+                issue.status === 'resolved'
+                  ? 'bg-green-100 text-green-800'
+                  : issue.status === 'in-progress'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-red-100 text-red-800'
+              }`}
+            >
+              {issue.status}
+            </span>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-xl text-rose-600 hover:text-rose-700"
+              onClick={() => deleteIssueReport(issue)}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {/* Desktop table */}
+  <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
@@ -4299,6 +4650,7 @@ const updateProduct = async (productId: string, productData: any) => {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5300,7 +5652,7 @@ const updateProduct = async (productId: string, productData: any) => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Phone Number</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80 lg:text-gray-400" />
                     <Input
                       value={branchForm.phone}
                       onChange={(e) => setBranchForm({...branchForm, phone: e.target.value})}
@@ -5398,7 +5750,7 @@ const updateProduct = async (productId: string, productData: any) => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Phone Number</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80 lg:text-gray-400" />
                     <Input
                       value={editBranchForm.phone}
                       onChange={(e) => setEditBranchForm({ ...editBranchForm, phone: e.target.value })}
@@ -5467,7 +5819,7 @@ const updateProduct = async (productId: string, productData: any) => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">New Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80 lg:text-gray-400" />
                     <Input
                       type="password"
                       value={resetPasswordForm.newPassword}
@@ -5485,7 +5837,7 @@ const updateProduct = async (productId: string, productData: any) => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Confirm Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80 lg:text-gray-400" />
                     <Input
                       type="password"
                       value={resetPasswordForm.confirmPassword}

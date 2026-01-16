@@ -1088,92 +1088,117 @@ export default function StaffDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Mobile Header */}
-      <header className="lg:hidden bg-white border-b shadow-sm">
+      <header className="lg:hidden sticky top-0 z-40 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+        {/* iOS safe area */}
+        <div className="pt-[env(safe-area-inset-top)]" />
+
         <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <div className="space-y-1">
-                  <div className="h-0.5 w-6 bg-gray-600"></div>
-                  <div className="h-0.5 w-6 bg-gray-600"></div>
-                  <div className="h-0.5 w-6 bg-gray-600"></div>
+          <div className="flex items-center justify-between gap-3">
+            {/* Left: Menu */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white active:scale-[0.98]"
+              aria-label="Open menu"
+            >
+              <div className="space-y-1">
+                <div className="h-0.5 w-6 bg-slate-700" />
+                <div className="h-0.5 w-6 bg-slate-700" />
+                <div className="h-0.5 w-6 bg-slate-700" />
+              </div>
+            </button>
+
+            {/* Center: Profile */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-blue-600 flex items-center justify-center">
+                  <UserIcon className="h-6 w-6 text-white" />
                 </div>
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
-                  <UserIcon className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{branch?.name || 'Staff Portal'}</p>
-                  <p className="text-xs text-gray-500">{currentUser.position || 'Staff'}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900">{currentUser.name || branch?.name || 'Staff Portal'}</p>
+                  <p className="truncate text-xs text-slate-500">{currentUser.position || 'Staff'}</p>
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <button className="relative p-2">
-                <Bell className="h-5 w-5 text-gray-600" />
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-              </button>
-            </div>
+
+            {/* Right: Notifications */}
+            <button
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white active:scale-[0.98]"
+              aria-label="Notifications"
+              type="button"
+            >
+              <Bell className="h-5 w-5 text-slate-700" />
+              <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-red-500" />
+            </button>
           </div>
         </div>
 
         {/* Mobile Tabs */}
-        <div className="flex overflow-x-auto border-t">
-          <button
-            onClick={() => setSelectedTab('dashboard')}
-            className={cn(
-              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-              selectedTab === 'dashboard' 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+        <div className="border-t">
+          <div className="flex gap-6 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              onClick={() => setSelectedTab('dashboard')}
+              className={cn(
+                'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                selectedTab === 'dashboard'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500'
+              )}
+            >
+              Dashboard
+            </button>
+            {canViewProducts && (
+              <button
+                onClick={() => setSelectedTab('inventory')}
+                className={cn(
+                  'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                  selectedTab === 'inventory'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500'
+                )}
+              >
+                Inventory
+              </button>
             )}
-          >
-            Dashboard
-          </button>
-          {canViewProducts && (
-            <button
-              onClick={() => setSelectedTab('inventory')}
-              className={cn(
-                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-                selectedTab === 'inventory' 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              )}
-            >
-              Inventory
-            </button>
-          )}
-          {(canViewProducts || canReportIssues || canManageLabels) && (
-            <button
-              onClick={() => setSelectedTab('labels')}
-              className={cn(
-                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-                selectedTab === 'labels' 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              )}
-            >
-              Labels
-            </button>
-          )}
-          {canReportIssues && (
-            <button
-              onClick={() => setSelectedTab('issues')}
-              className={cn(
-                "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors",
-                selectedTab === 'issues' 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              )}
-            >
-              Issues
-            </button>
-          )}
+            {(canViewProducts || canReportIssues || canManageLabels) && (
+              <button
+                onClick={() => setSelectedTab('labels')}
+                className={cn(
+                  'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                  selectedTab === 'labels'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500'
+                )}
+              >
+                Labels
+              </button>
+            )}
+            {canReportIssues && (
+              <button
+                onClick={() => setSelectedTab('issues')}
+                className={cn(
+                  'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                  selectedTab === 'issues'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500'
+                )}
+              >
+                Issues
+              </button>
+            )}
+            {canViewReports && (
+              <button
+                onClick={() => setSelectedTab('reports')}
+                className={cn(
+                  'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                  selectedTab === 'reports'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500'
+                )}
+              >
+                Reports
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1682,7 +1707,104 @@ export default function StaffDashboard() {
                 </div>
 
                 <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
+                  {/* Mobile: Card list */}
+                  <div className="md:hidden divide-y">
+                    {filteredBranchProducts.length === 0 ? (
+                      <div className="p-6 text-sm text-gray-600">No products found.</div>
+                    ) : (
+                      filteredBranchProducts.map((bp) => (
+                        <div key={bp.id} className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="h-10 w-10 shrink-0 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <Package className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-gray-900 truncate">{bp.productDetails?.name}</div>
+                                <div className="text-xs text-gray-500 truncate">{bp.productDetails?.category}</div>
+                                <div className="mt-1 inline-flex items-center gap-2">
+                                  <span className="font-mono text-[11px] text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                                    {bp.productDetails?.sku}
+                                  </span>
+                                  <span className={cn(
+                                    "px-2 py-1 rounded-full text-[11px] font-semibold",
+                                    bp.status === 'in-stock' ? 'bg-green-100 text-green-800' :
+                                    bp.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                  )}>
+                                    {bp.status}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div className="rounded-xl border bg-white p-3">
+                              <div className="text-[11px] text-gray-500">Stock</div>
+                              <div className="text-lg font-bold text-gray-900">{bp.stock}</div>
+                            </div>
+                            <div className="rounded-xl border bg-white p-3">
+                              <div className="text-[11px] text-gray-500">Min Stock</div>
+                              <div className="text-lg font-bold text-gray-900">{bp.minStock}</div>
+                            </div>
+                          </div>
+
+	                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!canUpdateStock}
+                              onClick={() => updateStock(bp.productId, 10, 'Restocked', 'adjust')}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-1" /> Add
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!canUpdateStock}
+                              onClick={() => updateStock(bp.productId, -5, 'Sold', 'adjust')}
+                              className="w-full"
+                            >
+                              <Minus className="h-4 w-4 mr-1" /> Minus
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!canUpdateStock}
+                              onClick={() =>
+                                setStockUpdateForm({
+                                  productId: bp.productId,
+                                  change: bp.stock,
+                                  reason: '',
+                                })
+                              }
+                              className="w-full"
+                            >
+                              <Edit className="h-4 w-4 mr-1" /> Set
+                            </Button>
+                          </div>
+
+                          {canManageProducts && (
+                            <div className="mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-rose-600 hover:text-rose-700"
+                                onClick={() => removeProductFromBranch(bp.productId)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Remove from branch
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Desktop: Table */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
@@ -1720,42 +1842,48 @@ export default function StaffDashboard() {
                               <span className="text-gray-600">{bp.minStock}</span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={cn(
-                                "px-3 py-1 rounded-full text-xs font-semibold",
-                                bp.status === 'in-stock' ? 'bg-green-100 text-green-800' :
-                                bp.status === 'low-stock' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              )}>
+                              <span
+                                className={cn(
+                                  "px-3 py-1 rounded-full text-xs font-semibold",
+                                  bp.status === 'in-stock'
+                                    ? 'bg-green-100 text-green-800'
+                                    : bp.status === 'low-stock'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-red-100 text-red-800'
+                                )}
+                              >
                                 {bp.status}
                               </span>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex gap-2">
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   disabled={!canUpdateStock}
                                   onClick={() => updateStock(bp.productId, 10, 'Restocked', 'adjust')}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   disabled={!canUpdateStock}
                                   onClick={() => updateStock(bp.productId, -5, 'Sold', 'adjust')}
                                 >
                                   <Minus className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   disabled={!canUpdateStock}
-                                  onClick={() => setStockUpdateForm({
-                                    productId: bp.productId,
-                                    change: bp.stock,
-                                    reason: ''
-                                  })}
+                                  onClick={() =>
+                                    setStockUpdateForm({
+                                      productId: bp.productId,
+                                      change: bp.stock,
+                                      reason: ''
+                                    })
+                                  }
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -1784,68 +1912,73 @@ export default function StaffDashboard() {
             {selectedTab === 'labels' && (canViewProducts || canReportIssues || canManageLabels) && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Digital Label Status - {branch?.name}</h3>
+                  <div className="mb-6 flex flex-col gap-1">
+                    <h3 className="text-lg font-semibold text-gray-900">Digital Label Status</h3>
+                    <p className="text-sm text-gray-600">{branch?.name}</p>
+                  </div>
 
                     {(canManageLabels || canManagePromotions) && (
                       <div className="flex flex-col lg:flex-row gap-4 mb-6">
                         {canManageLabels && (
-                          <div className="flex flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                            <div className="flex-1">
+                          <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-700">Create labels</p>
                               <p className="text-xs text-gray-500">Generate new labels for this branch.</p>
                             </div>
-                            <Input
-                              type="number"
-                              min={1}
-                              step={1}
-                              value={labelGenerateCount}
-                              onChange={(e) => setLabelGenerateCount(Number(e.target.value || 1))}
-                              className="w-24 bg-white"
-                            />
-                            <Button onClick={handleGenerateLabels}>
-                              Generate
-                            </Button>
+                            <div className="flex w-full sm:w-auto items-center gap-2">
+                              <Input
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={labelGenerateCount}
+                                onChange={(e) => setLabelGenerateCount(Number(e.target.value || 1))}
+                                className="w-full sm:w-24 bg-white"
+                              />
+                              <Button onClick={handleGenerateLabels} className="w-full sm:w-auto">
+                                Generate
+                              </Button>
+                            </div>
                           </div>
                         )}
                         {canManageLabels && (
-                          <div className="flex flex-1 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                          <div className="flex flex-1 flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
                             <div>
                               <p className="text-sm font-medium text-gray-700">Label actions</p>
                               <p className="text-xs text-gray-500">Assign or remove branch labels.</p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" onClick={handleAutoAssignLabels}>
+                            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                              <Button variant="outline" onClick={handleAutoAssignLabels} className="w-full sm:w-auto">
                                 Auto-Assign Products
                               </Button>
-                              <Button variant="outline" onClick={clearAllLabelsForBranch}>
+                              <Button variant="outline" onClick={clearAllLabelsForBranch} className="w-full sm:w-auto">
                                 Clear All Labels
                               </Button>
-                              <Button variant="outline" onClick={deleteAllLabelsForBranch}>
+                              <Button variant="outline" onClick={deleteAllLabelsForBranch} className="w-full sm:w-auto">
                                 Delete All Labels
                               </Button>
                             </div>
                           </div>
                         )}
                         {canManagePromotions && (
-                          <div className="flex flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                            <div className="flex-1">
+                          <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-700">Branch promotion</p>
                               <p className="text-xs text-gray-500">Apply a percent discount to all labels.</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex w-full sm:w-auto items-center gap-2">
                               <Input
                                 type="number"
                                 min={1}
                                 max={100}
                                 value={promotionPercent}
                                 onChange={(e) => setPromotionPercent(Number(e.target.value || 0))}
-                                className="w-24 bg-white"
+                                className="w-full sm:w-24 bg-white"
                               />
                               <span className="text-sm text-gray-600">%</span>
+                              <Button onClick={applyPromotionToAllLabels} className="w-full sm:w-auto">
+                                Apply
+                              </Button>
                             </div>
-                            <Button onClick={applyPromotionToAllLabels}>
-                              Apply
-                            </Button>
                           </div>
                         )}
                       </div>
@@ -1859,14 +1992,14 @@ export default function StaffDashboard() {
                       </div>
                     )}
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {sortedLabels.map((label) => (
-                      <div key={label.id} className="border rounded-xl p-6 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h4 className="font-semibold text-gray-900">{label.labelId || label.labelCode || label.id}</h4>
-                            <p className="text-sm text-gray-600">{label.productName || 'Unassigned'}</p>
-                            <p className="text-xs text-gray-500">
+                      <div key={label.id} className="border rounded-2xl p-4 sm:p-6 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-gray-900 truncate">{label.labelId || label.labelCode || label.id}</h4>
+                            <p className="text-sm text-gray-600 truncate">{label.productName || 'Unassigned'}</p>
+                            <p className="text-xs text-gray-500 break-words">
                               {label.location ? `Shelf/Aisle: ${label.location}` : 'Shelf/Aisle: Not set'}
                             </p>
                           </div>
@@ -1925,7 +2058,7 @@ export default function StaffDashboard() {
                             <div className="space-y-3">
                               <div className="grid gap-2">
                                 <div className="text-xs font-medium text-gray-600">Shelf / Aisle</div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <Input
                                     value={labelLocationEdits[label.id] ?? label.location ?? ''}
                                     onChange={(e) =>
@@ -1940,6 +2073,7 @@ export default function StaffDashboard() {
                                   <Button
                                     variant="outline"
                                     onClick={() => updateLabelLocation(label.id)}
+                                    className="w-full sm:w-auto"
                                   >
                                     Save
                                   </Button>
@@ -1984,7 +2118,7 @@ export default function StaffDashboard() {
                                   ))}
                                 </select>
                               </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-[110px_1fr_90px] gap-2 items-center">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
                                 <Input
                                   type="number"
                                   placeholder="Percent"
@@ -1998,6 +2132,7 @@ export default function StaffDashboard() {
                                   className="bg-white text-sm"
                                 />
                                 <Button
+                                  className="w-full"
                                   onClick={async () => {
                                     const percent = discountInputs[label.id];
                                     if (!percent || percent <= 0 || percent > 100) {
@@ -2046,6 +2181,7 @@ export default function StaffDashboard() {
                                 </Button>
                                 <Button
                                   variant="outline"
+                                  className="w-full"
                                   onClick={async () => {
                                     if (!label.productId) {
                                       alert('Assign a product before clearing.');
@@ -2146,8 +2282,54 @@ export default function StaffDashboard() {
                     </Button>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
+	                  {/* Mobile: card list */}
+	                  <div className="md:hidden space-y-3">
+	                    {issues.length === 0 ? (
+	                      <div className="rounded-xl border p-4 text-sm text-gray-600">No issues reported yet.</div>
+	                    ) : (
+	                      issues.map((issue) => (
+	                        <div key={issue.id} className="rounded-2xl border bg-white p-4">
+	                          <div className="flex items-start justify-between gap-3">
+	                            <div className="min-w-0">
+	                              <div className="font-semibold text-gray-900 truncate">{issue.issue}</div>
+	                              <div className="mt-1 text-xs text-gray-600 truncate">
+	                                Label: <span className="font-medium text-gray-900">{issue.labelId}</span>
+	                              </div>
+	                              <div className="text-xs text-gray-600 truncate">
+	                                Product: <span className="font-medium text-gray-900">{issue.productName || '—'}</span>
+	                              </div>
+	                            </div>
+	                            <div className="shrink-0 flex flex-col items-end gap-2">
+	                              <span className={cn(
+	                                "px-2 py-1 rounded-full text-[11px] font-semibold",
+	                                issue.status === 'resolved' ? 'bg-green-100 text-green-800' :
+	                                issue.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+	                                'bg-red-100 text-red-800'
+	                              )}>
+	                                {issue.status}
+	                              </span>
+	                              <span className={cn(
+	                                "px-2 py-1 rounded-full text-[11px] font-semibold",
+	                                issue.priority === 'high' ? 'bg-red-100 text-red-800' :
+	                                issue.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+	                                'bg-green-100 text-green-800'
+	                              )}>
+	                                {issue.priority}
+	                              </span>
+	                            </div>
+	                          </div>
+
+	                          <div className="mt-3 text-xs text-gray-500">
+	                            Reported: {issue.reportedAt?.toDate().toLocaleString() || 'N/A'}
+	                          </div>
+	                        </div>
+	                      ))
+	                    )}
+	                  </div>
+
+	                  {/* Desktop: table */}
+	                  <div className="hidden md:block overflow-x-auto">
+	                    <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Label ID</th>
@@ -2196,18 +2378,18 @@ export default function StaffDashboard() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                  </div>
+	                    </table>
+	                  </div>
                 </div>
               </div>
             )}
 
             {/* Reports Tab */}
-            {selectedTab === 'reports' && canViewReports && (
-              <div className="bg-white rounded-xl border p-6 shadow-sm">
+	            {selectedTab === 'reports' && canViewReports && (
+	              <div className="bg-white rounded-xl border p-4 sm:p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Reports</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border rounded-xl p-6">
+	                  <div className="border rounded-xl p-4 sm:p-6">
                     <h4 className="font-semibold mb-4">Stock Summary</h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
@@ -2235,7 +2417,7 @@ export default function StaffDashboard() {
                     </div>
                   </div>
                   
-                  <div className="border rounded-xl p-6">
+	                  <div className="border rounded-xl p-4 sm:p-6">
                     <h4 className="font-semibold mb-4">Label Status</h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">

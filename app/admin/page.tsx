@@ -677,183 +677,249 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white font-sans">
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden">
-          <div className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-bold">Admin Console</p>
-                  <p className="text-xs text-gray-400">LabelSync Enterprise</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="rounded-lg p-2 hover:bg-gray-800 transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </button>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Sidebar (desktop) */}
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex h-full flex-col border-r border-slate-200 bg-white">
+          <div className="flex items-center gap-3 px-6 py-5">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+              <Shield className="h-6 w-6" />
             </div>
-            <div className="p-4 space-y-1">
-              {adminTabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setSelectedTab(tab.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
-                      selectedTab === tab.id
-                        ? 'bg-gray-800 text-white shadow-lg'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    }`}
-                  >
-                    <Icon className={`h-5 w-5 ${tab.color}`} />
-                    <span className="font-medium">{tab.label}</span>
-                    {tab.id === 'users' && vendorUsers.length > 0 && (
-                      <span className="ml-auto bg-blue-600 text-white text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center">
-                        {vendorUsers.length}
-                      </span>
-                    )}
-                    {tab.id === 'companies' && companies.length > 0 && (
-                      <span className="ml-auto bg-purple-600 text-white text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center">
-                        {companies.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="absolute bottom-0 w-full p-6 border-t border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center">
-                  <span className="font-bold text-white">{currentUser.name.charAt(0)}</span>
-                </div>
-                <div>
-                  <p className="font-semibold">{currentUser.name}</p>
-                  <p className="text-xs text-gray-400">System Administrator</p>
-                </div>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="w-full border-gray-700 bg-gray-900/40 text-white hover:bg-gray-800"
-                size="sm"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Header */}
-      <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-xl">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(true)}
-                  className="md:hidden inline-flex items-center justify-center rounded-lg border border-gray-700 bg-gray-800 h-10 w-10 hover:bg-gray-700 transition-colors"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg">
-                  <Shield className="h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Digital Label Admin</h1>
-                  <p className="text-xs sm:text-sm text-gray-300">Enterprise Management Console</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search users, companies..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-11 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="flex items-center justify-between gap-4">
-                <Button 
-                  onClick={refreshAdminData}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 hover:text-white hover:bg-gray-800 hidden sm:flex"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                <div className="text-right hidden sm:block">
-                  <p className="font-semibold">{currentUser.name}</p>
-                  <p className="text-sm text-gray-300">Administrator</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
-                  <span className="font-bold text-white">{currentUser.name.charAt(0)}</span>
-                </div>
-                <Button 
-                  onClick={handleLogout} 
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 hover:text-white hover:bg-gray-800"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold leading-tight">Admin Console</p>
+              <p className="truncate text-xs text-slate-500">Digital Label Platform</p>
             </div>
           </div>
 
-          {/* Desktop Tabs */}
-          <div className="hidden md:flex space-x-2 mt-8">
+          <div className="px-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search users, companies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-sm shadow-none focus-visible:ring-blue-500/30"
+              />
+            </div>
+          </div>
+
+          <nav className="mt-4 flex-1 space-y-1 px-3">
             {adminTabs.map((tab) => {
               const Icon = tab.icon;
+              const active = selectedTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setSelectedTab(tab.id)}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-t-xl transition-all ${
-                    selectedTab === tab.id
-                      ? 'bg-white text-gray-900 shadow-lg'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-800'
-                  }`}
+                  className={[
+                    "group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition",
+                    active
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                  ].join(" ")}
                 >
-                  <Icon className={`h-5 w-5 ${selectedTab === tab.id ? tab.color : 'text-gray-400'}`} />
-                  <span className="font-medium">{tab.label}</span>
-                  {tab.id === 'users' && vendorUsers.length > 0 && (
-                    <span className={`ml-2 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center ${
-                      selectedTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-700 text-white'
-                    }`}>
+                  <span
+                    className={[
+                      "flex h-9 w-9 items-center justify-center rounded-xl transition",
+                      active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+
+                  <span className="flex-1 text-left">{tab.label}</span>
+
+                  {tab.id === "users" && vendorUsers.length > 0 && (
+                    <span className={active ? "rounded-full bg-blue-600 px-2 py-1 text-xs font-semibold text-white" : "rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700"}>
                       {vendorUsers.length}
                     </span>
                   )}
-                  {tab.id === 'companies' && companies.length > 0 && (
-                    <span className={`ml-2 text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center ${
-                      selectedTab === tab.id ? 'bg-purple-100 text-purple-600' : 'bg-gray-700 text-white'
-                    }`}>
+                  {tab.id === "companies" && companies.length > 0 && (
+                    <span className={active ? "rounded-full bg-blue-600 px-2 py-1 text-xs font-semibold text-white" : "rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700"}>
                       {companies.length}
                     </span>
                   )}
                 </button>
               );
             })}
+          </nav>
+
+          <div className="border-t border-slate-200 p-4">
+            <div className="mb-3 flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                <span className="text-sm font-semibold">{currentUser.name.charAt(0)}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{currentUser.name}</p>
+                <p className="truncate text-xs text-slate-500">Administrator</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={refreshAdminData}
+                variant="outline"
+                size="sm"
+                className="h-10 flex-1 rounded-2xl border-slate-200 bg-white"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-2xl border-slate-200 bg-white"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
+      </aside>
+
+      {/* Content wrapper (shifted when sidebar is visible) */}
+      <div className="lg:pl-72">
+        {/* Top bar (mobile + desktop) */}
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+          <div className="mx-auto max-w-7xl px-4 py-3 lg:px-8">
+            <div className="flex items-center gap-3">
+              {/* Mobile menu button */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white lg:hidden"
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
+              {/* Title */}
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="hidden h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white lg:flex">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-base font-semibold leading-tight text-slate-900">
+                    {selectedTab === "overview" && "Admin Dashboard"}
+                    {selectedTab === "users" && "User Management"}
+                    {selectedTab === "companies" && "Company Management"}
+                    {selectedTab === "analytics" && "Analytics"}
+                    {selectedTab === "settings" && "Settings"}
+                  </h1>
+
+                </div>
+              </div>
+
+              <div className="ml-auto flex items-center gap-2">
+                {/* Desktop search */}
+                <div className="relative hidden w-80 lg:block">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search users, companies..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-sm shadow-none focus-visible:ring-blue-500/30"
+                  />
+                </div>
+
+                <Button
+                  onClick={refreshAdminData}
+                  variant="outline"
+                  size="sm"
+                  className="hidden h-11 rounded-2xl border-slate-200 bg-white lg:inline-flex"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  size="sm"
+                  className="h-11 rounded-2xl border-slate-200 bg-white"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+
+            {/* Mobile Search */}
+            <div className="mt-3 lg:hidden">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search users, companies..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-sm shadow-none focus-visible:ring-blue-500/30"
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Drawer */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:hidden">
+            <div className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">Admin Console</p>
+                    <p className="text-xs text-slate-500">Navigation</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-2xl border border-slate-200 bg-white p-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-3">
+                {adminTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = selectedTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setSelectedTab(tab.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={[
+                        "mb-1 flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition",
+                        active ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      <span className={active ? "flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white" : "flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700"}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="flex-1 text-left">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="absolute bottom-0 w-full border-t border-slate-200 p-4">
+                <Button onClick={handleLogout} className="w-full rounded-2xl bg-blue-600 hover:bg-blue-700">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       {loading && dataReady && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
@@ -864,7 +930,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 lg:px-8 lg:pb-10 lg:pt-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl border border-blue-400 p-6 text-white shadow-xl hover:shadow-2xl transition-shadow">
@@ -1932,6 +1998,31 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+        {/* Bottom navigation (mobile app style) */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-5 gap-1 px-2 py-2">
+            {adminTabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = selectedTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedTab(tab.id)}
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-xs font-medium transition",
+                    active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+      </div> {/* end content wrapper */}
+
     </div>
   );
 }
