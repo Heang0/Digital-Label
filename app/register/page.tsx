@@ -17,7 +17,6 @@ import {
   X,
   Check,
 } from 'lucide-react';
-import { Inter } from 'next/font/google';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +24,6 @@ import { signUp, logOut, db } from '@/lib/firebase';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 type PlanId = 'basic' | 'pro' | 'enterprise';
 
@@ -148,7 +146,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className={inter.className}>
+    <div>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 via-gray-50 to-gray-100">
         {/* Top navigation */}
         <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">

@@ -179,7 +179,9 @@ export default function StaffDashboard() {
   const [labelGenerateCount, setLabelGenerateCount] = useState(6);
   const [promotionPercent, setPromotionPercent] = useState(10);
   const [labelCategoryFilter, setLabelCategoryFilter] = useState<Record<string, string>>({});
+  const [labelLocationEdits, setLabelLocationEdits] = useState<Record<string, string>>({});
   const [discountInputs, setDiscountInputs] = useState<Record<string, number>>({});
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Form states
   const [issueForm, setIssueForm] = useState({
@@ -202,10 +204,44 @@ export default function StaffDashboard() {
     });
     return Array.from(map.values());
   }, [branchProducts]);
+  const filteredBranchProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return branchProducts;
+    return branchProducts.filter((bp) => {
+      const fields = [
+        bp.productDetails?.name,
+        bp.productDetails?.sku,
+        bp.productDetails?.category,
+        bp.productDetails?.productCode,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [branchProducts, searchTerm]);
   const getLabelDisplayId = (label: DigitalLabel) => label.labelId || label.labelCode || label.id;
+  const filteredLabels = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return labels;
+    return labels.filter((label) => {
+      const displayId = getLabelDisplayId(label);
+      const fields = [
+        displayId,
+        label.productName,
+        label.productSku,
+        label.location,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [labels, searchTerm]);
   const sortedLabels = useMemo(() => {
-    const items = [...labels];
+    const items = [...filteredLabels];
     items.sort((a, b) => {
+      const aLoc = (a.location || '').trim().toLowerCase();
+      const bLoc = (b.location || '').trim().toLowerCase();
+      if (aLoc && bLoc && aLoc !== bLoc) {
+        return aLoc.localeCompare(bLoc);
+      }
+      if (aLoc && !bLoc) return -1;
+      if (!aLoc && bLoc) return 1;
       const aMatch = getLabelDisplayId(a).match(/\d+/);
       const bMatch = getLabelDisplayId(b).match(/\d+/);
       const aNum = aMatch ? Number(aMatch[0]) : Number.MAX_SAFE_INTEGER;
@@ -214,7 +250,7 @@ export default function StaffDashboard() {
       return getLabelDisplayId(a).localeCompare(getLabelDisplayId(b));
     });
     return items;
-  }, [labels]);
+  }, [filteredLabels]);
 
   // Redirect if not staff
   useEffect(() => {
@@ -618,6 +654,39 @@ export default function StaffDashboard() {
     }
   };
 
+  const updateLabelLocation = async (labelId: string) => {
+    if (!canManageLabels) {
+      alert('You do not have permission to update label locations.');
+      return;
+    }
+    const nextLocation = (labelLocationEdits[labelId] ?? '').trim();
+    if (!nextLocation) {
+      alert('Enter a shelf or aisle location.');
+      return;
+    }
+    try {
+      await updateDoc(fsDoc(db, 'labels', labelId), {
+        location: nextLocation,
+        lastSync: Timestamp.now(),
+      });
+      setLabels((prev) =>
+        prev.map((label) =>
+          label.id === labelId
+            ? {
+                ...label,
+                location: nextLocation,
+                lastSync: Timestamp.now(),
+              }
+            : label
+        )
+      );
+      alert('Label location updated.');
+    } catch (error) {
+      console.error('Error updating label location:', error);
+      alert('Failed to update location.');
+    }
+  };
+
   const clearLabelAssignment = async (labelId: string) => {
     if (!canManageLabels) return;
     if (!confirm('Clear product assignment for this label?')) return;
@@ -1017,7 +1086,7 @@ export default function StaffDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b shadow-sm">
         <div className="px-4 py-3">
@@ -1308,6 +1377,8 @@ export default function StaffDashboard() {
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       placeholder="Search products, labels..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 w-64"
                     />
                   </div>
@@ -1488,6 +1559,8 @@ export default function StaffDashboard() {
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <Input
                           placeholder="Search products..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
                           className="pl-10 w-64"
                         />
                       </div>
@@ -1572,7 +1645,7 @@ export default function StaffDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {branchProducts.map((bp) => (
+                        {filteredBranchProducts.map((bp) => (
                           <tr key={bp.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -1743,7 +1816,9 @@ export default function StaffDashboard() {
                           <div>
                             <h4 className="font-semibold text-gray-900">{label.labelId || label.labelCode || label.id}</h4>
                             <p className="text-sm text-gray-600">{label.productName || 'Unassigned'}</p>
-                            <p className="text-xs text-gray-500">{label.location}</p>
+                            <p className="text-xs text-gray-500">
+                              {label.location ? `Shelf/Aisle: ${label.location}` : 'Shelf/Aisle: Not set'}
+                            </p>
                           </div>
                           <span className={cn(
                             "px-3 py-1 rounded-full text-xs font-semibold",
@@ -1759,11 +1834,22 @@ export default function StaffDashboard() {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Current Price:</span>
-                            <span className="font-bold">
-                              {Number.isFinite(label.currentPrice)
-                                ? `$${Number(label.currentPrice).toFixed(2)}`
-                                : '--'}
-                            </span>
+                            <div className="text-right">
+                              <span className="font-bold">
+                                {Number.isFinite(label.finalPrice)
+                                  ? `$${Number(label.finalPrice).toFixed(2)}`
+                                  : Number.isFinite(label.currentPrice)
+                                    ? `$${Number(label.currentPrice).toFixed(2)}`
+                                    : '--'}
+                              </span>
+                              {Number.isFinite(label.basePrice) &&
+                                Number.isFinite(label.finalPrice) &&
+                                Number(label.finalPrice) < Number(label.basePrice) && (
+                                  <div className="text-xs text-gray-500 line-through">
+                                    ${Number(label.basePrice).toFixed(2)}
+                                  </div>
+                                )}
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Battery:</span>
@@ -1788,9 +1874,31 @@ export default function StaffDashboard() {
                           {canManageLabels && (
                             <div className="space-y-3">
                               <div className="grid gap-2">
+                                <div className="text-xs font-medium text-gray-600">Shelf / Aisle</div>
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={labelLocationEdits[label.id] ?? label.location ?? ''}
+                                    onChange={(e) =>
+                                      setLabelLocationEdits((prev) => ({
+                                        ...prev,
+                                        [label.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="bg-white text-gray-900 placeholder:text-gray-400"
+                                    placeholder="e.g., Aisle 3 • Shelf B2"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => updateLabelLocation(label.id)}
+                                  >
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="grid gap-2">
                                 <div className="text-xs font-medium text-gray-600">Assign product</div>
                                 <select
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
                                   value={labelCategoryFilter[label.id] || ''}
                                   onChange={(e) =>
                                     setLabelCategoryFilter((prev) => ({
@@ -1807,7 +1915,7 @@ export default function StaffDashboard() {
                                   ))}
                                 </select>
                                 <select
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
                                   value={label.productId || ''}
                                   onChange={(e) => {
                                     const productId = e.target.value;
@@ -1942,7 +2050,7 @@ export default function StaffDashboard() {
                               </div>
                               <a
                                 className="block text-xs text-blue-600 underline"
-                                href={`/digital-labels/${label.id}?companyId=${currentUser?.companyId}&branchId=${currentUser?.branchId}`}
+                                href={`/digital-labels/${label.id}`}
                                 target="_blank"
                                 rel="noreferrer"
                               >
@@ -2004,10 +2112,10 @@ export default function StaffDashboard() {
                         {issues.map((issue) => (
                           <tr key={issue.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="font-medium">{issue.labelId}</span>
+                              <span className="font-medium text-gray-900">{issue.labelId}</span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="text-sm">{issue.productName}</span>
+                              <span className="text-sm text-gray-900">{issue.productName}</span>
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm text-gray-700">{issue.issue}</span>
@@ -2132,12 +2240,21 @@ export default function StaffDashboard() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Label ID *</label>
-                  <Input
+                  <select
                     value={issueForm.labelId}
                     onChange={(e) => setIssueForm({...issueForm, labelId: e.target.value})}
-                    placeholder="e.g., DL-001"
+                    className="w-full border rounded-lg bg-white px-3 py-2 text-gray-900"
                     required
-                  />
+                  >
+                    <option value="">Select label...</option>
+                    {sortedLabels
+                      .filter((label) => label.branchId === currentUser.branchId && label.productId)
+                      .map((label) => (
+                        <option key={label.id} value={label.labelId || label.labelCode || label.id}>
+                          {label.labelId || label.labelCode || label.id} — {label.productName || 'Unassigned'}
+                        </option>
+                      ))}
+                  </select>
                 </div>
 
                 <div className="space-y-2">
@@ -2145,7 +2262,7 @@ export default function StaffDashboard() {
                   <textarea
                     value={issueForm.issue}
                     onChange={(e) => setIssueForm({...issueForm, issue: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2 h-24"
+                    className="w-full border rounded-lg bg-white px-3 py-2 h-24 text-gray-900 placeholder:text-gray-400"
                     placeholder="Describe the issue (e.g., Wrong price, Blank screen, Low battery)"
                     required
                   />
@@ -2156,7 +2273,7 @@ export default function StaffDashboard() {
                   <select
                     value={issueForm.priority}
                     onChange={(e) => setIssueForm({...issueForm, priority: e.target.value as any})}
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-lg bg-white px-3 py-2 text-gray-900"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>

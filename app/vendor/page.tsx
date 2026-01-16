@@ -204,6 +204,21 @@ interface Category {
   companyId: string;
   createdAt: Timestamp;
 }
+
+interface IssueReport {
+  id: string;
+  labelId: string;
+  productId?: string | null;
+  productName?: string | null;
+  issue: string;
+  status: 'open' | 'in-progress' | 'resolved';
+  priority: 'low' | 'medium' | 'high';
+  reportedAt: Timestamp;
+  branchId: string;
+  branchName?: string;
+  companyId: string;
+  reportedByName?: string;
+}
 //
 export default function VendorDashboard() {
   const router = useRouter();
@@ -221,11 +236,13 @@ export default function VendorDashboard() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [labels, setLabels] = useState<DigitalLabel[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [issues, setIssues] = useState<IssueReport[]>([]);
   const [discountInputs, setDiscountInputs] = useState<Record<string, number>>({});
   const [assigningLabelId, setAssigningLabelId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [labelCategoryFilter, setLabelCategoryFilter] = useState<Record<string, string>>({});
+  const [labelLocationEdits, setLabelLocationEdits] = useState<Record<string, string>>({});
   const [labelGenerateCount, setLabelGenerateCount] = useState<number>(6);
   const [labelModal, setLabelModal] = useState<{
     title: string;
@@ -246,9 +263,11 @@ export default function VendorDashboard() {
   const [showResetPassword, setShowResetPassword] = useState<string | null>(null);
   const [showEditCompany, setShowEditCompany] = useState(false);
   const [showEditBranch, setShowEditBranch] = useState(false);
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
   const [promotionLabelPicker, setPromotionLabelPicker] = useState<{
     promotion: Promotion;
     selectedIds: string[];
@@ -616,6 +635,34 @@ const loadVendorData = async () => {
       })) as Promotion[];
       setPromotions(promotionsData);
 
+      // 8. Load issue reports (only for this company)
+      const issuesQuery = query(
+        collection(db, 'issue_reports'),
+        where('companyId', '==', currentUser.companyId)
+      );
+      const issuesSnapshot = await getDocs(issuesQuery);
+      const issuesData = await Promise.all(
+        issuesSnapshot.docs.map(async (docSnap) => {
+          const issueData = docSnap.data() as any;
+          const productId = issueData.productId as string | null | undefined;
+          const productDoc = productId ? await getDoc(fsDoc(db, 'products', productId)) : null;
+          const branchName = issueData.branchId
+            ? branchesData.find((branch) => branch.id === issueData.branchId)?.name
+            : undefined;
+          return {
+            id: docSnap.id,
+            ...issueData,
+            productName: productDoc && productDoc.exists()
+              ? (productDoc.data() as any).name
+              : productId
+                ? 'Unknown Product'
+                : 'Unknown Product',
+            branchName
+          } as IssueReport;
+        })
+      );
+      setIssues(issuesData);
+
     } catch (error) {
       console.error('Error loading vendor data:', error);
     } finally {
@@ -717,6 +764,36 @@ const loadVendorData = async () => {
       ...docSnap.data()
     })) as Promotion[];
     setPromotions(promotionsData);
+  };
+
+  const reloadIssues = async () => {
+    if (!currentUser?.companyId) return;
+    const issuesQuery = query(
+      collection(db, 'issue_reports'),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const issuesSnapshot = await getDocs(issuesQuery);
+    const issuesData = await Promise.all(
+      issuesSnapshot.docs.map(async (docSnap) => {
+        const issueData = docSnap.data() as any;
+        const productId = issueData.productId as string | null | undefined;
+        const productDoc = productId ? await getDoc(fsDoc(db, 'products', productId)) : null;
+        const branchName = issueData.branchId
+          ? branches.find((branch) => branch.id === issueData.branchId)?.name
+          : undefined;
+        return {
+          id: docSnap.id,
+          ...issueData,
+          productName: productDoc && productDoc.exists()
+            ? (productDoc.data() as any).name
+            : productId
+              ? 'Unknown Product'
+              : 'Unknown Product',
+          branchName
+        } as IssueReport;
+      })
+    );
+    setIssues(issuesData);
   };
 
   // Handle logout
@@ -1502,6 +1579,99 @@ const loadVendorData = async () => {
     );
   };
 
+  const updateLabelLocation = async (labelId: string) => {
+    const nextLocation = (labelLocationEdits[labelId] ?? '').trim();
+    if (!nextLocation) {
+      openLabelNotice('Location required', 'Enter a shelf or aisle location.', 'warning');
+      return;
+    }
+
+    try {
+      await updateDoc(fsDoc(db, 'labels', labelId), {
+        location: nextLocation,
+        lastSync: Timestamp.now(),
+      });
+      setLabels((prev) =>
+        prev.map((label) =>
+          label.id === labelId
+            ? {
+                ...label,
+                location: nextLocation,
+                lastSync: Timestamp.now(),
+              }
+            : label
+        )
+      );
+      openLabelNotice('Location updated', 'Label location saved.', 'success');
+    } catch (error: any) {
+      console.error('Error updating label location:', error);
+      openLabelNotice('Update failed', error.message || 'Could not update location.', 'error');
+    }
+  };
+
+  const resolveIssueReport = async (issue: IssueReport) => {
+    if (!issue?.id) return;
+    openLabelConfirm(
+      'Confirm issue resolved',
+      `Mark issue for label "${issue.labelId}" as resolved?`,
+      async () => {
+        try {
+          await updateDoc(fsDoc(db, 'issue_reports', issue.id), {
+            status: 'resolved',
+            resolvedAt: Timestamp.now(),
+            resolvedBy: currentUser?.id || null,
+            resolvedByName: currentUser?.name || null,
+          });
+
+          const labelQuery = query(
+            collection(db, 'labels'),
+            where('labelId', '==', issue.labelId),
+            where('companyId', '==', issue.companyId),
+            where('branchId', '==', issue.branchId)
+          );
+          const labelSnapshot = await getDocs(labelQuery);
+          if (!labelSnapshot.empty) {
+            await Promise.all(
+              labelSnapshot.docs.map((docSnap) =>
+                updateDoc(fsDoc(db, 'labels', docSnap.id), {
+                  status: 'active',
+                  lastSync: Timestamp.now(),
+                })
+              )
+            );
+          }
+
+          await reloadIssues();
+          await reloadLabels();
+          openLabelNotice('Issue resolved', 'Issue status updated.', 'success');
+        } catch (error) {
+          console.error('Error resolving issue:', error);
+          openLabelNotice('Resolve failed', 'Could not resolve this issue.', 'error');
+        }
+      },
+      'Confirm'
+    );
+  };
+
+  const deleteIssueReport = async (issue: IssueReport) => {
+    if (!issue?.id) return;
+    openLabelConfirm(
+      'Delete issue report',
+      `Delete issue for label "${issue.labelId}"? This cannot be undone.`,
+      async () => {
+        try {
+          await deleteDoc(fsDoc(db, 'issue_reports', issue.id));
+          await reloadIssues();
+          openLabelNotice('Issue deleted', 'The issue report has been removed.', 'success');
+        } catch (error) {
+          console.error('Error deleting issue report:', error);
+          openLabelNotice('Delete failed', 'Could not delete this issue.', 'error');
+        }
+      },
+      'Delete'
+    );
+  };
+
   const openPromotionLabelPicker = (promotion: Promotion) => {
     setPromotionLabelPicker({
       promotion,
@@ -2044,13 +2214,47 @@ const updateProduct = async (productId: string, productData: any) => {
   const filteredStaffMembers = isBranchFiltered
     ? staffMembers.filter((staff) => staff.branchId === selectedBranchId)
     : staffMembers;
+  const searchedStaffMembers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return filteredStaffMembers;
+    return filteredStaffMembers.filter((staff) => {
+      const fields = [
+        staff.name,
+        staff.email,
+        staff.position,
+        staff.branchName,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [searchTerm, filteredStaffMembers]);
   const filteredLabels = isBranchFiltered
     ? labels.filter((label) => label.branchId === selectedBranchId)
     : labels;
   const getLabelDisplayId = (label: DigitalLabel) => label.labelId || label.labelCode || label.id;
+  const searchedLabels = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return filteredLabels;
+    return filteredLabels.filter((label) => {
+      const fields = [
+        getLabelDisplayId(label),
+        label.productName,
+        label.productSku,
+        label.branchName,
+        label.location,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [searchTerm, filteredLabels]);
   const sortedFilteredLabels = useMemo(() => {
-    const items = [...filteredLabels];
+    const items = [...searchedLabels];
     items.sort((a, b) => {
+      const aLoc = (a.location || '').trim().toLowerCase();
+      const bLoc = (b.location || '').trim().toLowerCase();
+      if (aLoc && bLoc && aLoc !== bLoc) {
+        return aLoc.localeCompare(bLoc);
+      }
+      if (aLoc && !bLoc) return -1;
+      if (!aLoc && bLoc) return 1;
       const aMatch = getLabelDisplayId(a).match(/\d+/);
       const bMatch = getLabelDisplayId(b).match(/\d+/);
       const aNum = aMatch ? Number(aMatch[0]) : Number.MAX_SAFE_INTEGER;
@@ -2059,7 +2263,7 @@ const updateProduct = async (productId: string, productData: any) => {
       return getLabelDisplayId(a).localeCompare(getLabelDisplayId(b));
     });
     return items;
-  }, [filteredLabels]);
+  }, [searchedLabels]);
   const labelStatusStyles: Record<DigitalLabel['status'], string> = {
     active: 'bg-emerald-100 text-emerald-700',
     'low-battery': 'bg-amber-100 text-amber-700',
@@ -2081,6 +2285,21 @@ const updateProduct = async (productId: string, productData: any) => {
         filteredBranchProducts.some((bp) => bp.productId === product.id)
       )
     : products;
+  const searchedProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return visibleProducts;
+    return visibleProducts.filter((product) => {
+      const fields = [
+        product.name,
+        product.description,
+        product.sku,
+        product.category,
+        product.productCode,
+        product.id,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [searchTerm, visibleProducts]);
   const getDisplayStockForProduct = (productId: string) => {
     const candidates = isBranchFiltered
       ? branchProducts.filter(
@@ -2106,14 +2325,14 @@ const updateProduct = async (productId: string, productData: any) => {
     });
     return map;
   }, [branchProducts, products]);
-  const totalProductPages = Math.max(1, Math.ceil(visibleProducts.length / productsPerPage));
+  const totalProductPages = Math.max(1, Math.ceil(searchedProducts.length / productsPerPage));
   const paginatedProducts = useMemo(() => {
     const startIndex = (productPage - 1) * productsPerPage;
-    return visibleProducts.slice(startIndex, startIndex + productsPerPage);
-  }, [productPage, productsPerPage, visibleProducts]);
+    return searchedProducts.slice(startIndex, startIndex + productsPerPage);
+  }, [productPage, productsPerPage, searchedProducts]);
   useEffect(() => {
     setProductPage(1);
-  }, [visibleProducts.length, productsPerPage]);
+  }, [searchedProducts.length, productsPerPage]);
   useEffect(() => {
     setProductPage((prev) => Math.min(prev, totalProductPages));
   }, [totalProductPages]);
@@ -2149,6 +2368,29 @@ const updateProduct = async (productId: string, productData: any) => {
       return true;
     });
   }, [labels, promotionLabelPicker]);
+  const searchedPromotions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return promotions;
+    return promotions.filter((promotion) => {
+      const fields = [promotion.name, promotion.description];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [searchTerm, promotions]);
+  const searchedIssues = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return issues;
+    return issues.filter((issue) => {
+      const fields = [
+        issue.labelId,
+        issue.productName,
+        issue.issue,
+        issue.branchName,
+        issue.status,
+        issue.priority,
+      ];
+      return fields.some((field) => field?.toLowerCase().includes(term));
+    });
+  }, [searchTerm, issues]);
   const getCompanyDisplayCode = () => {
     const raw = company?.code || (company?.id ? `VE${company.id.slice(-3).toUpperCase()}` : 'VE000');
     return raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -2540,7 +2782,7 @@ const updateProduct = async (productId: string, productData: any) => {
             className="absolute inset-0 h-full w-full bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-72 bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl">
+          <div className="absolute left-0 top-0 flex h-full w-72 flex-col bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-blue-500 flex items-center justify-center">
@@ -2559,27 +2801,47 @@ const updateProduct = async (productId: string, productData: any) => {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="p-4 space-y-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-4 pt-4">
+                <div className="rounded-lg border border-gray-700 bg-gray-800/70 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+                    Branch
+                  </div>
                   <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedTab(item.id);
-                      setMobileNavOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      selectedTab === item.id
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
+                    type="button"
+                    className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white"
+                    onClick={() => setShowBranchPicker(true)}
+                    disabled={branches.length === 0}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span>{item.label}</span>
+                    <span className="truncate">
+                      {selectedBranchName}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
                   </button>
-                );
-              })}
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedTab(item.id);
+                        setMobileNavOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        selectedTab === item.id
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="p-4 border-t border-gray-700">
               <button
@@ -2629,7 +2891,7 @@ const updateProduct = async (productId: string, productData: any) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -2667,80 +2929,76 @@ const updateProduct = async (productId: string, productData: any) => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 text-gray-900">
         {/* Top Bar */}
-        <header className="bg-white/90 backdrop-blur border-b sticky top-0 z-30">
-          <div className="px-4 py-4 sm:px-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-start gap-3">
+        <header className="bg-white/95 backdrop-blur border-b sticky top-0 z-30">
+          <div className="px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex w-full items-start gap-3">
                 <button
                   type="button"
                   onClick={() => setMobileNavOpen(true)}
-                  className="inline-flex lg:hidden items-center justify-center rounded-md border border-gray-300 bg-white h-10 w-10 mt-1"
+                  className="inline-flex lg:hidden items-center justify-center rounded-lg border border-gray-200 bg-white h-10 w-10"
                 >
-                  <List className="h-4 w-4" />
+                  <List className="h-5 w-5" />
                 </button>
-                <div className="space-y-1">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 capitalize">
-                  {selectedTab === 'dashboard' && `${company?.name || 'My'} Dashboard`}
-                  {selectedTab === 'products' && 'Product Management'}
-                  {selectedTab === 'staff' && 'Staff Management'}
-                  {selectedTab === 'labels' && 'Digital Labels'}
-                  {selectedTab === 'promotions' && 'Promotions & Discounts'}
-                  {selectedTab === 'reports' && 'Business Reports'}
-                  {selectedTab === 'settings' && 'Settings'}
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600">
-                  {selectedTab === 'dashboard' && 'Overview of your retail operations'}
-                  {selectedTab === 'products' && (isBranchFiltered
-                    ? `Manage ${visibleProducts.length} products for ${selectedBranchName}`
-                    : `Manage ${products.length} products across ${branches.length} branches`)}
-                  {selectedTab === 'staff' && `Manage ${filteredStaffMembers.length} staff members for ${selectedBranchName}`}
-                  {selectedTab === 'labels' && `Monitor ${filteredLabels.length} digital price labels for ${selectedBranchName}`}
-                  {selectedTab === 'promotions' && `Create and manage ${promotions.length} promotions`}
-                  {selectedTab === 'reports' && 'View business analytics and reports'}
-                  {selectedTab === 'settings' && 'Manage your company profile and preferences'}
-                </p>
-              </div>
-              </div>
-              
-              <div className="flex flex-col gap-3 w-full lg:w-auto">
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
-                    <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Branch</span>
-                    <select
-                      className="h-9 flex-1 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900"
-                      value={selectedBranchId}
-                      onChange={(event) => setSelectedBranchId(event.target.value)}
-                      disabled={branches.length === 0}
-                    >
-                      {branches.length === 0 ? (
-                        <option value="">No branches</option>
-                      ) : (
-                        <>
-                          <option value="all">All branches</option>
-                          {branches.map((branch) => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name}
-                            </option>
-                          ))}
-                        </>
-                      )}
-                    </select>
-                  </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 capitalize leading-tight break-words">
+                    {selectedTab === 'dashboard' && `${company?.name || 'My'} Dashboard`}
+                    {selectedTab === 'products' && 'Product Management'}
+                    {selectedTab === 'staff' && 'Staff Management'}
+                    {selectedTab === 'labels' && 'Digital Labels'}
+                    {selectedTab === 'promotions' && 'Promotions & Discounts'}
+                    {selectedTab === 'reports' && 'Business Reports'}
+                    {selectedTab === 'settings' && 'Settings'}
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {selectedTab === 'dashboard' && 'Overview of your retail operations'}
+                    {selectedTab === 'products' && (isBranchFiltered
+                      ? `Manage ${visibleProducts.length} products for ${selectedBranchName}`
+                      : `Manage ${products.length} products across ${branches.length} branches`)}
+                    {selectedTab === 'staff' && `Manage ${filteredStaffMembers.length} staff members for ${selectedBranchName}`}
+                    {selectedTab === 'labels' && `Monitor ${filteredLabels.length} digital price labels for ${selectedBranchName}`}
+                    {selectedTab === 'promotions' && `Create and manage ${promotions.length} promotions`}
+                    {selectedTab === 'reports' && 'View business analytics and reports'}
+                    {selectedTab === 'settings' && 'Manage your company profile and preferences'}
+                  </p>
                 </div>
+              </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <div className="relative flex-1">
+              <div className="flex w-full flex-col gap-2 lg:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  <div className="relative w-full min-w-[260px] flex-1">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       placeholder="Search..."
-                      className="pl-10 w-full"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-10 w-full rounded-full border border-gray-200 bg-white pl-10"
                     />
                   </div>
+                  <select
+                    className="hidden h-10 w-full max-w-[200px] flex-none rounded-full border border-gray-200 bg-white px-4 text-sm text-gray-900 shadow-sm sm:block"
+                    value={selectedBranchId}
+                    onChange={(event) => setSelectedBranchId(event.target.value)}
+                    disabled={branches.length === 0}
+                  >
+                    {branches.length === 0 ? (
+                      <option value="">No branches</option>
+                    ) : (
+                      <>
+                        <option value="all">All branches</option>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
-                    className="w-full sm:w-auto"
+                    className="h-10 w-full flex-none rounded-full px-4 sm:w-auto"
                     onClick={loadVendorData}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" /> Refresh
@@ -2763,9 +3021,9 @@ const updateProduct = async (productId: string, productData: any) => {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-                <div className="bg-white rounded-xl border p-4 sm:p-6">
+                <div className="bg-white rounded-xl border p-4 sm:p-6 overflow-hidden">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Total Products</p>
                       <p className="text-2xl sm:text-3xl font-bold mt-2">{products.length}</p>
                       <p className="text-sm text-gray-500 mt-1">
@@ -2776,9 +3034,9 @@ const updateProduct = async (productId: string, productData: any) => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border p-4 sm:p-6">
+                <div className="bg-white rounded-xl border p-4 sm:p-6 overflow-hidden">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Active Staff</p>
                       <p className="text-2xl sm:text-3xl font-bold mt-2">
                         {filteredStaffMembers.filter(s => s.status === 'active').length}
@@ -2791,9 +3049,9 @@ const updateProduct = async (productId: string, productData: any) => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border p-4 sm:p-6">
+                <div className="bg-white rounded-xl border p-4 sm:p-6 overflow-hidden">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Active Labels</p>
                       <p className="text-2xl sm:text-3xl font-bold mt-2">
                         {filteredLabels.filter(l => l.status === 'active').length}
@@ -2806,9 +3064,9 @@ const updateProduct = async (productId: string, productData: any) => {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border p-4 sm:p-6">
+                <div className="bg-white rounded-xl border p-4 sm:p-6 overflow-hidden">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Active Promotions</p>
                       <p className="text-2xl sm:text-3xl font-bold mt-2">
                         {promotions.filter(p => p.status === 'active').length}
@@ -2881,7 +3139,7 @@ const updateProduct = async (productId: string, productData: any) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {visibleProducts.slice(0, 5).map((product) => (
+                      {searchedProducts.slice(0, 5).map((product) => (
                         <tr key={product.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
@@ -3119,10 +3377,12 @@ const updateProduct = async (productId: string, productData: any) => {
               <div className="bg-white rounded-xl border overflow-hidden">
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">All Products ({visibleProducts.length})</h4>
+                    <h4 className="font-semibold">All Products ({searchedProducts.length})</h4>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="Search products..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-48"
                       />
                       <Button variant="outline" size="sm">
@@ -3272,12 +3532,12 @@ const updateProduct = async (productId: string, productData: any) => {
                       </select>
                     </div>
                     <div>
-                      {visibleProducts.length === 0
+                      {searchedProducts.length === 0
                         ? '0 of 0'
                         : `${(productPage - 1) * productsPerPage + 1}-${Math.min(
                             productPage * productsPerPage,
-                            visibleProducts.length
-                          )} of ${visibleProducts.length}`}
+                            searchedProducts.length
+                          )} of ${searchedProducts.length}`}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -3348,7 +3608,7 @@ const updateProduct = async (productId: string, productData: any) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {filteredStaffMembers.map((staff) => (
+                      {searchedStaffMembers.map((staff) => (
                         <tr key={staff.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -3449,7 +3709,7 @@ const updateProduct = async (productId: string, productData: any) => {
 
               {/* Promotions List */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {promotions.map((promotion) => (
+                {searchedPromotions.map((promotion) => (
                   <div key={promotion.id} className="bg-white rounded-xl border p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div>
@@ -3593,6 +3853,9 @@ const updateProduct = async (productId: string, productData: any) => {
                           <div className="text-xs text-slate-500">
                             {label.branchName || selectedBranchName}
                           </div>
+                          <div className="text-xs text-slate-500">
+                            {label.location ? `Shelf/Aisle: ${label.location}` : 'Shelf/Aisle: Not set'}
+                          </div>
                         </div>
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${labelStatusStyles[label.status]}`}>
                           {label.status}
@@ -3602,16 +3865,23 @@ const updateProduct = async (productId: string, productData: any) => {
                       <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
                         <div>
                           <div className="text-xs text-slate-500">Price</div>
-                          <div className="font-semibold text-slate-900">
-                            {label.discountPercent != null && label.finalPrice != null
-                              ? `$${Number(label.finalPrice).toFixed(2)}`
-                              : label.currentPrice != null
+                          {label.discountPercent != null && label.finalPrice != null ? (
+                            <>
+                              <div className="text-xs text-slate-400 line-through">
+                                {label.basePrice != null ? `$${Number(label.basePrice).toFixed(2)}` : '--'}
+                              </div>
+                              <div className="font-semibold text-slate-900">
+                                {`$${Number(label.finalPrice).toFixed(2)}`}
+                              </div>
+                              <div className="text-xs text-emerald-600">
+                                {label.discountPercent}% OFF
+                              </div>
+                            </>
+                          ) : (
+                            <div className="font-semibold text-slate-900">
+                              {label.currentPrice != null
                                 ? `$${Number(label.currentPrice).toFixed(2)}`
                                 : '--'}
-                          </div>
-                          {label.discountPercent != null && (
-                            <div className="text-xs text-emerald-600">
-                              {label.discountPercent}% OFF
                             </div>
                           )}
                         </div>
@@ -3630,6 +3900,29 @@ const updateProduct = async (productId: string, productData: any) => {
                       </div>
 
                       <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
+                        <div className="grid gap-2">
+                          <div className="text-xs font-medium text-slate-600">Shelf / Aisle</div>
+                          <div className="flex gap-2">
+                            <Input
+                              value={labelLocationEdits[label.id] ?? label.location ?? ''}
+                              onChange={(e) =>
+                                setLabelLocationEdits((prev) => ({
+                                  ...prev,
+                                  [label.id]: e.target.value,
+                                }))
+                              }
+                              className="bg-white text-slate-900 placeholder-slate-400"
+                              placeholder="e.g., Aisle 3 • Shelf B2"
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={() => updateLabelLocation(label.id)}
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+
                         <div className="grid gap-2">
                           <div className="text-xs font-medium text-slate-600">Assign</div>
                           <select
@@ -3816,7 +4109,7 @@ const updateProduct = async (productId: string, productData: any) => {
 
                         <a
                           className="text-xs text-blue-600 underline"
-                          href={`/digital-labels/${label.id}?companyId=${label.companyId}&branchId=${label.branchId}`}
+                          href={`/digital-labels/${label.id}`}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -3880,6 +4173,103 @@ const updateProduct = async (productId: string, productData: any) => {
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-8 rounded-xl border bg-white p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">Issue Reports</h4>
+                    <p className="text-sm text-gray-600">
+                      Staff-reported label issues across your branches
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {searchedIssues.length} total
+                  </div>
+                </div>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Label ID</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Issue</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Branch</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Priority</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Reported</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {searchedIssues.length === 0 ? (
+                        <tr>
+                          <td className="px-4 py-4 text-sm text-gray-500" colSpan={8}>
+                            No issues reported yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        searchedIssues.map((issue) => (
+                          <tr key={issue.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {issue.labelId}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {issue.productName || 'Unknown Product'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {issue.issue}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                              {issue.branchName || issue.branchId}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                issue.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                issue.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {issue.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                issue.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                issue.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {issue.priority}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                              {issue.reportedAt?.toDate ? issue.reportedAt.toDate().toLocaleString() : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={issue.status === 'resolved'}
+                                  onClick={() => resolveIssueReport(issue)}
+                                >
+                                  Confirm
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-rose-600 hover:text-rose-700"
+                                  onClick={() => deleteIssueReport(issue)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -4662,7 +5052,7 @@ const updateProduct = async (productId: string, productData: any) => {
                   <select
                     value={promotionForm.type}
                     onChange={(e) => setPromotionForm({...promotionForm, type: e.target.value as any})}
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-lg px-3 py-2 bg-white text-gray-900"
                   >
                     <option value="percentage">Percentage Off</option>
                     <option value="fixed">Fixed Amount Off</option>
@@ -4708,7 +5098,7 @@ const updateProduct = async (productId: string, productData: any) => {
                   <select
                     value={promotionForm.applyTo}
                     onChange={(e) => setPromotionForm({...promotionForm, applyTo: e.target.value as any})}
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border rounded-lg px-3 py-2 bg-white text-gray-900"
                   >
                     <option value="all">All Products & Branches</option>
                     <option value="selected">Selected Products/Branches Only</option>
@@ -5264,6 +5654,65 @@ const updateProduct = async (productId: string, productData: any) => {
               </Button>
               <Button onClick={applyPromotionToSelectedLabels} disabled={promotionLabelCandidates.length === 0}>
                 Apply Promotion
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBranchPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <h3 className="text-base font-semibold text-gray-900">Select Branch</h3>
+              <button
+                type="button"
+                className="rounded-full p-1 text-gray-500 hover:bg-gray-100"
+                onClick={() => setShowBranchPicker(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto p-4 space-y-2">
+              <button
+                type="button"
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                  selectedBranchId === 'all'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+                onClick={() => {
+                  setSelectedBranchId('all');
+                  setShowBranchPicker(false);
+                }}
+              >
+                All branches
+              </button>
+              {branches.map((branch) => (
+                <button
+                  key={branch.id}
+                  type="button"
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                    selectedBranchId === branch.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => {
+                    setSelectedBranchId(branch.id);
+                    setShowBranchPicker(false);
+                  }}
+                >
+                  {branch.name}
+                </button>
+              ))}
+            </div>
+            <div className="border-t px-5 py-3">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowBranchPicker(false)}
+              >
+                Close
               </Button>
             </div>
           </div>

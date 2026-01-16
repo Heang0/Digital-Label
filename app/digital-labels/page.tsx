@@ -14,6 +14,7 @@ interface Label {
   productId?: string | null;
   productName?: string | null;
   productSku?: string | null;
+  productDescription?: string | null;
   branchId?: string;
   companyId?: string;
   currentPrice?: number | null;
@@ -27,6 +28,10 @@ function DigitalLabelsContent() {
   const { user } = useUserStore();
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
+  const [branchCode, setBranchCode] = useState<string | null>(null);
 
   const companyId = useMemo(() => {
     return searchParams.get('companyId') || user?.companyId || '';
@@ -42,6 +47,30 @@ function DigitalLabelsContent() {
     const load = async () => {
       setLoading(true);
       try {
+        const companySnap = await getDoc(fsDoc(db, 'companies', companyId));
+        if (companySnap.exists()) {
+          const data = companySnap.data() as any;
+          setCompanyName(data?.name ?? null);
+          setCompanyCode(data?.code ?? null);
+        } else {
+          setCompanyName(null);
+          setCompanyCode(null);
+        }
+        if (branchId) {
+          const branchSnap = await getDoc(fsDoc(db, 'branches', branchId));
+          if (branchSnap.exists()) {
+            const data = branchSnap.data() as any;
+            setBranchName(data?.name ?? null);
+            setBranchCode(data?.code ?? null);
+          } else {
+            setBranchName(null);
+            setBranchCode(null);
+          }
+        } else {
+          setBranchName(null);
+          setBranchCode(null);
+        }
+
         const baseQuery = query(
           collection(db, 'labels'),
           where('companyId', '==', companyId)
@@ -52,33 +81,42 @@ function DigitalLabelsContent() {
 
         const snapshot = await getDocs(labelsQuery);
         const rawLabels = snapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as any),
           id: docSnap.id,
-          ...(docSnap.data() as any)
         })) as Label[];
 
-        const missingSkuIds = Array.from(
+        const missingProductIds = Array.from(
           new Set(
             rawLabels
-              .filter((label) => !label.productSku && label.productId)
+              .filter(
+                (label) =>
+                  (!label.productSku || !label.productName || !label.productDescription) &&
+                  label.productId
+              )
               .map((label) => label.productId as string)
           )
         );
 
-        if (missingSkuIds.length === 0) {
+        if (missingProductIds.length === 0) {
           setLabels(rawLabels);
           return;
         }
 
         const productEntries = await Promise.all(
-          missingSkuIds.map(async (productId) => {
+          missingProductIds.map(async (productId) => {
             const productSnap = await getDoc(fsDoc(db, 'products', productId));
             if (!productSnap.exists()) return null;
             const data = productSnap.data() as any;
-            return [productId, { name: data?.name, sku: data?.sku }] as const;
+            return [
+              productId,
+              { name: data?.name, sku: data?.sku, description: data?.description }
+            ] as const;
           })
         );
         const productMap = new Map(
-          productEntries.filter(Boolean) as Array<readonly [string, { name?: string; sku?: string }]>
+          productEntries.filter(Boolean) as Array<
+            readonly [string, { name?: string; sku?: string; description?: string }]
+          >
         );
 
         setLabels(
@@ -89,6 +127,8 @@ function DigitalLabelsContent() {
               ...label,
               productName: label.productName ?? product?.name ?? label.productName,
               productSku: label.productSku ?? product?.sku ?? label.productSku,
+              productDescription:
+                label.productDescription ?? product?.description ?? label.productDescription,
             };
           })
         );
@@ -99,6 +139,15 @@ function DigitalLabelsContent() {
 
     load();
   }, [companyId, branchId]);
+
+  const formatShortId = (value: string, prefix: string) => {
+    const clean = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (!clean) return '--';
+    const suffix = clean.slice(-4);
+    return `${prefix}-${suffix}`;
+  };
+  const companyDisplayCode = companyCode || formatShortId(companyId, 'VE');
+  const branchDisplayCode = branchId ? branchCode || formatShortId(branchId, 'BR') : '';
 
   if (!companyId) {
     return (
@@ -122,11 +171,17 @@ function DigitalLabelsContent() {
             Digital Labels
           </h1>
           <div className="text-sm text-gray-600">
-            Company: <span className="font-medium">{companyId}</span>
+            Company:{' '}
+            <span className="font-medium">
+              {companyName ? `${companyName} (${companyDisplayCode})` : companyDisplayCode}
+            </span>
             {branchId && (
               <>
                 {' '}
-                • Branch: <span className="font-medium">{branchId}</span>
+                • Branch:{' '}
+                <span className="font-medium">
+                  {branchName ? `${branchName} (${branchDisplayCode})` : branchDisplayCode}
+                </span>
               </>
             )}
           </div>
@@ -142,6 +197,9 @@ function DigitalLabelsContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {labels.map((label) => {
               const displayId = label.labelId || label.labelCode || label.id;
+              const labelBranchCode = label.branchId
+                ? formatShortId(label.branchId, 'BR')
+                : '--';
               const basePrice =
                 label.basePrice != null ? Number(label.basePrice) : null;
               const price =
@@ -159,7 +217,7 @@ function DigitalLabelsContent() {
               return (
                 <Link
                   key={label.id}
-                  href={`/digital-labels/${label.id}?companyId=${companyId}${branchId ? `&branchId=${branchId}` : ''}`}
+                  href={`/digital-labels/${label.id}`}
                   className="group"
                 >
                   <div className="bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -169,6 +227,11 @@ function DigitalLabelsContent() {
                         <p className="text-sm text-gray-600">
                           {label.productName || 'Unassigned'}
                         </p>
+                        {label.productDescription && (
+                          <p className="text-xs text-gray-500 line-clamp-2">
+                            {label.productDescription}
+                          </p>
+                        )}
                       </div>
                       {label.discountPercent != null ? (
                         <span className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded-full tracking-[0.2em]">
@@ -201,7 +264,7 @@ function DigitalLabelsContent() {
                         </div>
                         <div className="text-right text-xs text-slate-600">
                           <div>SKU: {label.productSku || '--'}</div>
-                          <div>Branch: {label.branchId || '--'}</div>
+                          <div>Branch: {labelBranchCode}</div>
                         </div>
                       </div>
                     </div>

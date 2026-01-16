@@ -13,6 +13,7 @@ interface Label {
   productId?: string | null;
   productName?: string | null;
   productSku?: string | null;
+  productDescription?: string | null;
   branchId?: string;
   companyId?: string;
   currentPrice?: number | null;
@@ -27,10 +28,21 @@ function DigitalLabelContent() {
   const { user } = useUserStore();
   const [label, setLabel] = useState<Label | null>(null);
   const [loading, setLoading] = useState(true);
+  const [origin, setOrigin] = useState('');
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
+  const [branchCode, setBranchCode] = useState<string | null>(null);
 
   const companyId = useMemo(() => {
-    return searchParams.get('companyId') || user?.companyId || '';
-  }, [searchParams, user?.companyId]);
+    return label?.companyId || searchParams.get('companyId') || user?.companyId || '';
+  }, [label?.companyId, searchParams, user?.companyId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -41,15 +53,16 @@ function DigitalLabelContent() {
         if (snap.exists()) {
           const data = snap.data() as any;
           const productId = data?.productId as string | undefined;
-          if (productId && (!data.productSku || !data.productName)) {
+          if (productId && (!data.productSku || !data.productName || !data.productDescription)) {
             const productSnap = await getDoc(doc(db, 'products', productId));
             if (productSnap.exists()) {
               const product = productSnap.data() as any;
               data.productSku = data.productSku ?? product?.sku ?? null;
               data.productName = data.productName ?? product?.name ?? null;
+              data.productDescription = data.productDescription ?? product?.description ?? null;
             }
           }
-          setLabel({ id: snap.id, ...data } as Label);
+          setLabel({ ...data, id: snap.id } as Label);
         } else {
           setLabel(null);
         }
@@ -60,6 +73,59 @@ function DigitalLabelContent() {
 
     load();
   }, [params?.labelId]);
+
+  useEffect(() => {
+    if (!companyId) {
+      setCompanyName(null);
+      setCompanyCode(null);
+      return;
+    }
+    const loadCompany = async () => {
+      const snap = await getDoc(doc(db, 'companies', companyId));
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setCompanyName(data?.name ?? null);
+        setCompanyCode(data?.code ?? null);
+      } else {
+        setCompanyName(null);
+        setCompanyCode(null);
+      }
+    };
+    loadCompany();
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!label?.branchId) {
+      setBranchName(null);
+      setBranchCode(null);
+      return;
+    }
+    const loadBranch = async () => {
+      const snap = await getDoc(doc(db, 'branches', label.branchId as string));
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setBranchName(data?.name ?? null);
+        setBranchCode(data?.code ?? null);
+      } else {
+        setBranchName(null);
+        setBranchCode(null);
+      }
+    };
+    loadBranch();
+  }, [label?.branchId]);
+
+  const formatShortId = (value: string, prefix: string) => {
+    const clean = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (!clean) return '--';
+    const suffix = clean.slice(-4);
+    return `${prefix}-${suffix}`;
+  };
+  const companyDisplayCode = companyId
+    ? companyCode || formatShortId(companyId, 'VE')
+    : '--';
+  const branchDisplayCode = label?.branchId
+    ? branchCode || formatShortId(label.branchId, 'BR')
+    : '--';
 
   const displayId = label?.labelId || label?.labelCode || label?.id;
   const basePrice =
@@ -76,6 +142,18 @@ function DigitalLabelContent() {
   const displayPrice =
     discountPrice != null ? discountPrice : computedDiscount != null ? computedDiscount : price;
   const unitPrice = basePrice != null ? basePrice.toFixed(2) : '--';
+  const routeLabelId = Array.isArray(params?.labelId)
+    ? params.labelId[0]
+    : params?.labelId ?? '';
+  const isValidId =
+    routeLabelId &&
+    routeLabelId !== 'undefined' &&
+    routeLabelId !== 'null';
+  const editPath = isValidId ? `/l/${routeLabelId}` : '';
+  const editUrl = isValidId && origin ? `${origin}${editPath}` : editPath;
+  const qrSrc = isValidId
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(editUrl)}`
+    : '';
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fef3c7,_#f1f5f9_40%,_#e2e8f0)] p-6 text-gray-900">
@@ -83,10 +161,16 @@ function DigitalLabelContent() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <div className="text-sm text-gray-600">
-              Company: <span className="font-medium">{companyId || '--'}</span>
+              Company:{' '}
+              <span className="font-medium">
+                {companyName ? `${companyName} (${companyDisplayCode})` : companyDisplayCode}
+              </span>
             </div>
             <div className="text-sm text-gray-600">
-              Branch: <span className="font-medium">{label?.branchId || '--'}</span>
+              Branch:{' '}
+              <span className="font-medium">
+                {branchName ? `${branchName} (${branchDisplayCode})` : branchDisplayCode}
+              </span>
             </div>
           </div>
           <div className="text-sm text-gray-500">
@@ -162,18 +246,53 @@ function DigitalLabelContent() {
                 </div>
               </div>
 
-              <div className="px-6 py-4">
-                <div className="text-base font-semibold text-slate-900">
-                  {label.productName || 'Unassigned Product'}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-600">
-                  <div>SKU: {label.productSku || '--'}</div>
-                  <div className="text-xs uppercase tracking-[0.4em] text-slate-400">
-                    {label.branchId || 'Branch'}
+              <div className="px-6 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold text-slate-900">
+                      {label.productName || 'Unassigned Product'}
+                    </div>
+                    {label.productDescription && (
+                      <div className="mt-1 text-sm text-slate-600">
+                        {label.productDescription}
+                      </div>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                      <div>SKU: {label.productSku || '--'}</div>
+                    <div className="text-xs uppercase tracking-[0.4em] text-slate-400">
+                      {branchName ? branchName : branchDisplayCode}
+                    </div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 h-10 rounded-md bg-slate-200">
-                  <div className="h-full w-full bg-[repeating-linear-gradient(90deg,_#111_0_2px,_transparent_2px_4px)] opacity-70"></div>
+                  {qrSrc && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={qrSrc}
+                        alt="Scan to edit product"
+                        className="h-16 w-16 rounded-md border border-slate-200 bg-white"
+                      />
+                      <div className="text-[11px] text-slate-500 leading-tight">
+                        Scan to open
+                        <br />
+                        product editor
+                      </div>
+                    </div>
+                  )}
+                  {editUrl && (
+                    <a
+                      className="text-xs font-medium text-blue-600 underline"
+                      href={editUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open product editor
+                    </a>
+                  )}
+                  {!editUrl && (
+                    <div className="text-[11px] text-rose-600">
+                      Editor link unavailable for label {String(routeLabelId)}
+                    </div>
+                  )}
                 </div>
               </div>
 

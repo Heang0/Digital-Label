@@ -77,7 +77,7 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export default function Home() {
         </div>
         {mobileOpen && (
           <div className="md:hidden border-t bg-white">
-            <div className="container mx-auto px-4 py-4 space-y-3">
+          <div className="container mx-auto px-4 lg:px-10 max-w-6xl py-4 space-y-3">
               <a href="#features" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700">
                 Features
               </a>
@@ -169,7 +169,7 @@ export default function Home() {
           <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-slate-100 blur-2xl" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_45%)]" />
         </div>
-        <div className="container mx-auto px-4 py-16 md:py-28 relative">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl py-16 md:py-28 relative">
           <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold tracking-wide">
@@ -193,7 +193,7 @@ export default function Home() {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href="#demo">
+                <Link href="/login">
                   <Button variant="outline" size="lg" className="border-slate-300 text-slate-900 hover:bg-slate-100">
                     Watch Demo
                   </Button>
@@ -242,7 +242,7 @@ export default function Home() {
 
       {/* Stats Section */}
       <section className="bg-gray-900 text-white py-16">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-4xl font-bold mb-2">500+</div>
@@ -266,7 +266,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section id="features" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Powerful Features for Modern Retail
@@ -296,7 +296,7 @@ export default function Home() {
 
       {/* How It Works */}
       <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               How It Works
@@ -360,7 +360,7 @@ export default function Home() {
 
       {/* Use Cases */}
       <section id="usecases" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Industry Use Cases
@@ -392,12 +392,12 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-700">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
             Ready to Transform Your Retail Operations?
           </h2>
           <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-            Join hundreds of retail chains already using LabelSync Pro
+            Join hundreds of retail chains already using Digital Label Pro
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
@@ -417,7 +417,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 lg:px-10 max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -439,7 +439,7 @@ export default function Home() {
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#usecases" className="hover:text-white transition-colors">Use Cases</a></li>
-                <li><a href="#demo" className="hover:text-white transition-colors">Demo</a></li>
+                <li><Link href="/login" className="hover:text-white transition-colors">Demo</Link></li>
               </ul>
             </div>
 

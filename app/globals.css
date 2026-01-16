@@ -21,6 +21,21 @@ body {
   background: rgb(var(--background-start-rgb));
 }
 
+@layer base {
+  select {
+    @apply bg-white text-gray-900;
+  }
+
+  option {
+    @apply text-gray-900;
+  }
+
+  input,
+  textarea {
+    @apply bg-white text-gray-900 placeholder:text-gray-400;
+  }
+}
+
 @layer components {
   .card {
     @apply bg-white rounded-xl border border-gray-200 shadow-sm;

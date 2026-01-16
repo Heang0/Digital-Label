@@ -124,7 +124,7 @@ export default function LoginPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-6">
+            <div className="mb-6 text-center">
               <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
               <p className="mt-1 text-sm text-gray-600">Welcome back. Please enter your details.</p>
             </div>
@@ -255,7 +255,7 @@ export default function LoginPage() {
               </Button>
 
               {/* Links row (responsive) */}
-              <div className="flex flex-col gap-2 pt-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 pt-1 text-sm text-center sm:items-center">
                 <p className="text-gray-600">
                   Don&apos;t have an account?{' '}
                   <Link href="/register" className="font-medium text-blue-600 hover:underline">
@@ -263,18 +263,12 @@ export default function LoginPage() {
                   </Link>
                 </p>
 
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-blue-600 hover:underline sm:text-right"
-                >
-                  Forgot Password?
-                </Link>
               </div>
             </form>
           </div>
 
           <p className="mt-6 text-center text-xs text-gray-500">
-            ┬⌐ 2026 Digital Label. All rights reserved.
+            © 2026 Digital Label. All rights reserved.
           </p>
         </div>
       </div>
