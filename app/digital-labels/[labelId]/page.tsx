@@ -149,7 +149,7 @@ function DigitalLabelContent() {
     routeLabelId &&
     routeLabelId !== 'undefined' &&
     routeLabelId !== 'null';
-  const editPath = isValidId ? `/l/${routeLabelId}` : '';
+  const editPath = isValidId ? `/l/${routeLabelId}?force=1` : '';
   const editUrl = isValidId && origin ? `${origin}${editPath}` : editPath;
   const qrSrc = isValidId
     ? `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(editUrl)}`
@@ -277,16 +277,6 @@ function DigitalLabelContent() {
                         product editor
                       </div>
                     </div>
-                  )}
-                  {editUrl && (
-                    <a
-                      className="text-xs font-medium text-blue-600 underline"
-                      href={editUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open product editor
-                    </a>
                   )}
                   {!editUrl && (
                     <div className="text-[11px] text-rose-600">

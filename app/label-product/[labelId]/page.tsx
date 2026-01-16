@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   addDoc,
   collection,
@@ -13,7 +13,7 @@ import {
   where,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, logOut } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,8 +51,9 @@ interface BranchProduct {
 
 export default function LabelProductPage() {
   const params = useParams<{ labelId: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const { user: currentUser, hasHydrated } = useUserStore();
+  const { user: currentUser, hasHydrated, clearUser } = useUserStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [label, setLabel] = useState<Label | null>(null);
@@ -66,6 +67,8 @@ export default function LabelProductPage() {
     branchPrice: '',
     discountPercent: '',
   });
+
+  const forceLogin = searchParams.get('force') === '1';
 
   const canEdit = useMemo(() => {
     if (!currentUser) return false;
@@ -82,6 +85,16 @@ export default function LabelProductPage() {
 
   useEffect(() => {
     if (!hasHydrated) return;
+    if (forceLogin && currentUser) {
+      const nextPath = params?.labelId ? `/label-product/${params.labelId}` : '/label-product';
+      logOut()
+        .catch(() => undefined)
+        .finally(() => {
+          clearUser();
+          router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+        });
+      return;
+    }
     if (!currentUser) {
       if (!params?.labelId) return;
       if (params.labelId === 'undefined' || params.labelId === 'null') return;
