@@ -1,5 +1,5 @@
 // app/register/page.tsx
-'use client';
+'use client'; // <-- ADD THIS LINE AT THE TOP
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,9 +21,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { signUp, logOut, db } from '@/lib/firebase';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  Timestamp, 
+  query, 
+  collection, 
+  getDocs, 
+  where
+} from 'firebase/firestore';
 import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
-
 
 type PlanId = 'basic' | 'pro' | 'enterprise';
 
@@ -93,6 +100,19 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
+      // 🚨 NEW: Check if email already exists
+      const emailQuery = query(
+        collection(db, 'users'),
+        where('email', '==', formData.email.toLowerCase())
+      );
+      const emailSnapshot = await getDocs(emailQuery);
+      
+      if (!emailSnapshot.empty) {
+        setIsLoading(false);
+        alert(`❌ An account with email ${formData.email} already exists!`);
+        return;
+      }
+
       const companySeq = await nextGlobalSequence('nextCompanyNumber');
       const vendorCode = makeVendorCode(companySeq);
 

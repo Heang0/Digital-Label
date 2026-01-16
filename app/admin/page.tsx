@@ -1,4 +1,3 @@
-// app/admin/page.tsx - Professional Admin Dashboard
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -304,13 +303,27 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       
-      // Load users
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({
+      const usersQuery = query(collection(db, 'users'), where('role', '==', 'vendor'));
+      const usersSnapshot = await getDocs(usersQuery);
+      const usersData = usersSnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...(doc.data() as User)
+        ...(doc.data() as User),
       }));
-      setUsers(usersData);
+
+      // ✅ keep only 1 vendor per company (fallback to email)
+      const uniqueVendors = Array.from(
+        new Map(
+          usersData.map((u) => [
+            (u.companyId && u.companyId.trim())
+              ? u.companyId.trim()
+              : (u.email || '').toLowerCase(),
+            u,
+          ])
+        ).values()
+      );
+
+      setUsers(uniqueVendors);
+
 
       // Load companies
       const companiesSnapshot = await getDocs(collection(db, 'companies'));
@@ -356,7 +369,7 @@ export default function AdminDashboard() {
       const trialAccounts = companiesData.filter(c => c.subscription === 'basic').length;
       
       setSystemMetrics({
-        totalUsers: usersData.length,
+        totalUsers: uniqueVendors.length,
         totalCompanies: companiesData.length,
         totalLabels,
         totalBranches,
@@ -939,7 +952,7 @@ export default function AdminDashboard() {
                 <p className="text-sm font-medium text-blue-100">Pending Approvals</p>
                 <p className="mt-2 text-3xl font-bold">{pendingCount}</p>
                 <p className="text-sm text-blue-100 mt-1">
-                  {pendingCompanies.length} companies • {pendingUsers.length} users
+                  {pendingCompanies.length} new registrations
                 </p>
               </div>
               <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
@@ -997,90 +1010,81 @@ export default function AdminDashboard() {
         {/* Main Content Based on Tab */}
         {selectedTab === 'overview' && (
           <div className="space-y-8">
-            {/* Pending Approvals Section */}
-            {(pendingCount > 0 || pendingCompanies.length > 0) && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Pending Approvals</h3>
-                    <p className="text-gray-600">Review and approve new registrations</p>
-                  </div>
+                    {/* Pending Approvals Section */}
+{(pendingCompanies.length > 0) && (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h3 className="text-xl font-bold text-gray-900">Pending Approvals</h3>
+        <p className="text-gray-600">Review and approve new company registrations</p>
+      </div>
+      <Button 
+        onClick={() => setShowPendingUsers(true)} 
+        variant="outline"
+        className="border-blue-600 text-blue-600 hover:bg-blue-50"
+      >
+        View All ({pendingCompanies.length})
+      </Button>
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Only show pending companies */}
+      {pendingCompanies.slice(0, 4).map((company) => {
+        // Find the corresponding user
+        const owner = pendingUsers.find(user => user.id === company.ownerId);
+        
+        return (
+          <div key={company.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <Building2 className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900">{company.name}</p>
+                <p className="text-sm text-gray-600">{company.email}</p>
+                <p className="text-xs text-gray-500">
+                  Contact: {owner?.name || company.ownerName || 'Unknown'}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
                   <Button 
-                    onClick={() => setShowPendingUsers(true)} 
-                    variant="outline"
-                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                    size="sm" 
+                    onClick={() => {
+                      // Approve both company AND user
+                      approveUser(company.ownerId!);
+                      // Update company status too
+                      updateDoc(fsDoc(db, 'companies', company.id), {
+                        status: 'active'
+                      }).then(() => loadData());
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
                   >
-                    View All ({pendingCount + pendingCompanies.length})
+                    <Check className="h-4 w-4 mr-1" /> Approve
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      if (confirm(`Reject ${company.name} and delete all data?`)) {
+                        // Delete both company AND user
+                        deleteCompany(company.id);
+                        if (company.ownerId) {
+                          deleteUser(company.ownerId);
+                        }
+                      }
+                    }}
+                    className="border-red-600 text-red-600 hover:bg-red-50"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" /> Reject
                   </Button>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Pending Companies */}
-                  {pendingCompanies.slice(0, 2).map((company) => (
-                    <div key={company.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-yellow-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{company.name}</p>
-                          <p className="text-sm text-gray-600">{company.email}</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => approveUser(company.ownerId)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="h-4 w-4 mr-1" /> Approve
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => deleteCompany(company.id)}
-                              className="border-red-600 text-red-600 hover:bg-red-50"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Pending Users */}
-                  {pendingUsers.slice(0, 2).map((user) => (
-                    <div key={user.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                          <UserIcon className="h-6 w-6 text-yellow-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{user.name}</p>
-                          <p className="text-sm text-gray-600">{user.email} • {user.role}</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => approveUser(user.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="h-4 w-4 mr-1" /> Approve
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => deleteUser(user.id)}
-                              className="border-red-600 text-red-600 hover:bg-red-50"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
             {/* Quick Actions */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
