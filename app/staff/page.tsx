@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
 import { db, logOut } from '@/lib/firebase';
+// Cashier is a dedicated page: /cashier
 import ProductModal from '@/components/modals/ProductModal';
 import CategoryModal from '@/components/modals/CategoryModal';
 import { 
@@ -1146,6 +1147,16 @@ export default function StaffDashboard() {
             >
               Dashboard
             </button>
+
+            <button
+              onClick={() => router.push('/cashier')}
+              className={cn(
+                'whitespace-nowrap py-3 text-sm font-semibold border-b-2 transition-colors active:opacity-80',
+                'border-transparent text-slate-500'
+              )}
+            >
+              Cashier
+            </button>
             {canViewProducts && (
               <button
                 onClick={() => setSelectedTab('inventory')}
@@ -1250,6 +1261,17 @@ export default function StaffDashboard() {
             >
               <BarChart3 className="h-5 w-5" />
               <span className="font-medium">Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => router.push('/cashier')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md'
+              )}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="font-medium">Cashier</span>
             </button>
 
             {(canViewProducts || canManageProducts) && (

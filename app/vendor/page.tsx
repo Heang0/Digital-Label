@@ -79,6 +79,7 @@ import {
 } from 'lucide-react';
 import { generateLabelsForBranch } from '@/lib/supermarket-setup';
 import { makeProductCodeForVendor, makeSku, nextBranchSequence, nextCompanySequence } from '@/lib/id-generator';
+import SalesHistoryPanel from '@/components/cashier/SalesHistoryPanel';
 
 // INTERFACES
 interface Company {
@@ -227,7 +228,7 @@ export default function VendorDashboard() {
   
   // States
   const [selectedTab, setSelectedTab] = useState<
-    'dashboard' | 'products' | 'staff' | 'labels' | 'promotions' | 'reports' | 'settings'
+    'dashboard' | 'products' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings'
   >('dashboard');
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
@@ -2449,6 +2450,7 @@ const updateProduct = async (productId: string, productData: any) => {
     { id: 'staff', label: `Staff (${filteredStaffMembers.length})`, icon: Users },
     { id: 'labels', label: `Labels (${filteredLabels.length})`, icon: Tag },
     { id: 'promotions', label: `Promotions (${promotions.length})`, icon: Percent },
+    { id: 'sales', label: 'Sales', icon: DollarSign },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ] as const;
@@ -2459,6 +2461,7 @@ const mobileTabs = [
   { id: 'products', label: 'Products', icon: Package },
   { id: 'labels', label: 'Labels', icon: Tag },
   { id: 'promotions', label: 'Deals', icon: Percent },
+  { id: 'sales', label: 'Sales', icon: DollarSign },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 
@@ -4452,6 +4455,17 @@ const mobileTabs = [
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {selectedTab === 'sales' && (
+            <div className="space-y-6">
+              <SalesHistoryPanel
+                companyId={currentUser?.companyId || ''}
+                branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+                initialBranchId={selectedBranchId || branches[0]?.id}
+                canClear={true}
+              />
             </div>
           )}
 

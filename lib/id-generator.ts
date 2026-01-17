@@ -5,7 +5,8 @@ type CounterKey =
   | "nextProductNumber"
   | "nextLabelNumber"
   | "nextCategoryNumber"
-  | "nextBranchNumber";
+  | "nextBranchNumber"
+  | "nextSaleNumber";
 
 type GlobalCounterKey = "nextCompanyNumber";
 
@@ -22,6 +23,7 @@ export async function nextCompanySequence(companyId: string, key: CounterKey) {
           nextLabelNumber: 1,
           nextCategoryNumber: 1,
           nextBranchNumber: 1,
+          nextSaleNumber: 1,
         };
 
     const current = Number(data[key] ?? 1);
@@ -47,6 +49,7 @@ export async function nextBranchSequence(branchId: string, key: CounterKey) {
           nextLabelNumber: 1,
           nextCategoryNumber: 1,
           nextBranchNumber: 1,
+          nextSaleNumber: 1,
         };
 
     const current = Number(data[key] ?? 1);
