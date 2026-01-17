@@ -43,8 +43,6 @@ import {
   Search,
   Filter,
   Download,
-  Eye,
-  EyeOff,
   Clock,
   Check,
   XCircle,
@@ -310,7 +308,6 @@ export default function AdminDashboard() {
         ...(doc.data() as User),
       }));
 
-      // ✅ keep only 1 vendor per company (fallback to email)
       const uniqueVendors = Array.from(
         new Map(
           usersData.map((u) => [
@@ -690,7 +687,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-72 lg:flex-col">
         <div className="flex h-full flex-col border-r border-slate-200 bg-white">
@@ -1010,81 +1007,81 @@ export default function AdminDashboard() {
         {/* Main Content Based on Tab */}
         {selectedTab === 'overview' && (
           <div className="space-y-8">
-                    {/* Pending Approvals Section */}
-{(pendingCompanies.length > 0) && (
-  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <h3 className="text-xl font-bold text-gray-900">Pending Approvals</h3>
-        <p className="text-gray-600">Review and approve new company registrations</p>
-      </div>
-      <Button 
-        onClick={() => setShowPendingUsers(true)} 
-        variant="outline"
-        className="border-blue-600 text-blue-600 hover:bg-blue-50"
-      >
-        View All ({pendingCompanies.length})
-      </Button>
-    </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Only show pending companies */}
-      {pendingCompanies.slice(0, 4).map((company) => {
-        // Find the corresponding user
-        const owner = pendingUsers.find(user => user.id === company.ownerId);
-        
-        return (
-          <div key={company.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{company.name}</p>
-                <p className="text-sm text-gray-600">{company.email}</p>
-                <p className="text-xs text-gray-500">
-                  Contact: {owner?.name || company.ownerName || 'Unknown'}
-                </p>
-                <div className="flex items-center gap-3 mt-2">
-                  <Button 
-                    size="sm" 
-                    onClick={() => {
-                      // Approve both company AND user
-                      approveUser(company.ownerId!);
-                      // Update company status too
-                      updateDoc(fsDoc(db, 'companies', company.id), {
-                        status: 'active'
-                      }).then(() => loadData());
-                    }}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Check className="h-4 w-4 mr-1" /> Approve
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      if (confirm(`Reject ${company.name} and delete all data?`)) {
-                        // Delete both company AND user
-                        deleteCompany(company.id);
-                        if (company.ownerId) {
-                          deleteUser(company.ownerId);
-                        }
-                      }
-                    }}
-                    className="border-red-600 text-red-600 hover:bg-red-50"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" /> Reject
-                  </Button>
+          {/* Pending Approvals Section */}
+          {(pendingCompanies.length > 0) && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Pending Approvals</h3>
+                  <p className="text-gray-600">Review and approve new company registrations</p>
                 </div>
+                <Button 
+                  onClick={() => setShowPendingUsers(true)} 
+                  variant="outline"
+                  className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                >
+                  View All ({pendingCompanies.length})
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Only show pending companies */}
+                {pendingCompanies.slice(0, 4).map((company) => {
+                  // Find the corresponding user
+                  const owner = pendingUsers.find(user => user.id === company.ownerId);
+                  
+                  return (
+                    <div key={company.id} className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                          <Building2 className="h-6 w-6 text-yellow-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{company.name}</p>
+                          <p className="text-sm text-gray-600">{company.email}</p>
+                          <p className="text-xs text-gray-500">
+                            Contact: {owner?.name || company.ownerName || 'Unknown'}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                // Approve both company AND user
+                                approveUser(company.ownerId!);
+                                // Update company status too
+                                updateDoc(fsDoc(db, 'companies', company.id), {
+                                  status: 'active'
+                                }).then(() => loadData());
+                              }}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                if (confirm(`Reject ${company.name} and delete all data?`)) {
+                                  // Delete both company AND user
+                                  deleteCompany(company.id);
+                                  if (company.ownerId) {
+                                    deleteUser(company.ownerId);
+                                  }
+                                }
+                              }}
+                              className="border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
+          )}
 
             {/* Quick Actions */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
@@ -1362,42 +1359,32 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="flex-1 border-gray-300"
-                      onClick={() => {
-                        router.push(`/admin/companies/${company.id}`);
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" /> View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 border-gray-300"
-                      onClick={() => openEditCompanyModal(company)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" /> Edit
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1 border-yellow-600 text-yellow-600 hover:bg-yellow-50"
-                      onClick={() => suspendCompany(company.id, company.status)}
-                    >
-                      {company.status === 'suspended' ? 'Activate' : 'Suspend'}
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="border-red-600 text-red-600 hover:bg-red-50"
-                      onClick={() => deleteCompany(company.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      <div className="flex gap-2 pt-4 border-t">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-gray-300"
+                        onClick={() => openEditCompanyModal(company)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 border-yellow-600 text-yellow-600 hover:bg-yellow-50"
+                        onClick={() => suspendCompany(company.id, company.status)}
+                      >
+                        {company.status === 'suspended' ? 'Activate' : 'Suspend'}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="border-red-600 text-red-600 hover:bg-red-50"
+                        onClick={() => deleteCompany(company.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                 </div>
               ))}
             </div>
