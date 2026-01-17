@@ -1,7 +1,7 @@
 // app/register/page.tsx
-'use client'; // <-- ADD THIS LINE AT THE TOP
+'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -16,6 +16,9 @@ import {
   Menu,
   X,
   Check,
+  Sparkles,
+  ChevronRight,
+  ArrowRight
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +34,7 @@ import {
   where
 } from 'firebase/firestore';
 import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
+import { motion } from 'framer-motion';
 
 type PlanId = 'basic' | 'pro' | 'enterprise';
 
@@ -38,6 +42,15 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const [formData, setFormData] = useState({
     companyName: '',
@@ -100,7 +113,6 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      // 🚨 NEW: Check if email already exists
       const emailQuery = query(
         collection(db, 'users'),
         where('email', '==', formData.email.toLowerCase())
@@ -166,85 +178,266 @@ export default function RegisterPage() {
   };
 
   return (
-    <div>
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-gray-50 to-gray-100">
-        {/* Top navigation */}
-        <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
-          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-            {/* Brand */}
-            <Link
-              href="/"
-              className="flex items-center gap-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onClick={() => setMobileNavOpen(false)}
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-blue-50/20">
+      {/* Enhanced Sticky Navigation Bar */}
+      <motion.nav 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ 
+          duration: 0.6,
+          ease: [0.22, 1, 0.36, 1]
+        }}
+        className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${
+          scrolled 
+            ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-2xl' 
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="container mx-auto px-4 lg:px-8 max-w-7xl">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo with animation */}
+            <motion.div 
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 200,
+                damping: 15,
+                delay: 0.2
+              }}
+              className="flex items-center gap-2 group"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 shadow-sm">
-                <Store className="h-5 w-5 text-white" />
-              </span>
-              <span className="text-lg font-semibold tracking-tight text-gray-900">
-                Digital Label
-              </span>
-            </Link>
-
-            {/* Desktop actions */}
-            <nav className="hidden items-center gap-2 sm:flex">
-              <Link href="/">
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Home
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button size="sm">Sign in</Button>
-              </Link>
-            </nav>
-
-            {/* Mobile menu button */}
-            <div className="sm:hidden">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Open menu"
-                onClick={() => setMobileNavOpen((v) => !v)}
+              <motion.div 
+                whileHover={{ rotate: 360, scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.6 }}
+                className="relative"
               >
-                {mobileNavOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
-                  <Menu className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Mobile menu */}
-          {mobileNavOpen && (
-            <div className="border-t bg-white sm:hidden">
-              <div className="mx-auto max-w-6xl px-4 py-3">
-                <div className="grid gap-2">
-                  <Link href="/" onClick={() => setMobileNavOpen(false)}>
-                    <Button variant="outline" className="w-full justify-start">
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to Home
-                    </Button>
-                  </Link>
-                  <Link href="/login" onClick={() => setMobileNavOpen(false)}>
-                    <Button className="w-full justify-start">
-                      Sign in
-                    </Button>
-                  </Link>
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/40">
+                  <Store className="h-5 w-5 text-white" />
                 </div>
+                <motion.div
+                  animate={{ 
+                    rotate: 360,
+                    scale: [1, 1.2, 1]
+                  }}
+                  transition={{ 
+                    rotate: { duration: 8, repeat: Infinity, ease: "linear" },
+                    scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+                  }}
+                  className="absolute -inset-1 rounded-xl border-2 border-blue-400/30"
+                />
+              </motion.div>
+              <motion.span
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent"
+              >
+                Digital Label
+              </motion.span>
+              <motion.span
+                animate={{ 
+                  opacity: [0, 1, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  duration: 2, 
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="text-xs font-semibold px-2 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 text-blue-700"
+              >
+                PRO
+              </motion.span>
+            </motion.div>
+
+            {/* Desktop Navigation - FIXED LINKS */}
+            <div className="hidden md:flex items-center gap-1">
+              {['Features', 'Use Cases', 'Pricing', 'Contact'].map((item, index) => (
+                <motion.a
+                  key={item}
+                  initial={{ opacity: 0, y: -30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    delay: index * 0.1 + 0.4,
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 20
+                  }}
+                  href={`/#${item.toLowerCase().replace(' ', '')}`}
+                  className="relative px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors group"
+                >
+                  <span className="relative z-10">{item}</span>
+                  <motion.div
+                    className="absolute inset-0 rounded-lg bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    whileHover={{ scale: 1.05 }}
+                  />
+                  <motion.div
+                    className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"
+                    initial={false}
+                    whileHover={{ width: "100%" }}
+                  />
+                </motion.a>
+              ))}
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ 
+                  delay: 0.7,
+                  type: "spring",
+                  stiffness: 150,
+                  damping: 15
+                }}
+              >
+                <Link href="/">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="relative overflow-hidden group border-gray-300 hover:border-blue-400"
+                    >
+                      <span className="relative z-10 flex items-center gap-2">
+                        <ArrowLeft className="h-3 w-3" />
+                        Back to Home
+                      </span>
+                    </Button>
+                  </motion.div>
+                </Link>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ 
+                  delay: 0.8,
+                  type: "spring",
+                  stiffness: 150,
+                  damping: 15
+                }}
+              >
+                <Link href="/login">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      size="sm" 
+                      className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg shadow-blue-500/40"
+                    >
+                      <span className="relative z-10 flex items-center gap-2 text-white">
+                        Sign In
+                        <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </Button>
+                  </motion.div>
+                </Link>
+              </motion.div>
+            </div>
+            
+            {/* Mobile menu toggle */}
+            <motion.button
+              initial={{ scale: 0, rotate: 180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ 
+                delay: 0.5,
+                type: "spring",
+                stiffness: 200,
+                damping: 20
+              }}
+              type="button"
+              className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-gray-300 text-gray-700 shadow-sm hover:border-gray-400"
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+              aria-expanded={mobileNavOpen}
+              whileTap={{ scale: 0.9 }}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </motion.button>
+          </div>
+        </div>
+        
+        {/* Mobile Menu - FIXED LINKS */}
+        {mobileNavOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-white border-t border-gray-200"
+          >
+            <div className="container mx-auto px-4 py-4">
+              <div className="space-y-1">
+                {['Features', 'Use Cases', 'Pricing', 'Contact'].map((item, index) => (
+                  <motion.a
+                    key={item}
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    href={`/#${item.toLowerCase().replace(' ', '')}`}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="block px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    {item}
+                  </motion.a>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-gray-100">
+                <Link href="/">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Home
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="sm" className="w-full bg-gradient-to-r from-blue-600 to-blue-700">
+                    Sign In
+                  </Button>
+                </Link>
               </div>
             </div>
-          )}
-        </header>
+          </motion.div>
+        )}
+      </motion.nav>
 
-        {/* Page content */}
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-          <div className="mx-auto max-w-4xl">
+      {/* Add padding-top to account for fixed navbar */}
+      <div className="pt-16">
+        <main className="container mx-auto px-4 lg:px-8 max-w-7xl py-8 md:py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mx-auto max-w-6xl"
+          >
+            {/* Header */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mb-8 text-center"
+            >
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                Create Your Digital Label Account
+              </h1>
+              <p className="mt-2 text-lg text-gray-600">
+                Join hundreds of retail chains already using our platform
+              </p>
+            </motion.div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
               {/* Left column: form */}
-              <section className="rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur sm:p-8">
+              <motion.section
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="rounded-3xl border border-gray-200 bg-white p-6 shadow-xl sm:p-8"
+              >
                 <div className="mb-6">
                   <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
                     Company Information
@@ -256,7 +449,12 @@ export default function RegisterPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Company Name */}
-                  <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="space-y-2"
+                  >
                     <label className="text-sm font-medium text-gray-700">
                       Company Name <span className="text-red-500">*</span>
                     </label>
@@ -267,14 +465,19 @@ export default function RegisterPage() {
                         placeholder="Your retail chain name"
                         value={formData.companyName}
                         onChange={handleChange}
-                        className="pl-10"
+                        className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Full Name */}
-                  <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="space-y-2"
+                  >
                     <label className="text-sm font-medium text-gray-700">
                       Full Name <span className="text-red-500">*</span>
                     </label>
@@ -285,14 +488,19 @@ export default function RegisterPage() {
                         placeholder="Your full name"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className="pl-10"
+                        className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Email */}
-                  <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="space-y-2"
+                  >
                     <label className="text-sm font-medium text-gray-700">
                       Business Email <span className="text-red-500">*</span>
                     </label>
@@ -304,14 +512,19 @@ export default function RegisterPage() {
                         placeholder="contact@company.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className="pl-10"
+                        className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Phone */}
-                  <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="space-y-2"
+                  >
                     <label className="text-sm font-medium text-gray-700">
                       Phone Number <span className="text-red-500">*</span>
                     </label>
@@ -322,14 +535,19 @@ export default function RegisterPage() {
                         placeholder="+1 (555) 123-4567"
                         value={formData.phone}
                         onChange={handleChange}
-                        className="pl-10"
+                        className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Address */}
-                  <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="space-y-2"
+                  >
                     <label className="text-sm font-medium text-gray-700">
                       Business Address
                     </label>
@@ -340,14 +558,19 @@ export default function RegisterPage() {
                         placeholder="123 Business St, City, State, ZIP"
                         value={formData.address}
                         onChange={handleChange}
-                        className="pl-10"
+                        className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                       />
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Passwords */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.55 }}
+                      className="space-y-2"
+                    >
                       <label className="text-sm font-medium text-gray-700">
                         Password <span className="text-red-500">*</span>
                       </label>
@@ -359,13 +582,18 @@ export default function RegisterPage() {
                           placeholder="********"
                           value={formData.password}
                           onChange={handleChange}
-                          className="pl-10"
+                          className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                           required
                         />
                       </div>
-                    </div>
+                    </motion.div>
 
-                    <div className="space-y-2">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6 }}
+                      className="space-y-2"
+                    >
                       <label className="text-sm font-medium text-gray-700">
                         Confirm <span className="text-red-500">*</span>
                       </label>
@@ -377,18 +605,35 @@ export default function RegisterPage() {
                           placeholder="********"
                           value={formData.confirmPassword}
                           onChange={handleChange}
-                          className="pl-10"
+                          className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                           required
                         />
                       </div>
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Submit */}
-                  <div className="pt-2">
-                    <Button type="submit" className="w-full" isLoading={isLoading}>
-                      Create Account
-                    </Button>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.65 }}
+                    className="pt-2"
+                  >
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                        isLoading={isLoading}
+                      >
+                        <span className="flex items-center gap-2">
+                          Create Account
+                          <ArrowRight className="h-4 w-4" />
+                        </span>
+                      </Button>
+                    </motion.div>
 
                     <p className="mt-4 text-center text-sm text-gray-600">
                       Already have an account?{' '}
@@ -399,13 +644,23 @@ export default function RegisterPage() {
                         Sign in here
                       </Link>
                     </p>
-                  </div>
+                  </motion.div>
                 </form>
-              </section>
+              </motion.section>
 
               {/* Right column: plan selection */}
-              <aside className="space-y-6">
-                <section className="rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur sm:p-8">
+              <motion.aside
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-6"
+              >
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="rounded-3xl border border-gray-200 bg-white p-6 shadow-xl sm:p-8"
+                >
                   <div className="mb-5">
                     <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
                       Select Your Plan
@@ -416,20 +671,23 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {plans.map((p) => {
+                    {plans.map((p, index) => {
                       const selected = plan === p.id;
                       return (
-                        <button
+                        <motion.button
                           key={p.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 + index * 0.1 }}
                           type="button"
                           onClick={() => setPlan(p.id)}
-                          className={[
-                            'w-full text-left rounded-2xl border p-4 transition-all',
-                            'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                          className={`w-full text-left rounded-2xl border p-4 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                             selected
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'bg-white hover:border-gray-300',
-                          ].join(' ')}
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
+                              : 'bg-white hover:border-blue-300 hover:shadow-md'
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
@@ -438,9 +696,13 @@ export default function RegisterPage() {
                                   {p.name}
                                 </h3>
                                 {p.featured && (
-                                  <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                                  <motion.span
+                                    animate={{ y: [0, -3, 0] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                    className="rounded-full bg-gradient-to-r from-blue-600 to-blue-700 px-2 py-0.5 text-xs font-medium text-white shadow-sm"
+                                  >
                                     Popular
-                                  </span>
+                                  </motion.span>
                                 )}
                               </div>
                               <p className="mt-1 text-sm text-gray-600">
@@ -453,35 +715,47 @@ export default function RegisterPage() {
                                 {p.price}
                               </div>
                               {selected && (
-                                <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200"
+                                >
                                   <Check className="h-3.5 w-3.5" />
                                   Selected
-                                </div>
+                                </motion.div>
                               )}
                             </div>
                           </div>
 
                           <ul className="mt-4 space-y-2">
                             {p.features.map((feature, idx) => (
-                              <li
+                              <motion.li
                                 key={idx}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.5 + idx * 0.05 }}
                                 className="flex items-start gap-2 text-sm text-gray-700"
                               >
                                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-green-500" />
                                 <span>{feature}</span>
-                              </li>
+                              </motion.li>
                             ))}
                           </ul>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
-                </section>
+                </motion.section>
 
                 {/* Benefits */}
-                <section className="rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur sm:p-8">
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="rounded-3xl border border-gray-200 bg-white p-6 shadow-xl sm:p-8"
+                >
                   <h3 className="text-base font-semibold text-gray-900">
-                    Why Choose LabelSync Pro?
+                    Why Choose Digital Label?
                   </h3>
                   <ul className="mt-4 space-y-3">
                     {[
@@ -489,28 +763,43 @@ export default function RegisterPage() {
                       'No credit card required',
                       'Cancel anytime',
                       '24/7 customer support',
-                    ].map((t) => (
-                      <li key={t} className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+                    ].map((t, index) => (
+                      <motion.li
+                        key={t}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + index * 0.1 }}
+                        className="flex items-center gap-3"
+                      >
+                        <motion.span
+                          whileHover={{ rotate: 360 }}
+                          transition={{ duration: 0.6 }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100"
+                        >
                           <span className="text-green-700">
                             <Check className="h-4 w-4" />
                           </span>
-                        </span>
+                        </motion.span>
                         <span className="text-sm text-gray-700">{t}</span>
-                      </li>
+                      </motion.li>
                     ))}
                   </ul>
 
-                  <div className="mt-6 rounded-xl border bg-white p-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4"
+                  >
                     <p className="text-xs leading-relaxed text-gray-600">
                       By creating an account, you agree to our terms and acknowledge that your
                       company may be reviewed before activation.
                     </p>
-                  </div>
-                </section>
-              </aside>
+                  </motion.div>
+                </motion.section>
+              </motion.aside>
             </div>
-          </div>
+          </motion.div>
         </main>
       </div>
     </div>
