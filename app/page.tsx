@@ -405,7 +405,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-blue-50/20 scroll-smooth overflow-x-hidden">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div
+        {/* <motion.div
           variants={floatAnimation}
           initial="initial"
           animate="animate"
@@ -417,7 +417,7 @@ export default function Home() {
           animate="animate"
           transition={{ delay: 2 }}
           className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-gradient-to-r from-emerald-100/20 to-emerald-50/20 rounded-full blur-3xl"
-        />
+        /> */}
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
@@ -668,7 +668,7 @@ export default function Home() {
         {/* Hero Section with enhanced animations */}
         <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/30 via-white to-white">
           <div className="absolute inset-0">
-            <motion.div 
+            {/* <motion.div 
               variants={floatAnimation}
               initial="initial"
               animate="animate"
@@ -680,7 +680,7 @@ export default function Home() {
               animate="animate"
               transition={{ delay: 3 }}
               className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-gradient-to-r from-emerald-200/20 to-emerald-100/20 blur-3xl" 
-            />
+            /> */}
           </div>
           
           <div className="container mx-auto px-4 lg:px-8 max-w-7xl py-20 md:py-32 relative">
