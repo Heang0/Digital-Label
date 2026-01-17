@@ -1,28 +1,25 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword, 
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  fetchSignInMethodsForEmail,
+  getAdditionalUserInfo,
   linkWithCredential,
   sendPasswordResetEmail,
-  signOut,
-  onAuthStateChanged
+  deleteUser,
+  type UserCredential,
 } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
   getDoc,
-  collection,
-  getDocs,
-  query,
-  where,
   setDoc,
-  Timestamp
+  serverTimestamp
 } from 'firebase/firestore';
 
 // Firebase config via env (set NEXT_PUBLIC_FIREBASE_* for Vercel)
@@ -60,75 +57,64 @@ export const logOut = () => {
   return signOut(auth);
 };
 
-// Password reset (sends reset email via Gmail/Email provider)
+// Password reset (sends an email with a reset link)
 export const sendPasswordReset = (email: string) => {
   return sendPasswordResetEmail(auth, email);
 };
 
-// Google Sign-In
+// Google sign-in (popup first, fallback to redirect when popups are blocked)
 const googleProvider = new GoogleAuthProvider();
-/**
- * Google sign-in.
- * Uses Popup by default, but falls back to Redirect when the browser blocks popups
- * (common on iOS/Safari/in-app browsers).
- *
- * Returns:
- * - UserCredential when popup succeeds
- * - null when redirect flow is started (handle via getGoogleRedirectResult)
- */
-export const signInWithGoogle = async () => {
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+export const signInWithGoogle = async (): Promise<UserCredential | null> => {
   try {
     return await signInWithPopup(auth, googleProvider);
-  } catch (err: any) {
-    // Fallback for mobile browsers that block popups
-    if (
-      err?.code === 'auth/popup-blocked' ||
-      err?.code === 'auth/operation-not-supported-in-this-environment' ||
-      err?.code === 'auth/cancelled-popup-request'
-    ) {
+  } catch (e: any) {
+    const code = e?.code;
+    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
       await signInWithRedirect(auth, googleProvider);
-      return null;
+      return null; // redirect started
     }
-    throw err;
+    throw e;
   }
 };
 
-// When using redirect sign-in, call this after page load to complete login.
-export const getGoogleRedirectResult = () => getRedirectResult(auth);
-
-// Used when an email already exists with a different sign-in method.
-// Flow:
-// 1) User tries Google sign-in -> gets "auth/account-exists-with-different-credential" with a pending credential
-// 2) User signs in with password
-// 3) Link the pending Google credential to the currently signed-in user
-export const getSignInMethodsForEmail = (email: string) => {
-  return fetchSignInMethodsForEmail(auth, email);
+export const getGoogleRedirectResult = async (): Promise<UserCredential | null> => {
+  return await getRedirectResult(auth);
 };
 
+export const isNewGoogleUser = (cred: UserCredential) => {
+  return !!getAdditionalUserInfo(cred)?.isNewUser;
+};
+
+export const deleteCurrentUser = async () => {
+  const u = auth.currentUser;
+  if (!u) return;
+  await deleteUser(u);
+};
+
+// Link a pending Google credential to the currently signed-in user
 export const linkPendingCredentialToCurrentUser = async (pendingCredential: any) => {
-  if (!auth.currentUser) throw new Error('No authenticated user to link credential to.');
-  return linkWithCredential(auth.currentUser, pendingCredential);
+  const u = auth.currentUser;
+  if (!u) throw new Error('No signed in user to link credential');
+  return await linkWithCredential(u, pendingCredential);
 };
 
-// Ensure there is a Firestore user doc for OAuth-first users.
-// If the user doc does not exist, create a basic vendor profile in "pending" status.
-export const ensureUserDoc = async (user: { uid: string; email: string | null; displayName?: string | null }) => {
-  const uid = user.uid;
-  const email = (user.email || '').toLowerCase();
-  if (!email) return;
+// Ensure a Firestore user document exists (used in some flows)
+export const ensureUserDoc = async (args: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+}) => {
+  const ref = doc(db, 'users', args.uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return;
 
-  const existing = await getDoc(doc(db, 'users', uid));
-  if (existing.exists()) return;
-
-  await setDoc(doc(db, 'users', uid), {
-    id: uid,
-    email,
-    name: user.displayName || 'User',
+  await setDoc(ref, {
+    email: args.email || '',
+    name: args.displayName || (args.email ? args.email.split('@')[0] : 'User'),
     role: 'vendor',
-    companyId: `company_${uid}`,
-    status: 'pending',
-    createdAt: Timestamp.now(),
-    createdBy: 'google-oauth',
+    createdAt: serverTimestamp(),
   });
 };
 
