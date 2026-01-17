@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
@@ -13,6 +13,8 @@ import {
 } from 'firebase/auth';
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
+// NOTE: Vendor page already has an in-page modal notice system (openLabelNotice).
+// We avoid using the global NotificationProvider here to prevent duplicate popups.
 import { 
   doc as fsDoc, 
   setDoc, 
@@ -225,12 +227,16 @@ interface IssueReport {
 export default function VendorDashboard() {
   const router = useRouter();
   const { user: currentUser, clearUser, hasHydrated } = useUserStore();
+  // Hold active Firestore realtime listeners so we can cleanly unsubscribe.
+  const realtimeUnsubsRef = useRef<(() => void)[]>([]);
+  const productUpdateLockRef = useRef(false);
   
   // States
   const [selectedTab, setSelectedTab] = useState<
     'dashboard' | 'products' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings'
   >('dashboard');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -397,6 +403,62 @@ const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | n
       loadVendorData();
     }
   }, [currentUser, hasHydrated]);
+
+  // Realtime data (fast UI updates without manual refresh)
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+
+    // cleanup any prior listeners
+    realtimeUnsubsRef.current.forEach((u) => {
+      try {
+        u();
+      } catch {}
+    });
+    realtimeUnsubsRef.current = [];
+
+    const cid = currentUser.companyId;
+
+    // Products
+    const productsQuery = query(collection(db, 'products'), where('companyId', '==', cid));
+    const unsubProducts = onSnapshot(productsQuery, (snap) => {
+      const productsData = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as Product[];
+      setProducts(productsData);
+    });
+    realtimeUnsubsRef.current.push(unsubProducts);
+
+    // Branch Products (stock + pricing per branch)
+    const branchProductsQuery = query(collection(db, 'branch_products'), where('companyId', '==', cid));
+    const unsubBranchProducts = onSnapshot(branchProductsQuery, (snap) => {
+      const branchProductsData = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as BranchProduct[];
+      setBranchProducts(branchProductsData);
+    });
+    realtimeUnsubsRef.current.push(unsubBranchProducts);
+
+    // Branches
+    const branchesQuery = query(collection(db, 'branches'), where('companyId', '==', cid));
+    const unsubBranches = onSnapshot(branchesQuery, (snap) => {
+      const branchesData = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as Branch[];
+      setBranches(branchesData);
+    });
+    realtimeUnsubsRef.current.push(unsubBranches);
+
+    // Categories
+    const categoriesQuery = query(collection(db, 'categories'), where('companyId', '==', cid));
+    const unsubCategories = onSnapshot(categoriesQuery, (snap) => {
+      const categoriesData = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as Category[];
+      setCategories(categoriesData);
+    });
+    realtimeUnsubsRef.current.push(unsubCategories);
+
+    return () => {
+      realtimeUnsubsRef.current.forEach((u) => {
+        try {
+          u();
+        } catch {}
+      });
+      realtimeUnsubsRef.current = [];
+    };
+  }, [currentUser?.companyId]);
 
   useEffect(() => {
     if (!selectedBranchId && branches.length > 0) {
@@ -782,6 +844,32 @@ const loadVendorData = async () => {
     setLabels(labelsData);
   };
 
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    const start = Date.now();
+    try {
+      // With realtime listeners, refresh is just a manual re-fetch for non-realtime parts.
+      // Keep it fast and deterministic (min 1.5s).
+      await Promise.all([
+        loadVendorData(),
+        // These are realtime already, but calling them is harmless if a user wants to force refresh.
+        reloadBranches(),
+        reloadProducts(),
+        reloadBranchProducts(),
+        reloadCategories(),
+      ]);
+
+      const elapsed = Date.now() - start;
+      if (elapsed < 1500) await new Promise((r) => setTimeout(r, 1500 - elapsed));
+      openLabelNotice('Refreshed', 'Latest data loaded.', 'success');
+    } catch (e: any) {
+      openLabelNotice('Refresh failed', e?.message || 'Could not refresh data', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const reloadPromotions = async () => {
     if (!currentUser?.companyId) return;
     const promotionsQuery = query(
@@ -837,7 +925,7 @@ const loadVendorData = async () => {
   const createStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser?.companyId || !staffForm.branchId) {
-      alert('Please select a branch');
+      openLabelNotice('Select branch', 'Please select a branch.', 'warning');
       return;
     }
 
@@ -866,9 +954,8 @@ const loadVendorData = async () => {
         createdBy: currentUser.id
       });
 
-      // Refresh data
-      await reloadProducts();
-      await reloadBranchProducts();
+      // Refresh staff list (non-realtime section)
+      loadVendorData();
       
       // Reset form and close modal
       setStaffForm({
@@ -891,11 +978,11 @@ const loadVendorData = async () => {
   });
       setShowCreateStaff(false);
 
-      alert(`Staff "${staffForm.name}" created successfully!`);
+      openLabelNotice('Staff created', `Staff "${staffForm.name}" created successfully!`, 'success');
 
     } catch (error: any) {
       console.error('Error creating staff:', error);
-      alert(`Error: ${error.message}`);
+      openLabelNotice('Create failed', error?.message || 'Could not create staff.', 'error');
     }
   };
 
@@ -1132,14 +1219,23 @@ const loadVendorData = async () => {
       });
       await Promise.all(labelUpdatePromises);
 
-      // Refresh data
-      await reloadProducts();
-      await reloadBranchProducts();
-      alert('Price updated successfully!');
+      // Fast UI: update local state immediately (realtime listeners will also reconcile)
+      setBranchProducts((prev) =>
+        prev.map((bp) => {
+          if (bp.productId !== productId) return bp;
+          if (branchIds && branchIds.length > 0 && !branchIds.includes(bp.branchId)) return bp;
+          return {
+            ...bp,
+            currentPrice: newPrice,
+            lastUpdated: Timestamp.now(),
+          } as BranchProduct;
+        })
+      );
 
     } catch (error) {
       console.error('Error updating price:', error);
-      alert('Error updating price');
+      // Avoid browser alerts; show a single professional modal.
+      openLabelNotice('Update failed', 'Error updating price', 'error');
     }
   };
 
@@ -2025,6 +2121,8 @@ const createProductFromModal = async (productData: any) => {
 // Update existing product
 const updateProduct = async (productId: string, productData: any) => {
   if (!currentUser?.companyId) return;
+  if (productUpdateLockRef.current) return;
+  productUpdateLockRef.current = true;
 
   try {
     const isBranchSpecific = Boolean(selectedBranchId && selectedBranchId !== 'all');
@@ -2037,7 +2135,7 @@ const updateProduct = async (productId: string, productData: any) => {
             (product.productCode || '').toLowerCase() === productData.productCode.trim().toLowerCase()
         );
         if (conflict) {
-          alert('Product code already exists for this branch.');
+          openLabelNotice('Cannot update product', 'Product code already exists for this branch.', 'warning');
           return;
         }
       }
@@ -2048,7 +2146,7 @@ const updateProduct = async (productId: string, productData: any) => {
             (product.sku || '').toLowerCase() === productData.sku.trim().toLowerCase()
         );
         if (conflict) {
-          alert('SKU already exists for this branch.');
+          openLabelNotice('Cannot update product', 'SKU already exists for this branch.', 'warning');
           return;
         }
       }
@@ -2062,7 +2160,7 @@ const updateProduct = async (productId: string, productData: any) => {
         const existingCodeSnap = await getDocs(existingCodeQuery);
         const conflict = existingCodeSnap.docs.find((docSnap) => docSnap.id !== productId);
         if (conflict) {
-          alert('Product code already exists for this vendor.');
+          openLabelNotice('Cannot update product', 'Product code already exists for this vendor.', 'warning');
           return;
         }
       }
@@ -2076,7 +2174,7 @@ const updateProduct = async (productId: string, productData: any) => {
         const existingSkuSnap = await getDocs(existingSkuQuery);
         const conflict = existingSkuSnap.docs.find((docSnap) => docSnap.id !== productId);
         if (conflict) {
-          alert('SKU already exists for this vendor.');
+          openLabelNotice('Cannot update product', 'SKU already exists for this vendor.', 'warning');
           return;
         }
       }
@@ -2096,14 +2194,14 @@ const updateProduct = async (productId: string, productData: any) => {
       await updateProductPrice(productId, productData.basePrice);
     }
 
-    // Refresh data
-    await reloadProducts();
-    await reloadBranchProducts();
-    alert(`Product "${productData.name}" updated successfully!`);
+    // Realtime listeners update the UI automatically; no need to reload.
+    openLabelNotice('Updated', `Product "${productData.name}" updated successfully!`, 'success');
 
   } catch (error: any) {
     console.error('Error updating product:', error);
-    alert(`Error: ${error.message}`);
+    openLabelNotice('Update failed', error?.message || 'Error updating product', 'error');
+  } finally {
+    productUpdateLockRef.current = false;
   }
 };
 
@@ -2111,6 +2209,9 @@ const updateProduct = async (productId: string, productData: any) => {
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showEditProduct?.id || !currentUser?.companyId) return;
+
+    if (productUpdateLockRef.current) return;
+    productUpdateLockRef.current = true;
 
     try {
     const isBranchSpecific = Boolean(selectedBranchId && selectedBranchId !== 'all');
@@ -2122,10 +2223,10 @@ const updateProduct = async (productId: string, productData: any) => {
             product.id !== showEditProduct.id &&
             (product.productCode || '').toLowerCase() === showEditProduct.productCode.trim().toLowerCase()
         );
-        if (conflict) {
-          alert('Product code already exists for this branch.');
-          return;
-        }
+	        if (conflict) {
+	          openLabelNotice('Cannot update product', 'Product code already exists for this branch.', 'warning');
+	          return;
+	        }
       }
 
       if (showEditProduct.sku?.trim()) {
@@ -2134,10 +2235,10 @@ const updateProduct = async (productId: string, productData: any) => {
             product.id !== showEditProduct.id &&
             (product.sku || '').toLowerCase() === showEditProduct.sku.trim().toLowerCase()
         );
-        if (conflict) {
-          alert('SKU already exists for this branch.');
-          return;
-        }
+	        if (conflict) {
+	          openLabelNotice('Cannot update product', 'SKU already exists for this branch.', 'warning');
+	          return;
+	        }
       }
     } else {
       if (showEditProduct.productCode?.trim()) {
@@ -2148,10 +2249,10 @@ const updateProduct = async (productId: string, productData: any) => {
         );
         const existingCodeSnap = await getDocs(existingCodeQuery);
         const conflict = existingCodeSnap.docs.find((docSnap) => docSnap.id !== showEditProduct.id);
-        if (conflict) {
-          alert('Product code already exists for this vendor.');
-          return;
-        }
+	        if (conflict) {
+	          openLabelNotice('Cannot update product', 'Product code already exists for this vendor.', 'warning');
+	          return;
+	        }
       }
 
       if (showEditProduct.sku?.trim()) {
@@ -2162,23 +2263,25 @@ const updateProduct = async (productId: string, productData: any) => {
         );
         const existingSkuSnap = await getDocs(existingSkuQuery);
         const conflict = existingSkuSnap.docs.find((docSnap) => docSnap.id !== showEditProduct.id);
-        if (conflict) {
-          alert('SKU already exists for this vendor.');
-          return;
-        }
+	        if (conflict) {
+	          openLabelNotice('Cannot update product', 'SKU already exists for this vendor.', 'warning');
+	          return;
+	        }
       }
     }
 
-    const payload = {
+    const payload: any = {
       name: showEditProduct.name,
       description: showEditProduct.description,
       sku: showEditProduct.sku,
       productCode: showEditProduct.productCode,
       category: showEditProduct.category,
       basePrice: showEditProduct.basePrice,
+      minStock: (showEditProduct as any).minStock, 
       imageUrl: showEditProduct.imageUrl,
-      updatedAt: Timestamp.now()
+      updatedAt: Timestamp.now(),
     };
+
     Object.keys(payload).forEach((key) => {
       if (payload[key] === undefined) delete payload[key];
     });
@@ -2186,11 +2289,19 @@ const updateProduct = async (productId: string, productData: any) => {
 
     if (showEditProduct.stock != null || showEditProduct.minStock != null) {
       const stockValue = Number(showEditProduct.stock ?? 0);
-      const minStockValue = Number(showEditProduct.minStock ?? 10);
+      const rawMinStock = showEditProduct.minStock;
+      const minStockValue =
+        rawMinStock === undefined || rawMinStock === null || rawMinStock === ('' as any)
+          ? undefined
+          : Number(rawMinStock);
+      // Use stored minStock (if provided) for status; otherwise fall back to default.
+      const minStockForStatus = Number.isFinite(minStockValue as number)
+        ? (minStockValue as number)
+        : 10;
       const status =
         stockValue <= 0
           ? 'out-of-stock'
-          : stockValue <= minStockValue
+          : stockValue <= minStockForStatus
             ? 'low-stock'
             : 'in-stock';
 
@@ -2207,14 +2318,17 @@ const updateProduct = async (productId: string, productData: any) => {
         );
         const bpSnap = await getDocs(bpQuery);
         await Promise.all(
-          bpSnap.docs.map((docSnap) =>
-            updateDoc(fsDoc(db, 'branch_products', docSnap.id), {
+          bpSnap.docs.map((docSnap) => {
+            const updatePayload: any = {
               stock: stockValue,
-              minStock: minStockValue,
               status,
               lastUpdated: Timestamp.now()
-            })
-          )
+            };
+            if (minStockValue !== undefined && Number.isFinite(minStockValue)) {
+              updatePayload.minStock = minStockValue;
+            }
+            return updateDoc(fsDoc(db, 'branch_products', docSnap.id), updatePayload);
+          })
         );
       }
     }
@@ -2224,15 +2338,15 @@ const updateProduct = async (productId: string, productData: any) => {
       await updateProductPrice(showEditProduct.id, showEditProduct.basePrice);
     }
 
-    // Refresh data
-    await reloadProducts();
-    await reloadBranchProducts();
+    // Realtime listeners update the UI automatically; no need to reload.
     setShowEditProduct(null);
-    alert(`Product "${showEditProduct.name}" updated successfully!`);
+    openLabelNotice('Updated', `Product "${showEditProduct.name}" updated successfully!`, 'success');
 
   } catch (error: any) {
     console.error('Error updating product:', error);
-    alert(`Error: ${error.message}`);
+    openLabelNotice('Update failed', error?.message || 'Error updating product', 'error');
+  } finally {
+    productUpdateLockRef.current = false;
   }
 };
 
@@ -2340,7 +2454,8 @@ const updateProduct = async (productId: string, productData: any) => {
     const first = candidates[0];
     return {
       stock: first?.stock ?? 0,
-      minStock: first?.minStock ?? 10,
+	    // Don't force a default here; show the actual stored value for the selected branch.
+	    minStock: first?.minStock,
     };
   };
   const productsByBranchId = useMemo(() => {
@@ -3117,9 +3232,11 @@ const mobileTabs = [
             variant="outline"
             size="sm"
             className="h-10 w-full rounded-full px-4 border-gray-200 bg-white text-gray-900 hover:bg-gray-50 sm:w-auto sm:px-4"
-            onClick={loadVendorData}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
           >
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+            <RefreshCw className={"h-4 w-4 mr-2 " + (isRefreshing ? "animate-spin" : "")} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
       </div>
@@ -3285,7 +3402,7 @@ const mobileTabs = [
                 setShowEditProduct({
                   ...product,
                   stock: branchStock.stock,
-                  minStock: branchStock.minStock
+                  minStock: branchStock.minStock ?? (product as any).minStock
                 });
               }}
             >
@@ -3359,7 +3476,7 @@ const mobileTabs = [
                                   setShowEditProduct({
                                     ...product,
                                     stock: branchStock.stock,
-                                    minStock: branchStock.minStock
+                                    minStock: branchStock.minStock ?? (product as any).minStock
                                   });
                                 }}
                               >
@@ -3637,7 +3754,7 @@ const mobileTabs = [
                   setShowEditProduct({
                     ...product,
                     stock: branchStock.stock,
-                    minStock: branchStock.minStock
+                    minStock: branchStock.minStock ?? (product as any).minStock
                   });
                 }}
               >
@@ -3692,11 +3809,27 @@ const mobileTabs = [
                           (bp) => bp.productId === product.id
                         );
                         const avgStock = productBranches.length > 0
-                          ? productBranches.reduce((sum, bp) => sum + bp.stock, 0) / productBranches.length
+                          ? productBranches.reduce((sum, bp) => sum + (bp.stock ?? 0), 0) / productBranches.length
                           : 0;
-                        const minStock = productBranches.length > 0
-                          ? productBranches.reduce((min, bp) => Math.min(min, bp.stock), Infinity)
+
+                        // "Current" minimum stock across selected branches (for status)
+                        const minCurrentStock = productBranches.length > 0
+                          ? productBranches.reduce((min, bp) => Math.min(min, bp.stock ?? 0), Infinity)
                           : 0;
+
+                        // The *threshold* minStock that you set (stored in branch_products.minStock)
+                        const productMinStock = typeof (product as any).minStock === 'number' ? (product as any).minStock : undefined;
+
+                        // The *threshold* minStock that you set.
+                        // Prefer product.minStock (global) if it exists; otherwise read from branch_products.minStock.
+                        const minStockThreshold = productMinStock !== undefined
+                          ? productMinStock
+                          : (productBranches.length > 0
+                              ? productBranches.reduce((min, bp) => Math.min(min, (bp as any).minStock ?? Infinity), Infinity)
+                              : 0);
+
+                        const isLow = minStockThreshold > 0 && minCurrentStock < minStockThreshold;
+                        const isOut = minCurrentStock <= 0;
                         
                         return (
                           <tr key={product.id} className="hover:bg-gray-50">
@@ -3740,19 +3873,19 @@ const mobileTabs = [
                                   Avg stock: <span className="font-medium">{avgStock.toFixed(0)}</span>
                                 </div>
                                 <div className="text-sm text-gray-700">
-                                  Min stock: <span className={`font-medium ${minStock < 10 ? 'text-red-600' : 'text-green-600'}`}>
-                                    {minStock}
+                                  Min stock: <span className={`font-medium ${isLow ? 'text-red-600' : 'text-green-600'}`}>
+                                    {minStockThreshold || 0}
                                   </span>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                minStock > 10 ? 'bg-green-100 text-green-800' :
-                                minStock > 0 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
+                                isOut ? 'bg-red-100 text-red-800' :
+                                isLow ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
                               }`}>
-                                {minStock > 10 ? 'Good' : minStock > 0 ? 'Low' : 'Out'}
+                                {isOut ? 'Out' : isLow ? 'Low' : 'Good'}
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -3765,7 +3898,7 @@ const mobileTabs = [
                                     setShowEditProduct({
                                       ...product,
                                       stock: branchStock.stock,
-                                      minStock: branchStock.minStock
+                                      minStock: branchStock.minStock ?? (product as any).minStock
                                     });
                                   }}
                                 >
@@ -4946,8 +5079,14 @@ const mobileTabs = [
                   <Input
                     type="number"
                     min="0"
-                    value={showEditProduct.minStock ?? 10}
-                    onChange={(e) => setShowEditProduct({...showEditProduct, minStock: parseInt(e.target.value, 10) || 0})}
+					    value={(showEditProduct.minStock ?? '') as any}
+					    onChange={(e) => {
+					      const v = e.target.value;
+					      setShowEditProduct({
+					        ...showEditProduct,
+					        minStock: v === '' ? undefined : Number(v)
+					      });
+					    }}
                   />
                 </div>
 

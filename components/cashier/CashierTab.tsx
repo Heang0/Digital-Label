@@ -13,6 +13,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   setDoc,
   serverTimestamp,
   Timestamp,
@@ -190,6 +191,15 @@ export default function CashierTab(props: {
     setCart((prev) => {
       const key = productId;
       const existing = prev.find((x) => x.key === key);
+      const nextQty = (existing?.qty ?? 0) + 1;
+      if (bp.stock <= 0) {
+        setCheckoutNote(`"${name}" is out of stock.`);
+        return prev;
+      }
+      if (nextQty > bp.stock) {
+        setCheckoutNote(`Not enough stock for "${name}". Available: ${bp.stock}`);
+        return prev;
+      }
       if (existing) {
         return prev.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x));
       }
@@ -524,46 +534,75 @@ export default function CashierTab(props: {
       const receiptNo = `RCPT-${y}${m}${day}-${String(seq).padStart(6, '0')}`;
       const saleId = receiptNo; // also use as doc id (clean)
 
-      await setDoc(fsDoc(db, 'companies', companyId, 'sales', saleId), {
-        receiptNo,
-        companyId,
-        branchId: branch.id,
-        branchName: branch.name,
-        staffId: currentUser.id,
-        staffName: currentUser.name,
-        staffEmail: currentUser.email,
-        subtotal: totals.subtotal,
-        discountTotal: totals.discount,
-        total: totals.total,
-        cashReceived: cash,
-        change: Math.max(0, cash - totals.total),
-        items: cart.map((i) => ({
-          productId: i.productId,
-          name: i.name,
-          category: i.category || null,
-          qty: i.qty,
-          baseUnitPrice: i.baseUnitPrice,
-          finalUnitPrice: i.finalUnitPrice,
-          discountPercent: i.discountPercent ?? null,
-          lineTotal: i.finalUnitPrice * i.qty,
-        })),
-        createdAt: serverTimestamp(),
+      // Atomically: reduce stock + write sale
+      const saleRef = fsDoc(db, 'companies', companyId, 'sales', saleId);
+      await runTransaction(db, async (tx) => {
+        // 1) Stock checks + updates
+        for (const item of cart) {
+          const bp = branchProductByProductId.get(item.productId);
+          if (!bp) {
+            throw new Error(`Missing branch product for: ${item.name}`);
+          }
+          const bpRef = fsDoc(db, 'branch_products', bp.id);
+          const bpSnap = await tx.get(bpRef);
+          const currentStock = Number((bpSnap.data() as any)?.stock ?? 0);
+          const nextStock = currentStock - item.qty;
+          if (nextStock < 0) {
+            throw new Error(`Not enough stock for "${item.name}". Available: ${currentStock}`);
+          }
+          tx.update(bpRef, {
+            stock: nextStock,
+            lastUpdated: serverTimestamp(),
+          });
+        }
+
+        // 2) Sale
+        tx.set(saleRef, {
+          receiptNo,
+          companyId,
+          branchId: branch.id,
+          branchName: branch.name,
+          staffId: currentUser.id,
+          staffName: currentUser.name,
+          staffEmail: currentUser.email,
+          subtotal: totals.subtotal,
+          discountTotal: totals.discount,
+          total: totals.total,
+          cashReceived: cash,
+          change: Math.max(0, cash - totals.total),
+          items: cart.map((i) => ({
+            productId: i.productId,
+            name: i.name,
+            category: i.category || null,
+            qty: i.qty,
+            baseUnitPrice: i.baseUnitPrice,
+            finalUnitPrice: i.finalUnitPrice,
+            discountPercent: i.discountPercent ?? null,
+            lineTotal: i.finalUnitPrice * i.qty,
+          })),
+          createdAt: serverTimestamp(),
+        });
       });
 
       setSavedReceiptNo(receiptNo);
       setSavedSaleId(saleId);
       setSavedSnapshot(snapshot);
       await fetchSales();
+
+      // Reset for next customer
+      setIsCheckoutOpen(false);
+      setCashReceived('');
+      setCart([]);
     } catch (e) {
       console.error('Error saving sale:', e);
-      setSaleError('Failed to save sale. Please try again.');
+      setSaleError(e instanceof Error ? e.message : 'Failed to save sale. Please try again.');
     } finally {
       setIsSavingSale(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       {/* Profile / context */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-xl border p-5 shadow-sm">
@@ -1021,6 +1060,24 @@ export default function CashierTab(props: {
                     ? `Saved as ${savedReceiptNo}. You can print or download the receipt.`
                     : 'Receipt preview (paper style).'}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile bottom bar (app-like) */}
+      {!isCheckoutOpen && cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
+          <div className="mx-auto max-w-7xl px-4 pb-4">
+            <div className="rounded-2xl border bg-white shadow-lg p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs text-gray-500">Total</div>
+                <div className="text-lg font-bold text-gray-900 truncate">{money(totals.total)}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={clearCart} className="h-10">Clear</Button>
+                <Button onClick={openCheckout} className="h-10">Checkout</Button>
               </div>
             </div>
           </div>

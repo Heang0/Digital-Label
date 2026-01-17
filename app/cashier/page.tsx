@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { db, logOut } from '@/lib/firebase';
@@ -9,6 +9,7 @@ import {
   doc as fsDoc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   where,
 } from 'firebase/firestore';
@@ -66,6 +67,11 @@ export default function CashierPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [branchProducts, setBranchProducts] = useState<BranchProduct[]>([]);
   const [labels, setLabels] = useState<DigitalLabel[]>([]);
+
+  const productCacheRef = useRef<Map<string, Product>>(new Map());
+
+  // Simple in-memory cache to avoid re-fetching product docs on every snapshot
+  const [productCache, setProductCache] = useState<Record<string, Product>>({});
 
   const canViewSales = useMemo(() => {
     if (!currentUser) return false;
@@ -129,56 +135,92 @@ export default function CashierPage() {
     if (!currentUser?.companyId) return;
     if (!effectiveBranchId) return;
 
-    (async () => {
-      try {
-        setLoading(true);
+    let alive = true;
+    setLoading(true);
 
-        // Branch
-        const branchDoc = await getDoc(fsDoc(db, 'branches', effectiveBranchId));
+    // Branch (one-time)
+    getDoc(fsDoc(db, 'branches', effectiveBranchId))
+      .then((branchDoc) => {
+        if (!alive) return;
         setBranch(branchDoc.exists() ? ({ id: branchDoc.id, ...(branchDoc.data() as any) } as Branch) : null);
+      })
+      .catch((e) => console.error('Error loading branch:', e));
 
-        // Branch products
-        const bpq = query(
-          collection(db, 'branch_products'),
-          where('branchId', '==', effectiveBranchId),
-          where('companyId', '==', currentUser.companyId)
-        );
-        const bps = await getDocs(bpq);
-        const bpData = await Promise.all(
-          bps.docs.map(async (d) => {
-            const bp = d.data() as any;
-            const pDoc = await getDoc(fsDoc(db, 'products', bp.productId));
-            const productDetails = pDoc.exists() ? ({ id: pDoc.id, ...(pDoc.data() as any) } as Product) : undefined;
-            return {
-              id: d.id,
-              ...(bp as any),
-              productDetails,
-            } as BranchProduct;
-          })
-        );
-        setBranchProducts(bpData);
+    const loadProductDetails = async (productIds: string[]) => {
+      const cache = productCacheRef.current;
+      const missing = productIds.filter((id) => !cache.has(id));
+      await Promise.all(
+        missing.map(async (id) => {
+          const pDoc = await getDoc(fsDoc(db, 'products', id));
+          if (pDoc.exists()) cache.set(id, { id: pDoc.id, ...(pDoc.data() as any) } as Product);
+        })
+      );
+    };
 
-        // Labels
-        const lq = query(
-          collection(db, 'labels'),
-          where('branchId', '==', effectiveBranchId),
-          where('companyId', '==', currentUser.companyId)
-        );
-        const ls = await getDocs(lq);
-        const lData = ls.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as DigitalLabel[];
-        setLabels(lData);
+    // Realtime: branch_products
+    const bpq = query(
+      collection(db, 'branch_products'),
+      where('branchId', '==', effectiveBranchId),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const unsubBranchProducts = onSnapshot(
+      bpq,
+      async (snap) => {
+        try {
+          const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as any[];
+          const productIds = Array.from(new Set(rows.map((r) => r.productId).filter(Boolean)));
+          await loadProductDetails(productIds);
+          const cache = productCacheRef.current;
+          const bpData = rows.map((bp) => ({
+            ...(bp as any),
+            productDetails: cache.get(bp.productId),
+          })) as BranchProduct[];
 
-        // Categories
-        const cq = query(collection(db, 'categories'), where('companyId', '==', currentUser.companyId));
-        const cs = await getDocs(cq);
-        const cData = cs.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Category[];
-        setCategories(cData);
-      } catch (e) {
-        console.error('Error loading cashier data:', e);
-      } finally {
-        setLoading(false);
+          if (alive) setBranchProducts(bpData);
+        } catch (e) {
+          console.error('Error processing branch products snapshot:', e);
+        } finally {
+          if (alive) setLoading(false);
+        }
+      },
+      (e) => {
+        console.error('Error listening branch products:', e);
+        if (alive) setLoading(false);
       }
-    })();
+    );
+
+    // Realtime: labels
+    const lq = query(
+      collection(db, 'labels'),
+      where('branchId', '==', effectiveBranchId),
+      where('companyId', '==', currentUser.companyId)
+    );
+    const unsubLabels = onSnapshot(
+      lq,
+      (snap) => {
+        if (!alive) return;
+        setLabels(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as DigitalLabel[]);
+      },
+      (e) => console.error('Error listening labels:', e)
+    );
+
+    // Realtime: categories
+    const cq = query(collection(db, 'categories'), where('companyId', '==', currentUser.companyId));
+    const unsubCategories = onSnapshot(
+      cq,
+      (snap) => {
+        if (!alive) return;
+        setCategories(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Category[]);
+      },
+      (e) => console.error('Error listening categories:', e)
+    );
+
+    return () => {
+      alive = false;
+      unsubBranchProducts();
+      unsubLabels();
+      unsubCategories();
+    };
   }, [currentUser?.companyId, effectiveBranchId]);
 
   const handleLogout = async () => {

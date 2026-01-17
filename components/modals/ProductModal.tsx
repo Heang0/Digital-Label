@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Package, DollarSign, Hash, Edit, Plus, Image } from 'lucide-react';
+import { useNotify } from '@/components/ui/notification';
 
 interface Product {
   id: string;
@@ -33,6 +34,7 @@ export default function ProductModal({
   categories,
   onSubmit 
 }: ProductModalProps) {
+  const notify = useNotify();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -77,7 +79,7 @@ export default function ProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || formData.basePrice <= 0) {
-      alert('Please fill in all required fields');
+      notify.warning('Missing fields', 'Please fill in all required fields.');
       return;
     }
 
@@ -87,7 +89,7 @@ export default function ProductModal({
       onClose();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product');
+      notify.error('Save failed', 'Error saving product');
     } finally {
       setLoading(false);
     }

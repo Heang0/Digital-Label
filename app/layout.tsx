@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from 'next';
 import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
+import { NotificationProvider } from '@/components/ui/notification';
 
 const brandFont = Space_Grotesk({ subsets: ['latin'] });
 
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={brandFont.className}>
-        {children}
+        <NotificationProvider>{children}</NotificationProvider>
       </body>
     </html>
   );
