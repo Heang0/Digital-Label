@@ -68,7 +68,13 @@ export const ProfileDropdown = ({ onTabChange }: ProfileDropdownProps) => {
               {user?.name || 'User'}
             </p>
             <p className="text-[10px] font-medium text-[#637381] dark:text-slate-500 uppercase tracking-widest">
-              Administrator
+              {user?.role === 'staff' 
+                ? (user?.position || 'Staff Member')
+                : user?.role === 'vendor' 
+                  ? 'Business Owner' 
+                  : user?.role === 'admin' 
+                    ? 'System Administrator'
+                    : 'User'}
             </p>
           </div>
           <ChevronDown className={`h-4 w-4 text-[#637381] dark:text-slate-400 group-hover:text-[#111928] dark:group-hover:text-white transition-all ${isOpen ? 'rotate-180' : ''}`} />

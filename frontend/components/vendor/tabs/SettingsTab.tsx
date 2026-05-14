@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Save, Upload, User as UserIcon, Mail, Phone, Building2, MapPin, Hash, ShieldCheck, Zap } from 'lucide-react';
+import { Settings, Save, Upload, User as UserIcon, Mail, Phone, Building2, MapPin, Hash, ShieldCheck, Zap, User, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Company } from '@/types/vendor';
@@ -10,13 +11,27 @@ interface SettingsTabProps {
   currentUser: any;
   company: Company | null;
   handleProfileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  updateProfile: (data: { name: string }) => Promise<void>;
 }
 
 export const SettingsTab = ({
   currentUser,
   company,
-  handleProfileUpload
+  handleProfileUpload,
+  updateProfile
 }: SettingsTabProps) => {
+  const [name, setName] = useState(currentUser?.name || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateProfile({ name });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl space-y-8 pb-20">
       <div className="flex items-center justify-between">
@@ -24,8 +39,12 @@ export const SettingsTab = ({
           <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Account Workspace</h2>
           <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Manage corporate identity and security protocols.</p>
         </div>
-        <Button className="h-11 px-8 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] font-bold gap-2">
-           <Save className="h-4 w-4" />
+        <Button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="h-11 px-8 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] font-bold gap-2"
+        >
+           {isSaving ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="h-4 w-4" />}
            Save Changes
         </Button>
       </div>
@@ -39,7 +58,7 @@ export const SettingsTab = ({
                        <img src={currentUser.photoURL} alt="" className="h-full w-full object-cover" />
                     ) : (
                        <div className="h-full w-full flex items-center justify-center text-3xl font-black text-slate-300">
-                          {currentUser?.name?.charAt(0)}
+                          {name?.charAt(0)}
                        </div>
                     )}
                  </div>
@@ -48,8 +67,23 @@ export const SettingsTab = ({
                     <input type="file" className="hidden" accept="image/*" onChange={handleProfileUpload} />
                  </label>
               </div>
-              <h3 className="text-lg font-black text-[#111928] dark:text-white leading-none mb-1">{currentUser?.name}</h3>
-              <p className="text-xs font-bold text-[#5750F1] uppercase tracking-widest">{currentUser?.role} Account</p>
+              
+              <div className="space-y-1 group/name relative">
+                <div className="relative">
+                  <input 
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full text-center text-lg font-black text-[#111928] dark:text-white bg-transparent border-b-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-[#5750F1] focus:ring-0 outline-none p-1 transition-all"
+                    placeholder="Enter your name"
+                  />
+                  <Edit2 className="absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-300 opacity-0 group-hover/name:opacity-100 transition-opacity pointer-events-none" />
+                </div>
+                <p className="text-xs font-bold text-[#5750F1] uppercase tracking-widest">{currentUser?.role} Account</p>
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/name:opacity-100 transition-opacity pointer-events-none">
+                  <span className="bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap">Click to edit name</span>
+                </div>
+              </div>
            </div>
 
            <div className="premium-card p-6 space-y-4">

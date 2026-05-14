@@ -50,19 +50,18 @@ export const DashboardHeader = ({
   // Map internal tab IDs to professional titles
   const getPageTitle = (tab: string) => {
     switch(tab) {
-      case 'overview': return 'Digital Dashboard';
-      case 'dashboard': return 'Inventory Console';
-      case 'users': return 'Vendor Management';
-      case 'companies': return 'Retail Ecosystem';
+      case 'overview': return 'Executive Overview';
+      case 'dashboard': return 'Dashboard';
+      case 'labels': return 'Digital Labels';
       case 'products': return 'Product Repository';
-      case 'categories': return 'Inventory Classification';
-      case 'labels': return 'Electronic Labels';
+      case 'categories': return 'Inventory classification';
       case 'staff': return 'Team Management';
       case 'promotions': return 'Growth Marketing';
       case 'sales': return 'Sales Intelligence';
       case 'support': return 'Support Center';
       case 'settings': return 'Account Workspace';
-      default: return 'Management Console';
+      case 'activity': return 'Global Activity Log';
+      default: return 'Dashboard';
     }
   };
 
@@ -99,11 +98,14 @@ export const DashboardHeader = ({
             </button>
 
             {/* Title Cluster (Professional Breadcrumb style in Header) */}
-            <div className="hidden md:block">
-               <p className="text-[10px] font-bold text-[#637381] dark:text-slate-500 uppercase tracking-[0.2em] mb-1">
+            <div 
+              className="hidden md:block cursor-pointer group"
+              onClick={() => onTabChange('dashboard')}
+            >
+               <p className="text-[10px] font-semibold text-[#637381] dark:text-slate-500 uppercase tracking-[0.2em] mb-1 group-hover:text-[#5750F1] transition-colors">
                  {title === 'overview' ? 'Main Menu' : 'Dashboard'}
                </p>
-               <h1 className="text-lg font-bold text-[#111928] dark:text-white leading-none tracking-tight">
+               <h1 className="text-lg font-semibold text-[#111928] dark:text-white leading-none tracking-tight group-hover:text-[#5750F1] transition-colors">
                  {getPageTitle(title)}
                </h1>
             </div>
@@ -127,16 +129,21 @@ export const DashboardHeader = ({
             {/* Action Group */}
             <div className="flex items-center gap-2 sm:gap-4 border-r border-[#E2E8F0] dark:border-slate-700 pr-3 sm:pr-6">
               <ThemeToggle />
-              <NotificationDropdown />
+              <NotificationDropdown onTabChange={onTabChange} />
               <button 
-                onClick={onRefresh}
-                className={`h-10 w-10 flex items-center justify-center rounded-none bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 transition-all hover:bg-slate-100 dark:hover:bg-slate-700 ${isRefreshing ? 'animate-spin text-[#5750F1]' : ''}`}
+                onClick={() => {
+                  if (title === 'labels') {
+                    onRefresh();
+                  } else {
+                    onRefresh();
+                  }
+                }}
+                className={`h-10 w-10 flex items-center justify-center rounded-none bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 transition-all hover:bg-slate-100 dark:hover:bg-slate-700 ${isRefreshing ? 'animate-spin text-[#10B981]' : ''}`}
+                title={title === 'labels' ? 'Global Hardware Sync' : 'Refresh Data'}
               >
-                 <RefreshCw className="h-4.5 w-4.5 text-[#637381] dark:text-slate-400" />
+                 <RefreshCw className={`h-4.5 w-4.5 ${title === 'labels' ? 'text-[#10B981]' : 'text-[#637381] dark:text-slate-400'}`} />
               </button>
             </div>
-
-            {/* NextAdmin Profile */}
             <ProfileDropdown onTabChange={onTabChange} />
           </div>
         </div>

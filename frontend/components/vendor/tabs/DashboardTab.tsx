@@ -15,10 +15,11 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   AlertCircle,
-  Building2
+  Building2,
+  Terminal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Company, Branch, DigitalLabel } from '@/types/vendor';
+import { Company, Branch, DigitalLabel, BranchProduct, IssueReport } from '@/types/vendor';
 import SalesHistoryPanel from '@/components/cashier/SalesHistoryPanel';
 
 interface DashboardTabProps {
@@ -26,6 +27,8 @@ interface DashboardTabProps {
   company: Company | null;
   branches: Branch[];
   labels: DigitalLabel[];
+  branchProducts: BranchProduct[];
+  issues: IssueReport[];
   selectedBranchId: string;
   setSelectedBranchId: (id: string) => void;
   setSelectedTab: (tab: any) => void;
@@ -35,26 +38,36 @@ interface DashboardTabProps {
 export const DashboardTab = ({
   currentUser,
   company,
-  branches,
-  labels,
+  branches = [],
+  labels = [],
+  branchProducts = [],
+  issues = [],
   selectedBranchId,
   setSelectedBranchId,
   setSelectedTab,
   setShowCreateBranch
 }: DashboardTabProps) => {
   // Stats calculation
-  const totalLabels = labels.length;
-  const activeLabels = labels.filter(l => l.status === 'active').length;
-  const errorLabels = labels.filter(l => l.status === 'error' || l.status === 'low-battery').length;
+  const branchLabels = labels.filter(l => selectedBranchId === 'all' ? true : l.branchId === selectedBranchId);
+  const totalLabels = branchLabels.length;
+  const activeLabels = branchLabels.filter(l => l.status === 'active').length;
+  const errorLabels = branchLabels.filter(l => l.status === 'error' || l.status === 'low-battery').length;
   
+  const branchStocks = branchProducts.filter(bp => selectedBranchId === 'all' ? true : bp.branchId === selectedBranchId);
+  const totalItems = branchStocks.length;
+  const lowStockItems = branchStocks.filter(bp => bp.stock <= bp.minStock).length;
+
+  const branchIssues = issues.filter(i => selectedBranchId === 'all' ? true : i.branchId === selectedBranchId);
+  const openIssues = branchIssues.filter(i => i.status !== 'resolved').length;
+
   return (
     <div className="space-y-8 pb-20">
       {/* Premium Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {[
-           { label: 'Total Inventory', value: '1,240', sub: 'Managed Items', icon: Package, color: 'bg-[#5750F1]', trend: '+12.5%', isUp: true },
-           { label: 'Low Stock Alert', value: '12', sub: 'Action Required', icon: AlertCircle, color: 'bg-rose-500', trend: 'Critical', isUp: false },
-           { label: 'Daily Revenue', value: '$4,290', sub: 'Last 24 Hours', icon: TrendingUp, color: 'bg-emerald-500', trend: '+8.2%', isUp: true },
+           { label: 'Managed Items', value: `${totalItems}`, sub: 'Total Products', icon: Package, color: 'bg-[#5750F1]', trend: 'Active', isUp: true },
+           { label: 'Low Stock Alert', value: `${lowStockItems}`, sub: 'Restock Required', icon: AlertCircle, color: 'bg-rose-500', trend: 'Inventory', isUp: false },
+           { label: 'Open Issues', value: `${openIssues}`, sub: 'Unresolved Reports', icon: Activity, color: 'bg-amber-500', trend: 'Maintenance', isUp: false },
            { label: 'Active Labels', value: `${activeLabels}`, sub: `of ${totalLabels} tags`, icon: Tag, color: 'bg-indigo-500', trend: 'Live', isUp: true },
         ].map((stat, i) => (
            <motion.div 
@@ -68,13 +81,13 @@ export const DashboardTab = ({
                  <div className={`h-12 w-12 rounded-2xl ${stat.color} text-white flex items-center justify-center shadow-lg shadow-current/10`}>
                     <stat.icon className="h-6 w-6" />
                  </div>
-                  <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${stat.isUp ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
+                  <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${stat.isUp ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
                     {stat.isUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                     {stat.trend}
                  </div>
               </div>
-              <h3 className="text-3xl font-black text-[#111928] dark:text-white tracking-tight">{stat.value}</h3>
-              <p className="text-[10px] font-bold text-[#637381] dark:text-slate-500 uppercase tracking-widest mt-1">{stat.label}</p>
+              <h3 className="text-3xl font-bold text-[#111928] dark:text-white tracking-tight">{stat.value}</h3>
+              <p className="text-[10px] font-semibold text-[#637381] dark:text-slate-500 uppercase tracking-widest mt-1">{stat.label}</p>
               <p className="text-xs font-medium text-slate-400 mt-3 flex items-center gap-1">
                  {stat.sub}
               </p>
@@ -91,25 +104,27 @@ export const DashboardTab = ({
                     <h3 className="text-xl font-bold text-[#111928] dark:text-white">Performance Analytics</h3>
                     <p className="text-sm font-medium text-[#637381] mt-1">Real-time sales tracking across retail locations.</p>
                  </div>
-                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700">
-                       <button 
-                          onClick={() => setSelectedBranchId('all')}
-                          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${selectedBranchId === 'all' ? 'bg-white dark:bg-[#1C2434] text-[#5750F1] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                       >
-                          Global
-                       </button>
-                       <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-                       <select 
-                          className="bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-300 outline-none px-2 cursor-pointer"
-                          value={selectedBranchId}
-                          onChange={(e) => setSelectedBranchId(e.target.value)}
-                       >
-                          <option value="all" disabled>Select Branch</option>
-                          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                       </select>
-                    </div>
-                 </div>
+                 {branches.length > 1 && (
+                   <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700">
+                         <button 
+                            onClick={() => setSelectedBranchId('all')}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${selectedBranchId === 'all' ? 'bg-white dark:bg-[#1C2434] text-[#5750F1] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                         >
+                            Global
+                         </button>
+                         <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
+                         <select 
+                            className="bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-300 outline-none px-2 cursor-pointer"
+                            value={selectedBranchId}
+                            onChange={(e) => setSelectedBranchId(e.target.value)}
+                         >
+                            <option value="all" disabled>Select Branch</option>
+                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                         </select>
+                      </div>
+                   </div>
+                 )}
               </div>
 
               <div className="bg-slate-50 dark:bg-[#1C2434] rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
@@ -150,7 +165,7 @@ export const DashboardTab = ({
                     { label: 'Update Prices', icon: DollarSign, color: 'text-emerald-500', tab: 'products' },
                     { label: 'Manage Staff', icon: Users, color: 'text-[#5750F1]', tab: 'staff' },
                     { label: 'Campaign Center', icon: ShoppingBag, color: 'text-amber-500', tab: 'promotions' },
-                    { label: 'IoT Diagnostics', icon: Activity, color: 'text-rose-500', tab: 'labels' },
+                    { label: 'Label Status', icon: Activity, color: 'text-rose-500', tab: 'labels' },
                  ].map((action) => (
                     <button 
                        key={action.label}
@@ -192,13 +207,15 @@ export const DashboardTab = ({
                        </button>
                     )}
                  </div>
-                 <Button 
-                    onClick={() => setShowCreateBranch(true)} 
-                    className="w-full mt-8 bg-[#5750F1] hover:bg-[#4A44D1] text-xs font-bold rounded-xl h-11"
-                 >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Branch
-                 </Button>
+                 {currentUser?.role === 'vendor' && (
+                    <Button 
+                       onClick={() => setShowCreateBranch(true)} 
+                       className="w-full mt-8 bg-[#5750F1] hover:bg-[#4A44D1] text-xs font-bold rounded-xl h-11"
+                    >
+                       <Plus className="h-4 w-4 mr-2" />
+                       New Branch
+                    </Button>
+                 )}
               </div>
            </div>
         </div>

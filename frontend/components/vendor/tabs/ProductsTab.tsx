@@ -72,17 +72,19 @@ export const ProductsTab = ({
 
       <div className="premium-card overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row sm:items-center gap-4">
-           <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-[#637381] uppercase tracking-widest">Branch</span>
-              <select 
-                className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer"
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-              >
-                <option value="all">Global Inventory</option>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-           </div>
+           {branches.length > 1 && (
+             <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-[#637381] uppercase tracking-widest">Branch</span>
+                <select 
+                  className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer"
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                >
+                  <option value="all">Global Inventory</option>
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+             </div>
+           )}
            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-2" />
            <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-[#637381] uppercase tracking-widest">Category</span>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { DigitalLabel } from '@/types/vendor';
 import { Loader2 } from 'lucide-react';
 
@@ -15,9 +15,24 @@ export default function LabelPreviewPage() {
 
   useEffect(() => {
     if (!id) return;
-    const unsub = onSnapshot(doc(db, 'labels', id as string), (snap) => {
+    const unsub = onSnapshot(doc(db, 'labels', id as string), async (snap) => {
       if (snap.exists()) {
-        setLabel({ id: snap.id, ...snap.data() } as DigitalLabel);
+        const data = snap.data();
+        const labelData = { id: snap.id, ...data } as DigitalLabel;
+        
+        // If branch name is missing, try to fetch it
+        if (!labelData.branchName && labelData.branchId) {
+          try {
+            const branchSnap = await getDoc(doc(db, 'branches', labelData.branchId));
+            if (branchSnap.exists()) {
+              labelData.branchName = branchSnap.data().name;
+            }
+          } catch (e) {
+            console.error('Error fetching branch name:', e);
+          }
+        }
+        
+        setLabel(labelData);
       }
       setLoading(false);
     });
@@ -27,16 +42,20 @@ export default function LabelPreviewPage() {
   // Build QR URL client-side only
   useEffect(() => {
     if (label) {
-      const editUrl = `${window.location.origin}/vendor?editLabel=${label.id}`;
-      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(editUrl)}`);
+      try {
+        const editUrl = `${window.location.origin}/label/${label.id}/edit`;
+        setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(editUrl)}`);
+      } catch (e) {
+        console.error('Error creating QR URL:', e);
+      }
     }
   }, [label]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#D1D5DB] flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 text-slate-500 animate-spin" />
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Connecting to Node...</p>
+        <div className="h-12 w-12 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Establishing Node Connection...</p>
       </div>
     );
   }
@@ -44,14 +63,19 @@ export default function LabelPreviewPage() {
   if (!label) {
     return (
       <div className="min-h-screen bg-[#D1D5DB] flex flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-3xl font-black text-slate-700 uppercase">Node Not Found</h1>
-        <p className="mt-3 text-slate-500 font-bold text-sm uppercase tracking-widest">Hardware ID not registered.</p>
+        <div className="bg-white/50 p-10 rounded-3xl backdrop-blur-md shadow-xl border border-white/20">
+          <h1 className="text-4xl font-black text-slate-700 uppercase tracking-tighter">Node 404</h1>
+          <p className="mt-4 text-slate-500 font-bold text-sm uppercase tracking-widest max-w-xs mx-auto">
+            This hardware identifier is not currently registered in our sync network.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const originalPrice = label.currentPrice || 0;
-  const finalPrice = label.finalPrice || label.currentPrice || 0;
+  // Safety checks for rendering
+  const originalPrice = Number(label.currentPrice || label.basePrice || 0);
+  const finalPrice = Number(label.finalPrice || originalPrice || 0);
   const wholePart = Math.floor(finalPrice);
   const centsPart = finalPrice.toFixed(2).split('.')[1];
 

@@ -199,7 +199,7 @@ export default function ProductModal({
                   type="number"
                   step="0.01"
                   min="0.01"
-                  value={formData.basePrice}
+                  value={formData.basePrice === 0 ? '' : formData.basePrice}
                   onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
                   className="pl-10 h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all font-bold"
                   placeholder="0.00"
@@ -217,10 +217,11 @@ export default function ProductModal({
               <Input
                 type="number"
                 min="0"
-                value={formData.stock}
+                value={formData.stock === 0 ? '' : formData.stock}
                 onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
                 disabled={loading}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
+                placeholder="0"
               />
             </div>
 
@@ -232,10 +233,11 @@ export default function ProductModal({
               <Input
                 type="number"
                 min="0"
-                value={formData.minStock}
+                value={formData.minStock === 0 ? '' : formData.minStock}
                 onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
                 disabled={loading}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
+                placeholder="0"
               />
             </div>
 

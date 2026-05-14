@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import imagekit from '../config/imagekit';
 
 export const uploadProfileImage = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -7,13 +8,27 @@ export const uploadProfileImage = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // req.file.path is the URL of the uploaded image on Cloudinary
+    // Upload to ImageKit
+    const uploadResponse = await imagekit.upload({
+      file: req.file.buffer, // Use buffer from memory storage
+      fileName: `profile-${Date.now()}.webp`,
+      folder: '/digital-label/profiles',
+      useUniqueFileName: true,
+      transformation: {
+        pre: 'w-400,h-400,fo-face,c-at_max'
+      }
+    });
+
     res.status(200).json({
       message: 'Image uploaded successfully',
-      url: req.file.path,
+      url: uploadResponse.url,
     });
   } catch (error: any) {
-    console.error('Upload Error:', error);
-    res.status(500).json({ message: 'Internal server error during upload', error: error.message });
+    console.error('❌ ImageKit Upload Error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      message: 'Internal server error during upload', 
+      error: error.message || error,
+      details: error
+    });
   }
 };

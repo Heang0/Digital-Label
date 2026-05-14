@@ -1,14 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name: string;
   role: 'admin' | 'vendor' | 'staff';
   photoURL?: string;
   companyId?: string;
+  companyName?: string;
   branchId?: string;
+  branchName?: string;
   position?: string; // Add this
   permissions?: { // Add this
     canViewProducts: boolean;

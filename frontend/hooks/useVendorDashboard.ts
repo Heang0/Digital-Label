@@ -38,16 +38,18 @@ import {
 import { makeProductCodeForVendor, makeSku, nextBranchSequence, nextCompanySequence } from '@/lib/id-generator';
 import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
 import { generateLabelsForBranch } from '@/lib/supermarket-setup';
+import { getPermissionsForRole } from '@/lib/role-presets';
+import { createNotification } from '@/lib/notifications';
 
 export function useVendorDashboard() {
   const router = useRouter();
-  const { user: currentUser, clearUser, hasHydrated } = useUserStore();
+  const { user: currentUser, setUser, clearUser, hasHydrated } = useUserStore();
   const realtimeUnsubsRef = useRef<(() => void)[]>([]);
   const productUpdateLockRef = useRef(false);
   
   // States
   const [selectedTab, setSelectedTab] = useState<
-    'dashboard' | 'products' | 'categories' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings' | 'support'
+    'dashboard' | 'products' | 'categories' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings' | 'support' | 'branches' | 'issues'
   >('dashboard');
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -90,15 +92,46 @@ export function useVendorDashboard() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
+  const [selectedBranchForEdit, setSelectedBranchForEdit] = useState<Branch | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
   const [productsPerPage] = useState(10);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
+  const [showReportIssue, setShowReportIssue] = useState(false);
 
   const handleEditProduct = (product: Product | null) => {
     setSelectedProductForEdit(product);
     setShowProductModal(!!product);
   };
+
+  const handleEditBranch = (branch: Branch | null) => {
+    setSelectedBranchForEdit(branch);
+    setShowCreateBranch(!!branch);
+  };
+
+  // Auto-populate edit form when a staff member is selected for editing
+  useEffect(() => {
+    if (showEditStaff) {
+      setEditStaffForm({
+        name: showEditStaff.name || '',
+        email: showEditStaff.email || '',
+        position: showEditStaff.position || 'Cashier',
+        branchId: showEditStaff.branchId || '',
+        status: showEditStaff.status || 'active',
+        permissions: {
+          canViewProducts: showEditStaff.permissions?.canViewProducts ?? true,
+          canUpdateStock: showEditStaff.permissions?.canUpdateStock ?? true,
+          canReportIssues: showEditStaff.permissions?.canReportIssues ?? true,
+          canViewReports: showEditStaff.permissions?.canViewReports ?? false,
+          canChangePrices: showEditStaff.permissions?.canChangePrices ?? false,
+          canCreateProducts: showEditStaff.permissions?.canCreateProducts ?? false,
+          canCreateLabels: showEditStaff.permissions?.canCreateLabels ?? false,
+          canCreatePromotions: showEditStaff.permissions?.canCreatePromotions ?? false,
+          maxPriceChange: showEditStaff.permissions?.maxPriceChange ?? 0
+        }
+      });
+    }
+  }, [showEditStaff]);
 
   // Form states
   const [staffForm, setStaffForm] = useState({
@@ -107,14 +140,7 @@ export function useVendorDashboard() {
     position: 'Cashier',
     branchId: '',
     password: 'welcome123',
-    permissions: {
-      canViewProducts: true,
-      canUpdateStock: true,
-      canReportIssues: true,
-      canViewReports: false,
-      canChangePrices: false,
-      maxPriceChange: 0
-    }
+    permissions: getPermissionsForRole('Cashier')
   });
 
   const [editStaffForm, setEditStaffForm] = useState({
@@ -123,17 +149,7 @@ export function useVendorDashboard() {
     position: 'Cashier',
     branchId: '',
     status: 'active' as 'active' | 'inactive',
-    permissions: {
-      canViewProducts: true,
-      canUpdateStock: true,
-      canReportIssues: true,
-      canViewReports: false,
-      canChangePrices: false,
-      canCreateProducts: false,
-      canCreateLabels: false,
-      canCreatePromotions: false,
-      maxPriceChange: 0
-    }
+    permissions: getPermissionsForRole('Cashier')
   });
 
   const [promotionForm, setPromotionForm] = useState({
@@ -153,22 +169,84 @@ export function useVendorDashboard() {
     confirmPassword: ''
   });
 
+  const updateIssueStatus = async (issueId: string, status: 'open' | 'in-progress' | 'resolved') => {
+    try {
+      // 1. Update the issue record
+      await updateDoc(fsDoc(db, 'issue_reports', issueId), {
+        status,
+        updatedAt: Timestamp.now()
+      });
+
+      // 2. If resolved, find the associated label and mark it back to 'active'
+      if (status === 'resolved') {
+        const issue = issues.find(i => i.id === issueId);
+        if (issue) {
+          const label = labels.find(l => l.labelId === issue.labelId);
+          if (label) {
+            await updateDoc(fsDoc(db, 'labels', label.id), { status: 'active' });
+          }
+
+          // Create notification
+          await createNotification({
+            companyId: currentUser?.companyId || '',
+            branchId: issue.branchId,
+            title: 'Issue Resolved',
+            message: `Maintenance completed for ${issue.labelId}. System is now nominal.`,
+            type: 'success'
+          });
+        }
+      }
+
+      openLabelNotice('Status Updated', `Incident status set to ${status}.`, 'success');
+    } catch (error) {
+      console.error('Update error:', error);
+      openLabelNotice('Error', 'Failed to update incident status.', 'error');
+    }
+  };
+
+  const addIssueNote = async (issueId: string, noteText: string) => {
+    try {
+      const issueRef = fsDoc(db, 'issue_reports', issueId);
+      const issue = issues.find(i => i.id === issueId);
+      
+      // We'll store notes in an array within the document
+      const currentNotes = (issue as any).notes || [];
+      await updateDoc(issueRef, {
+        notes: [
+          ...currentNotes,
+          {
+            text: noteText,
+            author: currentUser?.name || 'Manager',
+            createdAt: Timestamp.now()
+          }
+        ],
+        updatedAt: Timestamp.now()
+      });
+
+      openLabelNotice('Note Added', 'Maintenance update recorded.', 'success');
+    } catch (error) {
+      console.error('Note error:', error);
+      openLabelNotice('Error', 'Failed to save note.', 'error');
+    }
+  };
+
   const loadVendorData = async () => {
     if (!currentUser?.companyId) return;
     try {
       if (!company) setLoading(true);
       const cid = currentUser.companyId;
 
-      const [companyDoc, branchesSnap, productsSnap, branchProductsSnap, categoriesSnap, staffSnap, labelsSnap, promosSnap, issuesSnap] = await Promise.all([
+      const staffQuery = currentUser.role === 'staff' && currentUser.branchId
+        ? query(collection(db, 'users'), where('companyId', '==', cid), where('role', '==', 'staff'), where('branchId', '==', currentUser.branchId))
+        : query(collection(db, 'users'), where('companyId', '==', cid), where('role', '==', 'staff'));
+
+      const [companyDoc, branchesSnap, productsSnap, branchProductsSnap, categoriesSnap, staffSnap] = await Promise.all([
         getDoc(fsDoc(db, 'companies', cid)),
         getDocs(query(collection(db, 'branches'), where('companyId', '==', cid))),
         getDocs(query(collection(db, 'products'), where('companyId', '==', cid))),
         getDocs(query(collection(db, 'branch_products'), where('companyId', '==', cid))),
         getDocs(query(collection(db, 'categories'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'users'), where('companyId', '==', cid), where('role', '==', 'staff'))),
-        getDocs(query(collection(db, 'labels'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'promotions'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'issue_reports'), where('companyId', '==', cid)))
+        getDocs(staffQuery)
       ]);
 
       if (companyDoc.exists()) setCompany({ id: companyDoc.id, ...companyDoc.data() } as Company);
@@ -189,57 +267,132 @@ export function useVendorDashboard() {
       })) as StaffMember[];
       setStaffMembers(staffData);
 
-      setLabels(labelsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as DigitalLabel[]);
-      setPromotions(promosSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Promotion[]);
-      setIssues(issuesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as IssueReport[]);
+      setLoading(false);
+      // Auto-select branch for staff members and update local branchName for UI
+      if (currentUser.role === 'staff' && currentUser.branchId) {
+        const myBranch = branchesData.find(b => b.id === currentUser.branchId);
+        const myCompany = companyDoc.exists() ? (companyDoc.data() as any).name : null;
+        
+        if (selectedBranchId === 'all') {
+          setSelectedBranchId(currentUser.branchId);
+        }
+        
+        // Update local store with branch name and company name for sidebar display
+        if ((myBranch && currentUser.branchName !== myBranch.name) || (myCompany && currentUser.companyName !== myCompany)) {
+          setUser({
+            ...currentUser,
+            branchName: myBranch?.name || currentUser.branchName,
+            companyName: myCompany || currentUser.companyName
+          });
+        }
+      } else if (currentUser.role === 'vendor') {
+        const myCompany = companyDoc.exists() ? (companyDoc.data() as any).name : null;
+        if (myCompany && currentUser.companyName !== myCompany) {
+          setUser({
+            ...currentUser,
+            companyName: myCompany
+          });
+        }
+      }
 
       setLoading(false);
     } catch (error) {
       console.error('Error loading vendor data:', error);
+    } finally {
       setLoading(false);
     }
+  };
+
+  // Dedicated Effect for Real-time Subscriptions (Unified)
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+    const cid = currentUser.companyId;
+    
+    // Role-based queries
+    const labelsQuery = currentUser.role === 'staff' && currentUser.branchId
+      ? query(collection(db, 'labels'), where('companyId', '==', cid), where('branchId', '==', currentUser.branchId))
+      : query(collection(db, 'labels'), where('companyId', '==', cid));
+
+    const issuesQuery = currentUser.role === 'staff' && currentUser.branchId
+      ? query(collection(db, 'issue_reports'), where('companyId', '==', cid), where('branchId', '==', currentUser.branchId))
+      : query(collection(db, 'issue_reports'), where('companyId', '==', cid));
+
+    const productsQuery = query(collection(db, 'products'), where('companyId', '==', cid));
+    const promosQuery = query(collection(db, 'promotions'), where('companyId', '==', cid));
+    const branchProductsQuery = query(collection(db, 'branch_products'), where('companyId', '==', cid));
+
+    // Listeners
+    const unsubLabels = onSnapshot(labelsQuery, (snap) => {
+      setLabels(snap.docs.map(d => ({ id: d.id, ...d.data() })) as DigitalLabel[]);
+    });
+
+    const unsubIssues = onSnapshot(issuesQuery, (snap) => {
+      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })) as IssueReport[]);
+    });
+
+    const unsubProducts = onSnapshot(productsQuery, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[]);
+    });
+
+    const unsubPromos = onSnapshot(promosQuery, (snap) => {
+      setPromotions(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Promotion[]);
+    });
+
+    const unsubBranchProducts = onSnapshot(branchProductsQuery, (snap) => {
+      setBranchProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as BranchProduct[]);
+    });
+
+    return () => {
+      unsubLabels();
+      unsubIssues();
+      unsubProducts();
+      unsubPromos();
+      unsubBranchProducts();
+    };
+  }, [currentUser?.id, currentUser?.companyId, currentUser?.branchId]);
+
+  const getDisplayStockForProduct = (productId: string) => {
+    const bp = branchProducts.find(b => b.productId === productId && (selectedBranchId === 'all' ? true : b.branchId === selectedBranchId));
+    return { stock: bp?.stock || 0, minStock: bp?.minStock || 10 };
   };
 
   useEffect(() => {
     if (!hasHydrated) return;
     if (!currentUser) {
       router.push('/login');
-    } else if (currentUser.role !== 'vendor') {
-      if (currentUser.role === 'admin') router.push('/admin');
-      if (currentUser.role === 'staff') router.push('/staff');
+    } else if (currentUser.role === 'admin') {
+      router.push('/admin');
     } else if (currentUser.companyId) {
       loadVendorData();
     }
   }, [currentUser, hasHydrated]);
 
-  // Realtime Subscriptions
+  // Immediate branch selection for staff
   useEffect(() => {
-    if (!currentUser?.companyId) return;
-    const cid = currentUser.companyId;
+    if (hasHydrated && currentUser?.role === 'staff' && currentUser.branchId) {
+      setSelectedBranchId(currentUser.branchId);
+    }
+  }, [currentUser?.role, currentUser?.branchId, hasHydrated]);
 
-    const unsubProducts = onSnapshot(query(collection(db, 'products'), where('companyId', '==', cid)), (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[]);
-    });
+  const updateProfile = async (data: { name: string }) => {
+    if (!currentUser?.id) return;
+    try {
+      await updateDoc(fsDoc(db, 'users', currentUser.id), {
+        name: data.name,
+        updatedAt: Timestamp.now()
+      });
+      
+      // Update local store to reflect changes immediately
+      setUser({
+        ...currentUser,
+        name: data.name
+      });
 
-    const unsubLabels = onSnapshot(query(collection(db, 'labels'), where('companyId', '==', cid)), (snap) => {
-      setLabels(snap.docs.map(d => ({ id: d.id, ...d.data() })) as DigitalLabel[]);
-    });
-
-    const unsubPromos = onSnapshot(query(collection(db, 'promotions'), where('companyId', '==', cid)), (snap) => {
-      setPromotions(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Promotion[]);
-    });
-
-    const unsubBranchProducts = onSnapshot(query(collection(db, 'branch_products'), where('companyId', '==', cid)), (snap) => {
-      setBranchProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as BranchProduct[]);
-    });
-
-    return () => {
-      unsubProducts();
-      unsubLabels();
-      unsubPromos();
-      unsubBranchProducts();
-    };
-  }, [currentUser?.companyId]);
+      openLabelNotice('Profile Updated', 'Your name has been updated successfully.', 'success');
+    } catch (error: any) {
+      openLabelNotice('Update Failed', error.message || 'Could not update profile.', 'error');
+    }
+  };
 
   // Helper: Get company display code
   const getCompanyDisplayCode = () => {
@@ -282,8 +435,9 @@ export function useVendorDashboard() {
   const totalProductPages = Math.ceil(filteredProducts.length / productsPerPage);
 
   const filteredLabels = useMemo(() => {
-    let items = labels;
+    let items = [...labels]; // Use spread to avoid mutating original
     if (isBranchFiltered) items = items.filter(l => l.branchId === selectedBranchId);
+    
     const term = searchTerm.trim().toLowerCase();
     if (term) {
       items = items.filter(l => 
@@ -292,13 +446,14 @@ export function useVendorDashboard() {
         (l.productSku || '').toLowerCase().includes(term)
       );
     }
-    return items;
-  }, [labels, selectedBranchId, searchTerm, isBranchFiltered]);
 
-  const getDisplayStockForProduct = (productId: string) => {
-    const bp = branchProducts.find(b => b.productId === productId && (selectedBranchId === 'all' ? true : b.branchId === selectedBranchId));
-    return { stock: bp?.stock || 0, minStock: bp?.minStock || 10 };
-  };
+    // Explicitly sort: Numeric-aware sequence (DL-001, DL-002, DL-010, etc.)
+    return items.sort((a, b) => {
+      const idA = a.labelId || '';
+      const idB = b.labelId || '';
+      return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [labels, selectedBranchId, searchTerm, isBranchFiltered]);
 
   // Actions
   const handleLogout = async () => {
@@ -331,7 +486,15 @@ export function useVendorDashboard() {
       });
       setShowCreateStaff(false);
       openLabelNotice('Staff created', `Staff "${staffForm.name}" created successfully!`, 'success');
-      loadVendorData();
+
+      // Trigger notification
+      await createNotification({
+        companyId: currentUser.companyId,
+        branchId: staffForm.branchId,
+        title: 'New Staff Member',
+        message: `${staffForm.name} has been added to the team as ${staffForm.position}.`,
+        type: 'success'
+      });
     } catch (error: any) {
       openLabelNotice('Create failed', error?.message || 'Could not create staff.', 'error');
     }
@@ -375,6 +538,7 @@ export function useVendorDashboard() {
       await addDoc(collection(db, 'promotions'), {
         ...promotionForm,
         companyId: currentUser.companyId,
+        branchId: currentUser.role === 'staff' ? currentUser.branchId : (promotionForm as any).branchId || 'all',
         startDate: Timestamp.fromDate(new Date(promotionForm.startDate)),
         endDate: Timestamp.fromDate(new Date(promotionForm.endDate)),
         status: 'active',
@@ -382,6 +546,15 @@ export function useVendorDashboard() {
       });
       setShowCreatePromotion(false);
       openLabelNotice('Success', 'Promotion created successfully!', 'success');
+
+      // Trigger notification
+      await createNotification({
+        companyId: currentUser.companyId,
+        branchId: currentUser.role === 'staff' ? currentUser.branchId : (promotionForm as any).branchId || 'all',
+        title: 'New Campaign Launched',
+        message: `Promotion "${promotionForm.name}" is now active.`,
+        type: 'info'
+      });
     } catch (error: any) {
       openLabelNotice('Create failed', error.message || 'Could not create promotion.', 'error');
     }
@@ -421,16 +594,27 @@ export function useVendorDashboard() {
         updatedAt: Timestamp.now()
       });
 
-      // Create branch products for all branches
-      await Promise.all(branches.map(branch => 
+      // Recalculate status
+      const stockVal = Number(productData.stock || 0);
+      const minVal = Number(productData.minStock || 10);
+      let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
+      if (stockVal === 0) status = 'out-of-stock';
+      else if (stockVal <= minVal) status = 'low-stock';
+
+      // Create branch products
+      const targetBranches = currentUser.role === 'staff' && currentUser.branchId 
+        ? branches.filter(b => b.id === currentUser.branchId)
+        : branches;
+
+      await Promise.all(targetBranches.map(branch => 
         addDoc(collection(db, 'branch_products'), {
           productId: productRef.id,
           branchId: branch.id,
           companyId: currentUser.companyId,
           currentPrice: productData.basePrice,
-          stock: Number(productData.stock || 0),
-          minStock: Number(productData.minStock || 10),
-          status: 'in-stock',
+          stock: stockVal,
+          minStock: minVal,
+          status,
           lastUpdated: Timestamp.now()
         })
       ));
@@ -444,12 +628,36 @@ export function useVendorDashboard() {
 
   const updateProduct = async (productId: string, productData: any) => {
     try {
+      // 1. Update master product
       await updateDoc(fsDoc(db, 'products', productId), {
         ...productData,
         updatedAt: Timestamp.now()
       });
+
+      // 2. Sync changes to branch products (especially stock and status)
+      const stockVal = Number(productData.stock || 0);
+      const minVal = Number(productData.minStock || 10);
+      let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
+      if (stockVal === 0) status = 'out-of-stock';
+      else if (stockVal <= minVal) status = 'low-stock';
+
+      const bpSnap = await getDocs(query(
+        collection(db, 'branch_products'),
+        where('productId', '==', productId)
+      ));
+
+      await Promise.all(bpSnap.docs.map(doc => 
+        updateDoc(fsDoc(db, 'branch_products', doc.id), {
+          stock: stockVal,
+          minStock: minVal,
+          currentPrice: productData.basePrice,
+          status,
+          lastUpdated: Timestamp.now()
+        })
+      ));
+
       setShowProductModal(false);
-      openLabelNotice('Updated', 'Product details saved.', 'success');
+      openLabelNotice('Updated', 'Product details and inventory status synced.', 'success');
     } catch (error: any) {
       openLabelNotice('Error', error.message || 'Could not update product.', 'error');
     }
@@ -471,7 +679,6 @@ export function useVendorDashboard() {
       try {
         await deleteDoc(fsDoc(db, 'users', id));
         openLabelNotice('Deleted', 'Staff member removed.', 'success');
-        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete staff.', 'error');
       }
@@ -494,7 +701,6 @@ export function useVendorDashboard() {
       try {
         await deleteDoc(fsDoc(db, 'categories', id));
         openLabelNotice('Deleted', 'Category removed.', 'success');
-        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete category.', 'error');
       }
@@ -504,15 +710,35 @@ export function useVendorDashboard() {
   const handleProfileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
+    
+    setIsRefreshing(true);
     try {
-      const storageRef = ref(storage, `users/${currentUser.id}/profile.jpg`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      await updateDoc(fsDoc(db, 'users', currentUser.id), { photoURL: url });
-      openLabelNotice('Success', 'Profile picture updated.', 'success');
-      loadVendorData();
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Upload to our backend (Cloudinary integration)
+      const response = await fetch('http://localhost:5000/api/upload/profile', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      const photoURL = data.url;
+
+      // Update Firestore
+      await updateDoc(fsDoc(db, 'users', currentUser.id), { photoURL });
+      
+      // Update local state
+      setUser({ ...currentUser, photoURL });
+      
+      openLabelNotice('Success', 'Profile picture updated successfully!', 'success');
     } catch (error) {
-      openLabelNotice('Error', 'Upload failed.', 'error');
+      console.error('Upload error:', error);
+      openLabelNotice('Error', 'Upload failed. Check server connection.', 'error');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -525,7 +751,6 @@ export function useVendorDashboard() {
         count
       });
       openLabelNotice('Success', `${count} labels generated for this branch.`, 'success');
-      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Bulk Provision Failed', error.message || 'Could not generate labels.', 'error');
     }
@@ -557,7 +782,6 @@ export function useVendorDashboard() {
         createdAt: Timestamp.now()
       });
       openLabelNotice('Success', `Label ${data.labelId} provisioned at ${data.location || 'unspecified location'}.`, 'success');
-      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Provision failed', error.message || 'Could not register hardware.', 'error');
     }
@@ -673,14 +897,12 @@ export function useVendorDashboard() {
   };
 
   const handleDeleteLabel = async (labelId: string) => {
-    openLabelConfirm('Delete label', 'Are you sure? This will permanently remove the digital label.', async () => {
-      try {
-        await deleteDoc(fsDoc(db, 'labels', labelId));
-        openLabelNotice('Deleted', 'Label removed.', 'success');
-      } catch (error) {
-        openLabelNotice('Error', 'Could not delete label.', 'error');
-      }
-    });
+    try {
+      await deleteDoc(fsDoc(db, 'labels', labelId));
+      openLabelNotice('Deleted', 'Hardware node permanently removed from system.', 'success');
+    } catch (error) {
+      openLabelNotice('Error', 'Failed to remove hardware node.', 'error');
+    }
   };
 
   const executeManualDiscount = async (percent: number) => {
@@ -763,6 +985,89 @@ export function useVendorDashboard() {
     }
   };
 
+  const createBranch = async (branchData: any) => {
+    if (!currentUser?.companyId) return;
+    try {
+      await addDoc(collection(db, 'branches'), {
+        ...branchData,
+        companyId: currentUser.companyId,
+        createdAt: Timestamp.now()
+      });
+      openLabelNotice('Branch Created', `${branchData.name} has been added to your retail network.`, 'success');
+      setShowCreateBranch(false);
+    } catch (error) {
+      openLabelNotice('Error', 'Failed to create new branch.', 'error');
+    }
+  };
+
+  const updateBranch = async (branchId: string, branchData: any) => {
+    try {
+      await updateDoc(fsDoc(db, 'branches', branchId), {
+        ...branchData,
+        updatedAt: Timestamp.now()
+      });
+      openLabelNotice('Branch Updated', `${branchData.name} details have been refreshed.`, 'success');
+      setShowCreateBranch(false);
+    } catch (error) {
+      openLabelNotice('Error', 'Failed to update branch.', 'error');
+    }
+  };
+
+  const handleDeleteBranch = async (branchId: string) => {
+    openLabelConfirm('Delete Branch', 'Are you sure? This will permanently remove this location and may affect assigned staff/labels.', async () => {
+      try {
+        await deleteDoc(fsDoc(db, 'branches', branchId));
+        openLabelNotice('Branch Removed', 'Location has been deleted from your network.', 'success');
+      } catch (error) {
+        openLabelNotice('Error', 'Failed to delete branch.', 'error');
+      }
+    });
+  };
+
+  const reportIssue = async (labelCode: string, issue: string, priority: 'high' | 'medium' | 'low') => {
+    if (!currentUser?.companyId) return;
+    
+    // Find the label to get its branch and product context
+    const label = labels.find(l => l.labelId === labelCode);
+    if (!label) {
+      openLabelNotice('Not Found', 'Could not locate that hardware tag.', 'error');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'issue_reports'), {
+        labelId: labelCode,
+        productId: label.productId,
+        issue,
+        status: 'open',
+        reportedAt: Timestamp.now(),
+        priority,
+        branchId: label.branchId,
+        companyId: currentUser.companyId,
+        reportedBy: currentUser.id,
+        reportedByName: currentUser.name || 'System User'
+      });
+
+      // Create notification
+      await createNotification({
+        companyId: currentUser.companyId,
+        branchId: label.branchId,
+        title: 'Hardware Issue Flagged',
+        message: `${currentUser.name || 'Manager'} reported: ${issue} on ${labelCode}`,
+        type: priority === 'high' ? 'alert' : 'warning'
+      });
+
+      // Update label status to reflect error
+      await updateDoc(fsDoc(db, 'labels', label.id), { status: 'error' });
+      
+      openLabelNotice('Report Sent', 'Maintenance log updated successfully.', 'success');
+      setShowReportIssue(false);
+    } catch (error) {
+      console.error('Report error:', error);
+      openLabelNotice('Error', 'Failed to submit report.', 'error');
+    }
+  };
+
   return {
     selectedTab, setSelectedTab,
     loading,
@@ -770,6 +1075,7 @@ export function useVendorDashboard() {
     company,
     branches,
     products,
+    branchProducts,
     categories,
     staffMembers,
     labels,
@@ -779,6 +1085,8 @@ export function useVendorDashboard() {
     selectedFilterCategory, setSelectedFilterCategory,
     searchTerm, setSearchTerm,
     labelSyncFilter, setLabelSyncFilter,
+    filteredProducts,
+    filteredLabels,
     paginatedProducts,
     totalProductPages,
     productPage, setProductPage,
@@ -789,11 +1097,13 @@ export function useVendorDashboard() {
     showCreatePromotion, setShowCreatePromotion,
     editingPromotion, setEditingPromotion,
     handleEditProduct,
+    handleEditBranch,
     showEditStaff, setShowEditStaff,
     showResetPassword, setShowResetPassword,
     showCategoryModal, setShowCategoryModal,
     selectedCategory, setSelectedCategory,
     selectedProductForEdit, setSelectedProductForEdit,
+    selectedBranchForEdit, setSelectedBranchForEdit,
     assignProductModal, setAssignProductModal,
     assignSearchQuery, setAssignSearchQuery,
     activeDiscountModal, setActiveDiscountModal,
@@ -807,6 +1117,7 @@ export function useVendorDashboard() {
     handleLogout,
     createStaff, updateStaff, handleResetPassword,
     createPromotion, updatePromotion,
+    createBranch, updateBranch, handleDeleteBranch,
     handleDeleteProduct,
     handleSyncAllLabels,
     assignProductToLabel,
@@ -817,6 +1128,7 @@ export function useVendorDashboard() {
     handleDeletePromotion,
     handleDeleteCategory,
     handleProfileUpload,
+    updateProfile,
     createProductFromModal,
     updateProduct,
     getDisplayStockForProduct,
@@ -829,7 +1141,9 @@ export function useVendorDashboard() {
     handleBulkProvision,
     updateLabelLocation,
     bulkAutoMapLocations,
-    openLabelConfirm,
-    openLabelNotice
+    showReportIssue, setShowReportIssue,
+    reportIssue,
+    updateIssueStatus,
+    addIssueNote
   };
 }

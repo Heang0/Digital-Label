@@ -31,6 +31,7 @@ export interface StaffPermissions {
   canCreateProducts?: boolean;
   canCreateLabels?: boolean;
   canCreatePromotions?: boolean;
+  canManageStaff?: boolean;
   maxPriceChange?: number;
 }
 

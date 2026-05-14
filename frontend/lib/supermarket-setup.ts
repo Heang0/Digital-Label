@@ -48,7 +48,19 @@ export async function generateLabelsForBranch(params: {
       where("branchId", "==", branchId)
     )
   );
-  let counter = existing.size + 1;
+
+  // Find the highest existing number in DL-001 format
+  let maxNum = 0;
+  existing.forEach(d => {
+    const code = d.data().labelCode || d.data().labelId || '';
+    const match = code.match(/DL-(\d+)/);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+
+  let counter = maxNum + 1;
   let created = 0;
 
   for (let i = 0; i < count; i++) {

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Bell, X, Check, Info, AlertTriangle, Zap, MessageSquare, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
+import { useUserStore } from '@/lib/user-store';
 
 interface Notification {
   id: string;
@@ -15,29 +16,50 @@ interface Notification {
   read: boolean;
 }
 
-export const NotificationDropdown = () => {
+interface NotificationDropdownProps {
+  onTabChange: (tab: any) => void;
+}
+
+export const NotificationDropdown = ({ onTabChange }: NotificationDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user: currentUser } = useUserStore();
 
   useEffect(() => {
+    if (!currentUser?.companyId) return;
+
+    // Minimalist query to avoid ANY composite index requirements
     const q = query(
       collection(db, 'notifications'),
-      orderBy('createdAt', 'desc'),
-      limit(20)
+      where('companyId', '==', currentUser.companyId),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Notification[];
-      setNotifications(docs);
+
+      // Sort by date on client side
+      docs.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // Manual filtering for staff to avoid index error
+      if (currentUser.role === 'staff' && currentUser.branchId) {
+        docs = docs.filter(n => (n as any).branchId === currentUser.branchId || (n as any).branchId === 'all');
+      }
+
+      setNotifications(docs.slice(0, 20));
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.id, currentUser?.companyId, currentUser?.branchId, currentUser?.role]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -58,6 +80,33 @@ export const NotificationDropdown = () => {
     } catch (error) {
       console.error('Failed to remove notification:', error);
     }
+  };
+
+  const handleNotificationClick = async (n: Notification) => {
+    // 1. Mark as read
+    if (!n.read) {
+      try {
+        await updateDoc(doc(db, 'notifications', n.id), { read: true });
+      } catch (err) {
+        console.error('Failed to mark read:', err);
+      }
+    }
+
+    // 2. Navigate based on content
+    const title = n.title.toLowerCase();
+    if (title.includes('issue') || title.includes('discrepancy')) {
+      onTabChange('issues');
+    } else if (title.includes('staff')) {
+      onTabChange('staff');
+    } else if (title.includes('campaign') || title.includes('promotion')) {
+      onTabChange('promotions');
+    } else {
+      // Default to activity log if generic
+      onTabChange('activity');
+    }
+
+    // 3. Close dropdown
+    setIsOpen(false);
   };
 
   const formatTime = (timestamp: any) => {
@@ -132,6 +181,7 @@ export const NotificationDropdown = () => {
                     {notifications.map((n) => (
                       <div 
                         key={n.id} 
+                        onClick={() => handleNotificationClick(n)}
                         className={`p-4 flex gap-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer group ${!n.read ? 'bg-blue-50/5 dark:bg-blue-900/10' : ''}`}
                       >
                         <div className={`mt-1 h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -170,7 +220,13 @@ export const NotificationDropdown = () => {
                 )}
               </div>
 
-              <button className="w-full py-4 border-t border-[#E2E8F0] dark:border-slate-800 text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-[#5750F1] transition-all">
+              <button 
+                onClick={() => {
+                  onTabChange('activity');
+                  setIsOpen(false);
+                }}
+                className="w-full py-4 border-t border-[#E2E8F0] dark:border-slate-800 text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-[#5750F1] transition-all"
+              >
                 View All Activity
               </button>
             </motion.div>

@@ -2,34 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  RefreshCw,
-  LayoutDashboard,
-  Package,
-  Users,
-  Tag,
-  Percent,
-  Settings,
-  DollarSign
-} from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
 
-// Modular Vendor Components
+// Same vendor-quality components
 import { DashboardTab } from '@/components/vendor/tabs/DashboardTab';
 import { ProductsTab } from '@/components/vendor/tabs/ProductsTab';
 import { CategoriesTab } from '@/components/vendor/tabs/CategoriesTab';
 import { LabelsTab } from '@/components/vendor/tabs/LabelsTab';
-import { BranchesTab } from '@/components/vendor/tabs/BranchesTab';
 import { StaffTab } from '@/components/vendor/tabs/StaffTab';
-import { PromotionsTab } from '@/components/vendor/tabs/PromotionsTab';
-import { SalesTab } from '@/components/vendor/tabs/SalesTab';
 import { SupportTab } from '@/components/vendor/tabs/SupportTab';
 import { SettingsTab } from '@/components/vendor/tabs/SettingsTab';
 import { StaffManagementModal } from '@/components/vendor/StaffManagementModal';
-import { PromotionManagementModal } from '@/components/vendor/PromotionManagementModal';
 import { AssignProductModal } from '@/components/vendor/AssignProductModal';
 import { ManualDiscountModal } from '@/components/vendor/ManualDiscountModal';
 import { ResetPasswordModal } from '@/components/vendor/ResetPasswordModal';
@@ -37,12 +24,14 @@ import { LabelDetailModal } from '@/components/vendor/LabelDetailModal';
 import { ProvisionLabelModal } from '@/components/vendor/ProvisionLabelModal';
 import { SmartAutoMapModal } from '@/components/vendor/SmartAutoMapModal';
 import { LabelNoticeModal } from '@/components/vendor/LabelNoticeModal';
-import { BranchManagementModal } from '@/components/vendor/BranchManagementModal';
+import { ReportIssueModal } from '@/components/vendor/ReportIssueModal';
 
-// Business Logic Hook
+// Same business logic engine as vendor
 import { useVendorDashboard } from '@/hooks/useVendorDashboard';
+import { StaffIssuesTab } from '@/components/staff/tabs/IssuesTab';
+import { ActivityTab } from '@/components/vendor/tabs/ActivityTab';
 
-export default function VendorDashboard() {
+export function ManagerStaffPage() {
   const {
     selectedTab, setSelectedTab,
     loading,
@@ -54,20 +43,16 @@ export default function VendorDashboard() {
     categories,
     staffMembers,
     labels,
-    promotions,
     issues,
     selectedBranchId, setSelectedBranchId,
     selectedFilterCategory, setSelectedFilterCategory,
     searchTerm, setSearchTerm,
-    filteredProducts,
-    filteredLabels,
     paginatedProducts,
     totalProductPages,
     productPage, setProductPage,
     mobileNavOpen, setMobileNavOpen,
     showCreateStaff, setShowCreateStaff,
     showProductModal, setShowProductModal,
-    showCreateBranch, setShowCreateBranch,
     showCreatePromotion, setShowCreatePromotion,
     editingPromotion, setEditingPromotion,
     handleEditProduct,
@@ -76,20 +61,15 @@ export default function VendorDashboard() {
     showCategoryModal, setShowCategoryModal,
     selectedCategory, setSelectedCategory,
     selectedProductForEdit, setSelectedProductForEdit,
-    selectedBranchForEdit, setSelectedBranchForEdit,
     assignProductModal, setAssignProductModal,
     assignSearchQuery, setAssignSearchQuery,
     activeDiscountModal, setActiveDiscountModal,
     labelModal, setLabelModal,
     staffForm, setStaffForm,
     editStaffForm, setEditStaffForm,
-    promotionForm, setPromotionForm,
     resetPasswordData, setResetPasswordData,
     handleLogout,
     createStaff, updateStaff, handleResetPassword,
-    createPromotion, updatePromotion,
-    createBranch, updateBranch, handleDeleteBranch,
-    handleEditBranch,
     handleDeleteProduct,
     handleSyncAllLabels,
     assignProductToLabel,
@@ -102,7 +82,6 @@ export default function VendorDashboard() {
     createProductFromModal,
     updateProduct,
     handleDeleteStaff,
-    handleDeletePromotion,
     handleDeleteCategory,
     handleProfileUpload,
     updateProfile,
@@ -113,41 +92,35 @@ export default function VendorDashboard() {
     provisionLabel,
     handleBulkProvision,
     updateLabelLocation,
-    bulkAutoMapLocations
+    bulkAutoMapLocations,
+    showReportIssue, setShowReportIssue,
+    reportIssue,
+    updateIssueStatus,
+    addIssueNote
   } = useVendorDashboard();
 
-  // Handle ?editLabel=ID from QR scans
-  useEffect(() => {
-    if (loading || labels.length === 0) return;
-
-    const searchParams = new URLSearchParams(window.location.search);
-    const editLabelId = searchParams.get('editLabel');
-    
-    if (editLabelId) {
-      const targetLabel = labels.find(l => l.id === editLabelId);
-      if (targetLabel) {
-        // Switch to the labels tab
-        setSelectedTab('labels' as any);
-        
-        // Open the detail modal for this label
-        setSelectedLabel(targetLabel);
-        
-        // Clean URL so it doesn't re-open on refresh
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-        
-        openLabelNotice('Node Located', `Entering management console for tag ${targetLabel.labelId}.`, 'success');
-      }
-    }
-  }, [labels, loading, setSelectedLabel, setSelectedTab, openLabelNotice]);
-
   const [showSmartMapModal, setShowSmartMapModal] = useState(false);
+  
+  // Filter branches to only show the manager's branch
+  const managerBranches = currentUser?.branchId 
+    ? branches.filter(b => b.id === currentUser.branchId)
+    : [];
+
   const unsetLabelsCount = labels.filter(l =>
     (selectedBranchId === 'all' || l.branchId === selectedBranchId) &&
     (!l.location || l.location.toLowerCase().includes('unset'))
   ).length;
 
-  if (!currentUser || currentUser.role !== 'vendor') return null;
+  if (loading && !company) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-[#1C2434]">
+        <div className="h-16 w-16 bg-[#5750F1] flex items-center justify-center animate-pulse mb-6">
+          <RefreshCw className="h-8 w-8 text-white animate-spin" />
+        </div>
+        <p className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.3em] animate-pulse">Loading Branch Data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#111928] overflow-hidden transition-colors duration-300">
@@ -210,32 +183,25 @@ export default function VendorDashboard() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {loading && !company && (
-                <div className="flex items-center gap-3 p-4 mb-6 glass rounded-xl text-sm font-bold text-[#5750F1]">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Syncing Platform Data...
-                </div>
-              )}
-
               {selectedTab === 'dashboard' && (
                 <DashboardTab
                   currentUser={currentUser}
                   company={company}
-                  branches={branches}
+                  branches={managerBranches}
                   labels={labels}
                   branchProducts={branchProducts}
                   issues={issues}
                   selectedBranchId={selectedBranchId}
                   setSelectedBranchId={setSelectedBranchId}
                   setSelectedTab={setSelectedTab as any}
-                  setShowCreateBranch={setShowCreateBranch}
+                  setShowCreateBranch={() => {}}
                 />
               )}
 
               {selectedTab === 'products' && (
                 <ProductsTab
                   products={products}
-                  branches={branches}
+                  branches={managerBranches}
                   categories={categories}
                   selectedBranchId={selectedBranchId}
                   setSelectedBranchId={setSelectedBranchId}
@@ -265,8 +231,8 @@ export default function VendorDashboard() {
 
               {selectedTab === 'labels' && (
                 <LabelsTab
-                  labels={filteredLabels}
-                  branches={branches}
+                  labels={labels}
+                  branches={managerBranches}
                   selectedBranchId={selectedBranchId}
                   setSelectedBranchId={setSelectedBranchId}
                   searchTerm={searchTerm}
@@ -285,37 +251,14 @@ export default function VendorDashboard() {
                   unsetLabelsCount={unsetLabelsCount}
                   bulkAutoMapLocations={bulkAutoMapLocations}
                   handleBulkProvision={handleBulkProvision}
-                  provisionLabel={provisionLabel}
                   openLabelConfirm={openLabelConfirm}
-                />
-              )}
-
-              {selectedTab === 'activity' && (
-                <ActivityTab 
-                  currentUser={currentUser}
-                  branches={branches}
-                  onTabChange={setSelectedTab as any}
-                />
-              )}
-
-              {selectedTab === 'branches' && (
-                <BranchesTab
-                  branches={branches}
-                  onCreateBranch={() => {
-                    setSelectedBranchForEdit(null);
-                    setShowCreateBranch(true);
-                  }}
-                  onEditBranch={handleEditBranch}
-                  onDeleteBranch={handleDeleteBranch}
-                  setSelectedTab={setSelectedTab as any}
-                  setSelectedBranchId={setSelectedBranchId}
                 />
               )}
 
               {selectedTab === 'staff' && (
                 <StaffTab
                   staffMembers={staffMembers}
-                  branches={branches}
+                  branches={managerBranches}
                   setShowCreateStaff={setShowCreateStaff}
                   setShowEditStaff={setShowEditStaff}
                   setShowResetPassword={setShowResetPassword}
@@ -325,21 +268,21 @@ export default function VendorDashboard() {
                 />
               )}
 
-              {selectedTab === 'promotions' && (
-                <PromotionsTab
-                  promotions={promotions}
-                  setShowCreatePromotion={setShowCreatePromotion}
-                  setEditingPromotion={setEditingPromotion}
-                  setPromotionForm={setPromotionForm}
-                  handleDeletePromotion={handleDeletePromotion}
+              {selectedTab === 'issues' && (
+                <StaffIssuesTab
+                  issues={issues}
+                  onRefresh={loadVendorData}
+                  onReportNew={() => setShowReportIssue(true)}
+                  onUpdateStatus={updateIssueStatus}
+                  onAddNote={addIssueNote}
                 />
               )}
 
-              {selectedTab === 'sales' && (
-                <SalesTab
+              {selectedTab === 'activity' && (
+                <ActivityTab 
                   currentUser={currentUser}
-                  branches={branches}
-                  selectedBranchId={selectedBranchId}
+                  branches={managerBranches}
+                  onTabChange={setSelectedTab}
                 />
               )}
 
@@ -358,24 +301,7 @@ export default function VendorDashboard() {
         </main>
       </div>
 
-      {/* Global Notice Modal */}
-      {labelModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setLabelModal(null)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-sm bg-white dark:bg-[#1C2434] rounded-2xl shadow-2xl overflow-hidden p-8 text-center border border-slate-100 dark:border-slate-800">
-            <h3 className="text-xl font-bold text-[#111928] dark:text-white mb-2">{labelModal.title}</h3>
-            <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mb-8">{labelModal.message}</p>
-            <div className="flex justify-center gap-3">
-              {labelModal.cancelLabel && (
-                <button onClick={() => setLabelModal(null)} className="px-6 py-2.5 text-xs font-bold text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">{labelModal.cancelLabel}</button>
-              )}
-              <button onClick={() => { labelModal.onConfirm?.(); setLabelModal(null); }} className="px-8 py-2.5 bg-[#5750F1] text-white rounded-xl text-xs font-bold hover:bg-[#4A44D1] shadow-lg shadow-[#5750F1]/20 transition-all">{labelModal.confirmLabel || 'Acknowledge'}</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Modals */}
+      {/* All the same vendor modals */}
       <ManualDiscountModal
         activeDiscountModal={activeDiscountModal}
         setActiveDiscountModal={setActiveDiscountModal}
@@ -423,7 +349,7 @@ export default function VendorDashboard() {
         setStaffForm={setStaffForm}
         editStaffForm={editStaffForm}
         setEditStaffForm={setEditStaffForm}
-        branches={branches}
+        branches={managerBranches}
         createStaff={createStaff}
         updateStaff={updateStaff}
         currentUser={currentUser}
@@ -437,23 +363,11 @@ export default function VendorDashboard() {
         handleResetPassword={handleResetPassword}
       />
 
-      <PromotionManagementModal
-        showCreatePromotion={showCreatePromotion}
-        setShowCreatePromotion={setShowCreatePromotion}
-        editingPromotion={editingPromotion}
-        setEditingPromotion={setEditingPromotion}
-        promotionForm={promotionForm}
-        setPromotionForm={setPromotionForm}
-        products={products}
-        createPromotion={createPromotion}
-        updatePromotion={updatePromotion}
-      />
-
       <ProvisionLabelModal
         isOpen={showProvisionModal}
         onClose={() => setShowProvisionModal(false)}
         onProvision={provisionLabel}
-        branches={branches}
+        branches={managerBranches}
         selectedBranchId={selectedBranchId}
         existingLabels={labels}
       />
@@ -488,20 +402,12 @@ export default function VendorDashboard() {
         onUnlink={handleUnlinkProductFromLabel}
       />
 
-      <BranchManagementModal
-        isOpen={showCreateBranch}
-        onClose={() => {
-          setShowCreateBranch(false);
-          setSelectedBranchForEdit(null);
-        }}
-        onSubmit={async (data) => {
-          if (selectedBranchForEdit) {
-            await updateBranch(selectedBranchForEdit.id, data);
-          } else {
-            await createBranch(data);
-          }
-        }}
-        editingBranch={selectedBranchForEdit}
+      <ReportIssueModal
+        isOpen={showReportIssue}
+        onClose={() => setShowReportIssue(false)}
+        onSubmit={reportIssue}
+        labels={labels}
+        selectedBranchId={selectedBranchId}
       />
     </div>
   );
