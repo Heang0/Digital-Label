@@ -187,7 +187,7 @@ export default function RegisterPage() {
         <div className="absolute -bottom-24 right-10 h-96 w-96 rounded-full bg-blue-700/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center py-10">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-start pt-2 py-10">
         <div className="w-full max-w-2xl">
           <div className="mb-8 text-center">
             <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
@@ -233,14 +233,14 @@ export default function RegisterPage() {
                   >
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('company_name')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('company_name')}</label>
                         <div className="relative">
                           <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="companyName" value={formData.companyName} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="Lucky Mart" required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('full_name')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('full_name')}</label>
                         <div className="relative">
                           <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="fullName" value={formData.fullName} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="John Doe" required />
@@ -250,14 +250,14 @@ export default function RegisterPage() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('email_addr')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('email_addr')}</label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="email" type="email" value={formData.email} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="contact@luckymart.com" required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('phone')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('phone')}</label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="phone" value={formData.phone} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="+855 12 345 678" required />
@@ -266,7 +266,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('address')}</label>
+                      <label className="text-sm font-medium text-gray-700">{t('address')}</label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <Input name="address" value={formData.address} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="Phnom Penh, Cambodia" />
@@ -275,14 +275,14 @@ export default function RegisterPage() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('password')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('password')}</label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="password" type="password" value={formData.password} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="********" required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">{t('confirm')}</label>
+                        <label className="text-sm font-medium text-gray-700">{t('confirm')}</label>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <Input name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} className="pl-10 h-11 rounded-xl" placeholder="********" required />
@@ -290,7 +290,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    <Button type="button" onClick={() => setStep(2)} className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl mt-4">
+                    <Button type="button" onClick={() => setStep(2)} className="w-full h-11 bg-blue-600 hover:bg-blue-700 mt-4">
                       {t('continue_to_plans')}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -344,10 +344,10 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setStep(1)} className="h-11 px-6 rounded-xl">
+                      <Button type="button" variant="outline" onClick={() => setStep(1)} className="h-11 px-6">
                         {t('back')}
                       </Button>
-                      <Button type="submit" className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 rounded-xl" isLoading={isLoading}>
+                      <Button type="submit" className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20" isLoading={isLoading}>
                         {t('complete_registration')}
                       </Button>
                     </div>

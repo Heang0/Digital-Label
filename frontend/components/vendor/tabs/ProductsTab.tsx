@@ -83,7 +83,7 @@ export const ProductsTab = ({
         <div className="flex flex-wrap items-center gap-3">
           {(currentUser?.role === 'vendor' || currentUser?.permissions?.canCreateProducts) && (
             <>
-              <Button onClick={() => (document.getElementById('bulk-import') as HTMLInputElement)?.click()} variant="outline" className="h-11 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2">
+              <Button onClick={() => (document.getElementById('bulk-import') as HTMLInputElement)?.click()} variant="outline" className="h-11 rounded-lg border-slate-200 dark:border-slate-800 text-sm font-bold gap-2">
                 <ArrowUpRight className="h-4 w-4" />
                 {t('bulk_import') || 'Bulk Import'}
                 <input 
@@ -100,17 +100,17 @@ export const ProductsTab = ({
               <Button 
                 onClick={handleBulkExport}
                 variant="outline" 
-                className="h-11 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2"
+                className="h-11 rounded-lg border-slate-200 dark:border-slate-800 text-sm font-bold gap-2"
               >
                 <ArrowDownRight className="h-4 w-4" />
                 {t('bulk_export') || 'Bulk Export'}
               </Button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 hidden md:block mx-1" />
-              <Button onClick={() => setShowProductModal(true)} className="h-11 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20">
+              <Button onClick={() => setShowProductModal(true)} className="h-11 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold gap-2 shadow-lg shadow-indigo-500/20">
                 <Plus className="h-4 w-4" />
                 {t('new_product') || 'New Product'}
               </Button>
-              <Button onClick={() => setShowCategoryModal(true)} variant="outline" className="h-11 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest">
+              <Button onClick={() => setShowCategoryModal(true)} variant="outline" className="h-11 rounded-lg border-slate-200 dark:border-slate-800 text-sm font-bold">
                 {t('categories')}
               </Button>
             </>
@@ -118,16 +118,6 @@ export const ProductsTab = ({
         </div>
       </div>
 
-      <div className="flex justify-end">
-        {(currentUser?.role === 'vendor' || currentUser?.permissions?.canCreateProducts) && (
-          <button 
-            onClick={downloadImportTemplate}
-            className="text-[10px] font-bold text-[#5750F1] hover:underline uppercase tracking-widest"
-          >
-            {t('download_template') || 'Download Import Template'}
-          </button>
-        )}
-      </div>
 
 
       <div className="premium-card overflow-hidden">

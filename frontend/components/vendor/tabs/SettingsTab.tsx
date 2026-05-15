@@ -73,7 +73,7 @@ export const SettingsTab = ({
         <Button 
           onClick={handleSave}
           disabled={isSaving}
-          className="h-12 px-10 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] font-black text-[10px] uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20"
+          className="h-11 px-10 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold gap-2 shadow-lg shadow-indigo-500/20"
         >
            {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
            {t('save_changes')}
@@ -182,7 +182,7 @@ export const SettingsTab = ({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('legal_entity')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('legal_entity')}</label>
                     <div className="relative">
                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input 
@@ -193,7 +193,7 @@ export const SettingsTab = ({
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('tax_identification')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('tax_identification')}</label>
                     <div className="relative">
                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input 
@@ -205,7 +205,7 @@ export const SettingsTab = ({
                     </div>
                  </div>
                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('hq_address')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('hq_address')}</label>
                     <div className="relative">
                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input 
@@ -216,7 +216,7 @@ export const SettingsTab = ({
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('contact_line')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('contact_line')}</label>
                     <div className="relative">
                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input 
@@ -227,7 +227,7 @@ export const SettingsTab = ({
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('registered_email')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('registered_email')}</label>
                     <div className="relative">
                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input readOnly value={currentUser?.email} className="pl-11 h-12 rounded-none bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-xs opacity-60" />

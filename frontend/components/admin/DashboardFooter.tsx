@@ -7,7 +7,7 @@ export const DashboardFooter = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full py-4 px-8 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-[#1C2434]/50 backdrop-blur-sm">
+    <footer className="sticky bottom-0 z-10 w-full py-3 px-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#1C2434] shadow-[0_-1px_0_0_rgba(0,0,0,0.04)]">
       <div className="flex items-center justify-center gap-1.5">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('powered_by')}</p>
         <div className="h-4 w-4 overflow-hidden rounded-sm shadow-sm">

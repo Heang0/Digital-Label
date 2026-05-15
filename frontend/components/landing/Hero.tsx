@@ -35,10 +35,7 @@ export const Hero = () => {
             initial="hidden"
             animate="visible"
           >
-            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold tracking-wide">
-              <Zap className="h-4 w-4 text-blue-300" />
-              {t('hero_tag')}
-            </motion.div>
+
 
             <motion.h1 variants={fadeInUp} className="mt-6 text-4xl md:text-6xl font-semibold text-slate-900 leading-tight">
               {t('hero_title')}

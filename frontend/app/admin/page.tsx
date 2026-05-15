@@ -16,7 +16,7 @@ import {
 import { useAdminData } from '@/hooks/useAdminData';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
-import { DashboardFooter } from '@/components/admin/DashboardFooter';
+
 import { AdminOverview } from '@/components/admin/AdminOverview';
 import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminCompanies } from '@/components/admin/AdminCompanies';
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
       </AnimatePresence>
 
       {/* Static Sidebar (Desktop) */}
-      <div className="hidden lg:block w-72 flex-shrink-0">
+      <div className="hidden lg:block w-64 flex-shrink-0">
         <DashboardSidebar 
           currentUser={currentUser as any}
           selectedTab={selectedTab}
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
               {selectedTab === 'label-ui' && <AdminLabelUI />}
             </motion.div>
           </AnimatePresence>
-          <DashboardFooter />
+
         </main>
       </div>
 

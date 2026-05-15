@@ -59,22 +59,22 @@ export const PromotionManagementModal = ({
               <form onSubmit={editingPromotion ? updatePromotion : createPromotion} className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div className="space-y-2 md:col-span-2">
-                       <label className="text-xs font-bold text-[#637381] uppercase tracking-widest">{t('promotion_name')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('promotion_name')}</label>
                        <Input required placeholder={t('promotion_name_placeholder')} value={promotionForm.name} onChange={(e) => setPromotionForm({...promotionForm, name: e.target.value})} className="h-11 rounded-lg border-[#E2E8F0] dark:border-slate-800" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                       <label className="text-xs font-bold text-[#637381] uppercase tracking-widest">{t('description')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('description')}</label>
                        <Input placeholder={t('description_placeholder')} value={promotionForm.description} onChange={(e) => setPromotionForm({...promotionForm, description: e.target.value})} className="h-11 rounded-lg border-[#E2E8F0] dark:border-slate-800" />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('discount_type')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('discount_type')}</label>
                        <select className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white" value={promotionForm.type} onChange={(e) => setPromotionForm({...promotionForm, type: e.target.value as any})}>
                           <option value="percentage">{t('percentage')}</option>
                           <option value="fixed">{t('fixed_amount')}</option>
                        </select>
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('discount_value')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('discount_value')}</label>
                        <Input required type="number" value={promotionForm.value} onChange={(e) => setPromotionForm({...promotionForm, value: Number(e.target.value)})} className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all" />
                     </div>
 
@@ -108,7 +108,7 @@ export const PromotionManagementModal = ({
 
                        {promotionForm.applyTo === 'selected' && (
                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3">
-                             <label className="text-[10px] font-black text-[#637381] uppercase tracking-widest">{t('select_products_count')} ({promotionForm.selectedProducts.length})</label>
+                             <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('select_products_count')} ({promotionForm.selectedProducts.length})</label>
                              <div className="max-h-48 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded-xl divide-y divide-slate-50 dark:divide-slate-800 custom-scrollbar">
                                 {products.map(p => (
                                    <label key={p.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors">
@@ -137,11 +137,11 @@ export const PromotionManagementModal = ({
                     </div>
 
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('start_date')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('start_date')}</label>
                        <Input required type="datetime-local" value={promotionForm.startDate} onChange={(e) => setPromotionForm({...promotionForm, startDate: e.target.value})} className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all text-sm" />
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('end_date')}</label>
+                       <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('end_date')}</label>
                        <Input required type="datetime-local" value={promotionForm.endDate} onChange={(e) => setPromotionForm({...promotionForm, endDate: e.target.value})} className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all text-sm" />
                     </div>
                  </div>

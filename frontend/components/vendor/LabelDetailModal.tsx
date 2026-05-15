@@ -145,7 +145,7 @@ export const LabelDetailModal = ({ label, onClose, onSync, onUpdateLocation, onO
 
                   {/* Placement Section */}
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Shelf Positioning / Aisle</label>
+                     <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">Shelf Positioning / Aisle</label>
                      <div className="flex gap-2">
                         <div className="relative flex-1">
                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

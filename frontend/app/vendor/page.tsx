@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
-import { DashboardFooter } from '@/components/admin/DashboardFooter';
+
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
 
@@ -221,7 +221,7 @@ export default function VendorDashboard() {
         )}
       </AnimatePresence>
 
-      <div className="hidden lg:block w-72 flex-shrink-0">
+      <div className="hidden lg:block w-64 flex-shrink-0">
         <DashboardSidebar
           currentUser={currentUser as any}
           selectedTab={selectedTab}
@@ -423,7 +423,7 @@ export default function VendorDashboard() {
               )}
             </motion.div>
           </AnimatePresence>
-          <DashboardFooter />
+
         </main>
       </div>
 

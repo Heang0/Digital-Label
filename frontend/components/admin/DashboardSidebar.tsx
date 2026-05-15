@@ -54,6 +54,8 @@ export const DashboardSidebar = ({
   const isAdmin = currentUser?.role === 'admin';
   const isVendor = currentUser?.role === 'vendor';
   const isStaff = currentUser?.role === 'staff';
+  const isStock = currentUser?.role === 'stock';
+  const isInventoryManager = currentUser?.role === 'inventory_manager';
   const isManager = currentUser?.position === 'Manager';
 
   const getMenuGroups = () => {
@@ -212,13 +214,64 @@ export const DashboardSidebar = ({
       });
     }
 
-    menu.push({
-      label: t('general'),
-      items: [
-        { id: 'settings', label: t('profile'), icon: Settings },
-        { id: 'support', label: t('support_tickets'), icon: HelpCircle },
-      ]
-    });
+    // Inventory Manager Role
+    if (isInventoryManager) {
+      return [
+        {
+          label: t('inventory_mgmt'),
+          items: [
+            { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+            { id: 'products', label: t('product_mgmt'), icon: Package },
+            { id: 'categories', label: t('category_mgmt'), icon: Layers },
+          ]
+        },
+        {
+          label: t('label_mgmt'),
+          items: [
+            { id: 'labels', label: t('label_mgmt'), icon: Terminal },
+          ]
+        },
+        {
+          label: t('insights'),
+          items: [
+            { id: 'reports', label: t('reporting'), icon: BarChart2 },
+          ]
+        },
+        {
+          label: t('general'),
+          items: [
+            { id: 'settings', label: t('profile'), icon: Settings },
+            { id: 'support', label: t('support_tickets'), icon: HelpCircle },
+          ]
+        }
+      ];
+    }
+
+    // Stock Controller Role
+    if (isStock) {
+      return [
+        {
+          label: t('operations'),
+          items: [
+            { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+            { id: 'inventory', label: t('inventory_mgmt'), icon: Package },
+          ]
+        },
+        {
+          label: t('incident_control'),
+          items: [
+            { id: 'issues', label: t('incident_control'), icon: AlertCircle },
+          ]
+        },
+        {
+          label: t('general'),
+          items: [
+            { id: 'settings', label: t('profile'), icon: Settings },
+            { id: 'support', label: t('support_tickets'), icon: HelpCircle },
+          ]
+        }
+      ];
+    }
 
     return menu;
   };
@@ -231,7 +284,7 @@ export const DashboardSidebar = ({
       {/* Background Subtle Gradient (Light Mode) */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#5750F1]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
-      <div className="flex items-center gap-4 px-8 py-10 relative z-10">
+      <div className="flex items-center gap-2.5 px-4 py-2 relative z-10">
         <div className="flex h-12 w-12 items-center justify-center rounded-none bg-white dark:bg-[#1C2434] text-white shadow-lg border border-slate-100 dark:border-slate-800 transform hover:scale-105 transition-transform overflow-hidden group">
           <img 
             src={currentUser?.companyLogo || "/logo.jpg"} 
@@ -265,7 +318,7 @@ export const DashboardSidebar = ({
       <div className="flex-1 px-4 space-y-8 overflow-y-auto custom-scrollbar relative z-10 pt-2">
         {menuGroups.map((group) => (
           <div key={group.label} className="space-y-1">
-            <p className="px-5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637381] dark:text-slate-500 mb-2 opacity-80">
+            <p className="px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637381] dark:text-slate-500 mb-2 opacity-80">
               {group.label}
             </p>
             <div className="space-y-1">
@@ -281,7 +334,7 @@ export const DashboardSidebar = ({
                       }
                       if (onClose) onClose();
                     }}
-                    className={`group relative flex w-full items-center gap-3.5 rounded-none px-5 py-3 text-sm font-semibold transition-all duration-300 ${
+                    className={`group relative flex w-full items-center gap-3.5 rounded-none px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
                       active 
                         ? 'bg-[#5750F1] text-white shadow-lg shadow-[#5750F1]/30' 
                         : 'text-[#637381] dark:text-slate-400 hover:text-[#5750F1] dark:hover:text-[#5750F1] hover:bg-slate-50 dark:hover:bg-slate-800/50'
@@ -301,8 +354,8 @@ export const DashboardSidebar = ({
       </div>
 
       {/* Footer Identity (Premium Role Display) */}
-      <div className="p-6 mt-auto border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-[#1C2434]/50 backdrop-blur-sm relative z-10">
-        <div className="flex items-center gap-3 mb-6 p-2.5 rounded-none group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
+      <div className="p-4 mt-auto border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-[#1C2434]/50 backdrop-blur-sm relative z-10">
+        <div className="flex items-center gap-3 mb-3 p-1.5 rounded-none group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
           <div className="relative shrink-0">
             <div className="h-11 w-11 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm">
               {currentUser?.photoURL ? (
@@ -325,7 +378,11 @@ export const DashboardSidebar = ({
                     ? 'Business Owner' 
                     : currentUser?.role === 'admin' 
                       ? 'System Administrator'
-                      : currentUser?.role}
+                      : currentUser?.role === 'stock'
+                        ? 'Stock Controller'
+                        : currentUser?.role === 'inventory_manager'
+                          ? 'Inventory Manager'
+                          : currentUser?.role}
               </p>
             </div>
           </div>
@@ -333,7 +390,7 @@ export const DashboardSidebar = ({
 
         <button
           onClick={onLogout}
-          className="w-full h-11 flex items-center justify-center gap-2 rounded-none text-[#637381] dark:text-slate-400 hover:text-[#FB5050] dark:hover:text-[#FB5050] hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all font-bold text-xs border border-transparent hover:border-rose-200"
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-none text-[#637381] dark:text-slate-400 hover:text-[#FB5050] dark:hover:text-[#FB5050] hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all font-bold text-xs border border-transparent hover:border-rose-200"
         >
           <LogOut className="h-4 w-4" />
           {t('logout')}

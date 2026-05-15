@@ -131,7 +131,7 @@ export default function ProductModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Product Name */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('product_name')} <span className="text-rose-500">*</span>
               </label>
               <Input
@@ -146,7 +146,7 @@ export default function ProductModal({
 
             {/* SKU */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('sku_auto')}
               </label>
               <div className="relative">
@@ -163,7 +163,7 @@ export default function ProductModal({
 
             {/* Product Code */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('product_code')}
               </label>
               <div className="relative group">
@@ -193,7 +193,7 @@ export default function ProductModal({
 
             {/* Category */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('category')} <span className="text-rose-500">*</span>
               </label>
               <select
@@ -214,7 +214,7 @@ export default function ProductModal({
 
             {/* Base Price */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('base_price_label')} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -235,7 +235,7 @@ export default function ProductModal({
 
             {/* Cost Price */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('purchase_cost')}
               </label>
               <div className="relative">
@@ -255,7 +255,7 @@ export default function ProductModal({
 
             {/* Stock */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('branch_stock')}
               </label>
               <Input
@@ -271,7 +271,7 @@ export default function ProductModal({
 
             {/* Min Stock */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('min_threshold')}
               </label>
               <Input
@@ -287,7 +287,7 @@ export default function ProductModal({
 
             {/* Image Upload Area */}
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('product_image')} <span className="text-slate-400 font-normal">{t('stored_imagekit')}</span>
               </label>
               
@@ -374,7 +374,7 @@ export default function ProductModal({
 
             {/* Description */}
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('product_desc_label')}
               </label>
               <textarea

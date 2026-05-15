@@ -102,7 +102,7 @@ export const ReportIssueModal = ({
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
                {/* Searchable Label Selection */}
                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Tag className="h-3 w-3" />
                      Hardware Node / Item ID
                   </label>
@@ -187,7 +187,7 @@ export const ReportIssueModal = ({
 
                {/* Issue Description */}
                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Hammer className="h-3 w-3" />
                      Issue Description
                   </label>
@@ -202,7 +202,7 @@ export const ReportIssueModal = ({
 
                {/* Priority Selector */}
                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Flag className="h-3 w-3" />
                      Maintenance Priority
                   </label>

@@ -5,7 +5,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'vendor' | 'staff';
+  role: 'admin' | 'vendor' | 'staff' | 'stock' | 'inventory_manager';
   photoURL?: string;
   companyId?: string;
   companyName?: string;

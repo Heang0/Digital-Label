@@ -3,7 +3,7 @@
 import { useStaffDashboard } from '@/hooks/useStaffDashboard';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
-import { DashboardFooter } from '@/components/admin/DashboardFooter';
+
 import { StaffDashboardTab } from '@/components/staff/tabs/DashboardTab';
 import { StaffInventoryTab } from '@/components/staff/tabs/InventoryTab';
 import { StaffLabelsTab } from '@/components/staff/tabs/LabelsTab';
@@ -60,7 +60,7 @@ export function RegularStaffPage() {
         </div>
       )}
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-72 h-full flex-shrink-0">
+      <div className="hidden lg:block w-64 h-full flex-shrink-0">
         <DashboardSidebar 
           currentUser={currentUser as any}
           selectedTab={selectedTab}
@@ -232,7 +232,7 @@ export function RegularStaffPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <DashboardFooter />
+
           </div>
         </main>
       </div>

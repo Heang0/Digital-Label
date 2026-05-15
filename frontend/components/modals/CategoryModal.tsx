@@ -141,7 +141,7 @@ export default function CategoryModal({
           <div className="space-y-5">
             {/* Name */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('category_name')} <span className="text-rose-500">*</span>
               </label>
               <Input
@@ -156,7 +156,7 @@ export default function CategoryModal({
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('category_desc')}
               </label>
               <textarea
@@ -170,7 +170,7 @@ export default function CategoryModal({
 
             {/* Color */}
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
+              <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">
                 {t('identity_color')}
               </label>
               <div className="flex gap-2 flex-wrap">

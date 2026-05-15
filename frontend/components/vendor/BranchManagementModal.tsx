@@ -112,7 +112,7 @@ export const BranchManagementModal = ({
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_name')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('branch_name')}</label>
                   <div className="relative">
                     <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                     <Input 
@@ -126,7 +126,7 @@ export const BranchManagementModal = ({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('general_area')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('general_area')}</label>
                   <div className="relative">
                     <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                     <Input 
@@ -141,7 +141,7 @@ export const BranchManagementModal = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('physical_address')}</label>
+                <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('physical_address')}</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                   <Input 
@@ -155,7 +155,7 @@ export const BranchManagementModal = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('contact_phone')}</label>
+                <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('contact_phone')}</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                   <Input 
@@ -169,7 +169,7 @@ export const BranchManagementModal = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_timezone')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('branch_timezone')}</label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                     <select 
@@ -185,7 +185,7 @@ export const BranchManagementModal = ({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_operational_status')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('branch_operational_status')}</label>
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
@@ -203,14 +203,14 @@ export const BranchManagementModal = ({
                   type="button" 
                   onClick={onClose}
                   variant="ghost" 
-                  className="flex-1 h-12 rounded-none text-[10px] font-black uppercase tracking-widest"
+                  className="flex-1 h-11 rounded-lg text-sm font-bold"
                 >
                   {t('cancel')}
                 </Button>
                 <Button 
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-[2] h-12 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none border-none text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 gap-2"
+                  className="flex-[2] h-11 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-lg border-none text-sm font-bold shadow-lg shadow-[#5750F1]/20 gap-2"
                 >
                   {isSubmitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : (editingBranch ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />)}
                   {editingBranch ? t('save_branch') : t('create_branch')}

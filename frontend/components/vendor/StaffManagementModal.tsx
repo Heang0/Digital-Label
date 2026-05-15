@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, User as UserIcon, Shield, Crown, Package, Zap, ShoppingCart } from 'lucide-react';
+import { X, Check, User as UserIcon, Shield, Crown, Package, Zap, ShoppingCart, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { User, Branch, StaffMember, StaffPermissions } from '@/types';
@@ -27,13 +27,15 @@ interface StaffManagementModalProps {
 const ROLE_ICONS: Record<string, any> = {
   'Manager': Crown,
   'Cashier': ShoppingCart,
-  'Label Operator': Zap,
+  'Inventory Manager': Layers,
+  'Stock Controller': Package,
 };
 
 const ROLE_COLORS: Record<string, string> = {
   'Manager': 'bg-indigo-500',
   'Cashier': 'bg-emerald-500',
-  'Label Operator': 'bg-cyan-500',
+  'Inventory Manager': 'bg-purple-500',
+  'Stock Controller': 'bg-amber-500',
 };
 
 export const StaffManagementModal = ({
@@ -110,7 +112,7 @@ export const StaffManagementModal = ({
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('full_name')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('full_name')}</label>
                   <Input 
                     required
                     placeholder="e.g. John Doe"
@@ -120,7 +122,7 @@ export const StaffManagementModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('email_address')}</label>
+                  <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('email_address')}</label>
                   <Input 
                     required
                     type="email"
@@ -132,7 +134,7 @@ export const StaffManagementModal = ({
                 </div>
                 {branches.length > 1 ? (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('assign_branch')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('assign_branch')}</label>
                     <select
                       required
                       className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
@@ -155,7 +157,7 @@ export const StaffManagementModal = ({
                 )}
                 {isCreate && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('temp_password')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('temp_password')}</label>
                     <Input 
                       required
                       type="password"
@@ -167,7 +169,7 @@ export const StaffManagementModal = ({
                 )}
                 {!isCreate && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('status')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('status')}</label>
                     <select
                       className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
                       value={editStaffForm.status}
@@ -258,13 +260,13 @@ export const StaffManagementModal = ({
                   type="button" 
                   variant="ghost" 
                   onClick={handleClose}
-                  className="h-12 px-6 font-black text-[10px] uppercase tracking-widest rounded-none"
+                  className="h-11 px-6 font-bold text-sm rounded-lg"
                 >
                   {t('cancel')}
                 </Button>
                 <Button 
                   type="submit"
-                  className="h-12 px-8 bg-[#5750F1] hover:bg-[#4A44D1] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 rounded-none"
+                  className="h-11 px-8 bg-[#5750F1] hover:bg-[#4A44D1] font-bold text-sm shadow-lg shadow-[#5750F1]/20 rounded-lg"
                 >
                   {isCreate ? t('add_team_member') : t('update')}
                 </Button>

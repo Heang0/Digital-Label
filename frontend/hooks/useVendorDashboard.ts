@@ -511,7 +511,8 @@ export function useVendorDashboard() {
         id: userId,
         email: staffForm.email,
         name: staffForm.name,
-        role: 'staff',
+        role: staffForm.position === 'Stock Controller' ? 'stock' : 
+              staffForm.position === 'Inventory Manager' ? 'inventory_manager' : 'staff',
         companyId: currentUser.companyId,
         branchId: staffForm.branchId,
         position: staffForm.position,
@@ -542,6 +543,8 @@ export function useVendorDashboard() {
     try {
       await updateDoc(fsDoc(db, 'users', showEditStaff.id), {
         ...editStaffForm,
+        role: editStaffForm.position === 'Stock Controller' ? 'stock' : 
+              editStaffForm.position === 'Inventory Manager' ? 'inventory_manager' : 'staff',
         updatedAt: Timestamp.now()
       });
       setShowEditStaff(null);
@@ -1068,6 +1071,7 @@ export function useVendorDashboard() {
         productId,
         productName: product.name,
         productSku: product.sku,
+        productCode: product.productCode || null,
         basePrice: product.basePrice,
         currentPrice: currentPrice,
         finalPrice: currentPrice,

@@ -121,25 +121,34 @@ export const Navbar = () => {
           className="md:hidden border-t bg-white overflow-hidden"
         >
           <div className="container mx-auto px-4 lg:px-10 max-w-6xl py-4 space-y-3">
-            {['Features', 'Use Cases', 'Pricing', 'Contact'].map((item) => (
+            {[
+              { id: 'features', label: t('features') },
+              { id: 'usecases', label: t('use_cases') },
+              { id: 'pricing', label: t('pricing') },
+              { id: 'contact', label: t('contact') }
+            ].map((item) => (
               <a
-                key={item}
-                href={`#${item.toLowerCase().replace(' ', '')}`}
+                key={item.id}
+                href={`#${item.id}`}
                 onClick={() => setMobileOpen(false)}
-                className="block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
+                className="block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-50"
               >
-                {item}
+                {item.label}
               </a>
             ))}
-            <div className="flex flex-col gap-2 pt-2">
-              <Link href="/login">
+            <div className="pt-2 pb-1 flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-widest">{t('language') || 'Language'}</span>
+              <LanguageSelector />
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <Link href="/login" onClick={() => setMobileOpen(false)}>
                 <Button variant="outline" size="sm" className="w-full">
-                  Sign In
+                  {t('sign_in')}
                 </Button>
               </Link>
-              <Link href="/register">
+              <Link href="/register" onClick={() => setMobileOpen(false)}>
                 <Button size="sm" className="w-full">
-                  Get Started Free
+                  {t('get_started')}
                 </Button>
               </Link>
             </div>

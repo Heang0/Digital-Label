@@ -10,7 +10,7 @@ import {
   Users 
 } from 'lucide-react';
 
-export type StaffPosition = 'Manager' | 'Cashier' | 'Label Operator';
+export type StaffPosition = 'Manager' | 'Cashier' | 'Inventory Manager' | 'Stock Controller';
 
 export interface RolePreset {
   position: StaffPosition;
@@ -57,14 +57,32 @@ export const ROLE_PRESETS: Record<StaffPosition, RolePreset> = {
       maxPriceChange: 0,
     },
   },
-  'Label Operator': {
-    position: 'Label Operator',
-    label: 'label_operator',
-    description: 'label_operator_desc',
-    color: 'cyan',
+  'Inventory Manager': {
+    position: 'Inventory Manager',
+    label: 'inventory_manager',
+    description: 'inventory_manager_desc',
+    color: 'purple',
     permissions: {
       canViewProducts: true,
-      canUpdateStock: false,
+      canUpdateStock: true,
+      canReportIssues: true,
+      canViewReports: true,
+      canChangePrices: false,
+      canCreateProducts: true,
+      canCreateLabels: true,
+      canCreatePromotions: false,
+      canManageStaff: false,
+      maxPriceChange: 0,
+    },
+  },
+  'Stock Controller': {
+    position: 'Stock Controller',
+    label: 'stock_controller',
+    description: 'stock_controller_desc',
+    color: 'amber',
+    permissions: {
+      canViewProducts: true,
+      canUpdateStock: true,
       canReportIssues: true,
       canViewReports: true,
       canChangePrices: false,

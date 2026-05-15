@@ -43,7 +43,7 @@ export const translations = {
     in_stock: "In Stock",
     low_stock: "Low Stock",
     out_of_stock: "Out of Stock",
-    
+
     // Promotions & Campaigns
     campaign_center: "Campaign Center",
     campaign_center_desc: "Manage and schedule your pricing promotions.",
@@ -93,7 +93,7 @@ export const translations = {
     item: "Item",
     qty: "Qty",
     total: "Total",
-    
+
     // Staff & Roles
     add_team_member: "Add New Team Member",
     edit_staff_member: "Edit Staff Member",
@@ -107,13 +107,15 @@ export const translations = {
     select_role: "Select Role",
     permissions_auto_apply: "Permissions auto-apply",
     granted_permissions: "Granted Permissions",
-    
+
     // Role & Permission Names
     branch_manager: "Branch Manager",
     manager_desc: "Full branch control — inventory, pricing, labels, staff, and reports.",
     cashier_desc: "View products and pricing. Can report issues.",
-    label_operator: "Label Operator",
-    label_operator_desc: "Manage Kitzu-Tech labels, troubleshoot hardware, and view system reports.",
+    inventory_manager: "Inventory Manager",
+    inventory_manager_desc: "Full catalog control — creating products, managing categories, and monitoring stock levels.",
+    stock_controller: "Stock Controller",
+    stock_controller_desc: "Monitor inventory levels, update stock availability, and report hardware issues.",
     view_inventory: "View Inventory",
     update_stock: "Update Stock",
     adjust_pricing: "Adjust Pricing",
@@ -123,7 +125,7 @@ export const translations = {
     report_issues: "Report Issues",
     access_reports: "Access Reports",
     manage_staff: "Manage Staff",
-    
+
     // Actions & Notices
     action_response: "Action Response",
     unlink_product: "Unlink Product",
@@ -147,6 +149,22 @@ export const translations = {
     inventory_control: "Inventory Control",
     stock_directory: "Stock Directory",
     stock_directory_desc: "Monitor and adjust on-floor availability.",
+    smart_layout_architect: "Smart Layout Architect",
+    bulk_hardware_organization: "Bulk Hardware Organization",
+    select_new_convention: "1. Select New Convention",
+    layout_option_aisle: "Aisle",
+    layout_option_shelf: "Shelf",
+    layout_option_row: "Row",
+    layout_option_rack: "Rack",
+    layout_option_bin: "Bin",
+    select_operation_scope: "2. Select Operation Scope",
+    fill_gaps: "Fill Gaps",
+    map_only_unassigned_tags: "Map only unassigned tags",
+    re_map_all: "Re-map All",
+    wipe_overwrite_entire_store: "Wipe & overwrite entire store",
+    preview_result: "Preview Result",
+    re_map_everything_to: "Re-map Everything to",
+    auto_map_unassigned_labels: "Auto-Map Unassigned Labels",
     search_inventory_placeholder: "Search by SKU, Name or Code...",
     min_level: "Min Level",
     needs_refill: "Needs Refill",
@@ -170,7 +188,7 @@ export const translations = {
     status_active: "Active",
     status_maintenance: "Maintenance",
     status_closed: "Closed",
-    
+
     // Sidebar
     overview: "Executive Overview",
     vendors: "Vendor Management",
@@ -179,7 +197,7 @@ export const translations = {
     audit: "Audit Logs",
     analytics: "Analytics",
     label_ui: "Label Designer",
-    
+
     // Admin Dashboard
     total_vendors: "Total Vendors",
     active_companies: "Active Companies",
@@ -189,12 +207,12 @@ export const translations = {
     welcome_admin: "Welcome back, Administrator. Kitzu-Tech is running smoothly.",
     export_report: "Export Report",
     view_analytics: "View Analytics",
-    
+
     // Vendor Management
     manage_vendors: "Manage and monitor all vendors registered on Kitzu-Tech.",
     add_vendor: "Add New Vendor",
     export_data: "Export Data",
-    
+
     // Label Sync
     sync_monitor: "Monitor real-time hardware status and resolve update failures.",
     successful_syncs: "Successful Syncs",
@@ -203,7 +221,7 @@ export const translations = {
     label_info: "Label Info",
     retry_sync: "Retry Sync",
     label_sync_title: "Label Synchronization",
-    
+
     // Designer
     designer_title: "3D Label Preview & Configuration",
     designer_desc: "Customize your E-Ink hardware layout and physical properties.",
@@ -227,16 +245,16 @@ export const translations = {
     expansion: "Expansion",
     incident_control: "Incident Control",
     general: "General",
-    
+
     // Company Management
     company_info: "Company Info",
     subscription: "Subscription",
     metrics: "Metrics",
     onboard_company: "Onboard Company",
-    
+
     // Notifications
     new_count: "{count} New",
-    
+
     // Financials
     financial_overview: "Financial Overview",
     financial_control: "Financial Control",
@@ -406,7 +424,7 @@ export const translations = {
     api_keys: "API Keys",
     audit_logs_title: "Audit Logs",
     admin_workspace: "Admin Workspace",
-    
+
     // Authentication
     welcome_back: "Welcome Back",
     sign_in_desc: "Access your central command center to manage your store labels.",
@@ -431,7 +449,7 @@ export const translations = {
     elite_infrastructure: "Elite Cloud Retail Infrastructure",
     phone: "Phone",
     address: "Address",
-    
+
     // Landing
     get_started: "Get Started Free",
     sign_in: "Sign In",
@@ -570,7 +588,7 @@ export const translations = {
     item: "មុខទំនិញ",
     qty: "បរិមាណ",
     total: "សរុប",
-    
+
     // Sidebar
     overview: "ទិដ្ឋភាពទូទៅ",
     vendors: "ការគ្រប់គ្រងអាជីវករ",
@@ -579,7 +597,7 @@ export const translations = {
     audit: "កំណត់ហេតុត្រួតពិនិត្យ",
     analytics: "ការវិភាគ",
     label_ui: "អ្នករចនាស្លាក",
-    
+
     // Admin Dashboard
     total_vendors: "អាជីវករសរុប",
     active_companies: "ក្រុមហ៊ុនសកម្ម",
@@ -589,12 +607,12 @@ export const translations = {
     welcome_admin: "សូមស្វាគមន៍មកវិញ អភិបាល។ Kitzu-Tech កំពុងដំណើរការយ៉ាងរលូន។",
     export_report: "ទាញយករបាយការណ៍",
     view_analytics: "មើលការវិភាគ",
-    
+
     // Vendor Management
     manage_vendors: "គ្រប់គ្រង និងតាមដានអាជីវករទាំងអស់ដែលបានចុះឈ្មោះក្នុងប្រព័ន្ធ។",
     add_vendor: "បន្ថែមអាជីវករថ្មី",
     export_data: "ទាញយកទិន្នន័យ",
-    
+
     // Label Sync
     sync_monitor: "តាមដានស្ថានភាពផ្នែករឹងតាមពេលវេលាជាក់ស្តែង និងដោះស្រាយបញ្ហាបរាជ័យ។",
     successful_syncs: "ជោគជ័យ",
@@ -603,7 +621,7 @@ export const translations = {
     label_info: "ព័ត៌មានស្លាក",
     retry_sync: "ព្យាយាមម្តងទៀត",
     label_sync_title: "ការធ្វើសមកាលកម្មស្លាក",
-    
+
     // Designer
     designer_title: "ការមើលជាមុន 3D និងការកំណត់រចនាសម្ព័ន្ធ",
     designer_desc: "ប្តូរតាមបំណងនូវប្លង់ផ្នែករឹង E-Ink និងលក្ខណៈរូបវន្តរបស់អ្នក។",
@@ -627,16 +645,16 @@ export const translations = {
     expansion: "ការពង្រីក",
     incident_control: "ការគ្រប់គ្រងឧប្បត្តិហេតុ",
     general: "ទូទៅ",
-    
+
     // Company Management
     company_info: "ព័ត៌មានក្រុមហ៊ុន",
     subscription: "ការជាវ",
     metrics: "រង្វាស់",
     onboard_company: "បញ្ចូលក្រុមហ៊ុនថ្មី",
-    
+
     // Notifications
     new_count: "{count} ថ្មី",
-    
+
     // Financials
     financial_overview: "ទិដ្ឋភាពទូទៅនៃហិរញ្ញវត្ថុ",
     financial_control: "ការគ្រប់គ្រងហិរញ្ញវត្ថុ",
@@ -655,6 +673,22 @@ export const translations = {
     label_mgmt: "ការគ្រប់គ្រងស្លាក",
     label_ui_setting: "ការកំណត់រូបរាងស្លាក",
     label_sync: "ការធ្វើសមកាលកម្មស្លាក",
+    smart_layout_architect: "អ្នករៀបចំប្លង់ឆ្លាតវៃ",
+    bulk_hardware_organization: "ការរៀបចំឧបករណ៍ជាបាច់",
+    select_new_convention: "១. ជ្រើសរើសទម្រង់ថ្មី",
+    layout_option_aisle: "ច្រក",
+    layout_option_shelf: "ធ្នើ",
+    layout_option_row: "ជួរ",
+    layout_option_rack: "រ៉ាក",
+    layout_option_bin: "ធុង",
+    select_operation_scope: "២. ជ្រើសរើសវិសាលភាពប្រតិបត្តិការ",
+    fill_gaps: "បំពេញចន្លោះ",
+    map_only_unassigned_tags: "ផ្គូផ្គងតែស្លាកដែលមិនទាន់បានចាត់តាំង",
+    re_map_all: "ផ្គូផ្គងឡើងវិញទាំងអស់",
+    wipe_overwrite_entire_store: "លុប និងសរសេរជាន់លើហាងទាំងមូល",
+    preview_result: "លទ្ធផលមើលជាមុន",
+    re_map_everything_to: "ផ្គូផ្គងឡើងវិញទាំងអស់ទៅ",
+    auto_map_unassigned_labels: "ផ្គូផ្គងស្លាកដោយស្វ័យប្រវត្តិ",
     qr_product_info: "ព័ត៌មានផលិតផល QR",
     scan_analytics: "ការវិភាគការស្កេន",
     reporting: "របាយការណ៍",
@@ -674,9 +708,29 @@ export const translations = {
     sync_tags: "ធ្វើសមកាលកម្មស្លាកតម្លៃអេឡិចត្រូនិក",
     update_prices: "ធ្វើបច្ចុប្បន្នភាពតម្លៃ",
     manage_staff: "គ្រប់គ្រងបុគ្គលិក",
+    branch_manager: "អ្នកគ្រប់គ្រងសាខា",
     manager_role: "អ្នកគ្រប់គ្រងសាខា",
+    manager_desc: "ការត្រួតពិនិត្យសាខាពេញលេញ — សារពើភ័ណ្ឌ តម្លៃ ស្លាក បុគ្គលិក និងរបាយការណ៍។",
+    cashier: "បេឡាករ",
     cashier_role: "បេឡាករ",
-    label_operator_role: "អ្នកបញ្ជាស្លាក",
+    cashier_desc: "មើលផលិតផល និងតម្លៃ។ អាចរាយការណ៍បញ្ហា។",
+    inventory_manager: "អ្នកគ្រប់គ្រងសារពើភ័ណ្ឌ",
+    inventory_manager_desc: "ការគ្រប់គ្រងកាតាឡុកពេញលេញ — ការបង្កើតផលិតផល ការគ្រប់គ្រងប្រភេទ និងការតាមដានកម្រិតស្តុក។",
+    stock_controller: "អ្នកត្រួតពិនិត្យស្តុក",
+    stock_controller_desc: "ត្រួតពិនិត្យកម្រិតសារពើភ័ណ្ឌ ធ្វើបច្ចុប្បន្នភាពស្តុក និងរាយការណ៍បញ្ហាផ្នែករឹង។",
+    view_inventory: "មើលសារពើភ័ណ្ឌ",
+    update_stock: "ធ្វើបច្ចុប្បន្នភាពស្តុក",
+    adjust_pricing: "កែសម្រួលតម្លៃ",
+    create_products: "បង្កើតផលិតផល",
+    manage_labels: "គ្រប់គ្រងស្លាក",
+    run_promotions: "ដំណើរការការផ្សព្វផ្សាយ",
+    report_issues: "រាយការណ៍បញ្ហា",
+    access_reports: "ចូលមើលរបាយការណ៍",
+    granted_permissions: "ការអនុញ្ញាតដែលបានផ្តល់",
+    select_role: "ជ្រើសរើសតួនាទី",
+    permissions_auto_apply: "ការអនុញ្ញាតអនុវត្តដោយស្វ័យប្រវត្តិ",
+    select_branch_placeholder: "ជ្រើសរើសសាខា...",
+    inactive: "អសកម្ម",
     campaign_center: "មជ្ឈមណ្ឌលយុទ្ធនាការ",
     label_status: "ស្ថានភាពស្លាក",
     active_branches: "សាខាសកម្ម",
@@ -812,7 +866,7 @@ export const translations = {
     api_keys: "កូនសោ API",
     audit_logs_title: "កំណត់ហេតុត្រួតពិនិត្យ",
     admin_workspace: "កន្លែងធ្វើការអភិបាល",
-    
+
     // Authentication
     welcome_back: "សូមស្វាគមន៍មកវិញ",
     sign_in_desc: "ចូលទៅកាន់មជ្ឈមណ្ឌលបញ្ជារបស់អ្នក ដើម្បីគ្រប់គ្រងស្លាកហាងរបស់អ្នក។",
@@ -837,7 +891,7 @@ export const translations = {
     elite_infrastructure: "ហេដ្ឋារចនាសម្ព័ន្ធលក់រាយក្លោដកម្រិតខ្ពស់",
     phone: "ទូរស័ព្ទ",
     address: "អាសយដ្ឋាន",
-    
+
     // Landing
     get_started: "ចាប់ផ្តើមដោយឥតគិតថ្លៃ",
     sign_in: "ចូលប្រើ",

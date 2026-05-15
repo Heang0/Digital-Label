@@ -48,11 +48,11 @@ export const ReportingTab = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="h-12 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2">
+          <Button variant="outline" className="h-11 rounded-lg border-slate-200 dark:border-slate-800 text-sm font-bold gap-2">
             <Calendar className="h-4 w-4" />
             Last 30 Days
           </Button>
-          <Button className="h-12 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[10px] font-black uppercase tracking-widest gap-2">
+          <Button className="h-11 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold gap-2">
             <Download className="h-4 w-4" />
             Export ALL
           </Button>

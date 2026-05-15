@@ -16,7 +16,8 @@ import {
   Box,
   LayoutGrid,
   Maximize2,
-  Percent
+  Percent,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,7 +146,7 @@ export const LabelsTab = ({
                 () => handleSyncAllLabels()
               );
             }}
-            className="bg-[#10B981] hover:bg-[#059669] text-white rounded-none h-11 px-6 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 gap-2 border-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="bg-[#10B981] hover:bg-[#059669] text-white rounded-lg h-11 px-6 text-sm font-bold shadow-lg shadow-emerald-500/20 gap-2 border-none transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {t('sync_fleet')}
@@ -186,7 +187,7 @@ export const LabelsTab = ({
                 }
                 await handleBulkProvision(selectedBranchId, provisionCount);
               }}
-              className="flex-1 h-12 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none border-none text-[10px] font-black uppercase tracking-widest px-6 transition-all"
+              className="flex-1 h-12 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-lg border-none text-sm font-bold px-6 transition-all"
             >
               {t('add_dynamic_tags')}
             </Button>
@@ -203,7 +204,7 @@ export const LabelsTab = ({
                 setShowManualProvision(true);
               }}
               variant="outline"
-              className="flex-1 h-12 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-[#5750F1] gap-2 hover:bg-[#5750F1] hover:text-white transition-all shadow-sm"
+              className="flex-1 h-12 rounded-lg border-slate-200 dark:border-slate-800 text-sm font-bold text-[#5750F1] gap-2 hover:bg-[#5750F1] hover:text-white transition-all shadow-sm"
             >
               <Plus className="h-4 w-4" />
               {t('manual_node')}
@@ -229,14 +230,25 @@ export const LabelsTab = ({
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white dark:bg-[#1C2434] w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
           >
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-               <div className="h-8 w-8 bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-[#5750F1]">
-                  <Terminal className="h-4 w-4" />
+            <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+               <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-8 w-8 shrink-0 bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-[#5750F1]">
+                     <Terminal className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                     <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('manual_node_provisioning')}</h3>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{t('store')}: {branches.find(b => b.id === selectedBranchId)?.name}</p>
+                  </div>
                </div>
-               <div>
-                  <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('manual_node_provisioning')}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('store')}: {branches.find(b => b.id === selectedBranchId)?.name}</p>
-               </div>
+               <button
+                 type="button"
+                 onClick={() => setShowManualProvision(false)}
+                 aria-label={t('cancel')}
+                 title={t('cancel')}
+                 className="h-9 w-9 shrink-0 flex items-center justify-center rounded-none text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+               >
+                 <X className="h-4 w-4" />
+               </button>
             </div>
 
             <form onSubmit={handleManualProvision} className="space-y-4">

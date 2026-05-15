@@ -50,7 +50,7 @@ export const BranchesTab = ({
 
         <Button 
           onClick={onCreateBranch}
-          className="bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none h-12 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 gap-2 border-none"
+          className="bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-lg h-11 px-8 text-sm font-bold shadow-lg shadow-[#5750F1]/20 gap-2 border-none"
         >
           <Plus className="h-4 w-4" />
           {t('add_new_store')}

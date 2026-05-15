@@ -283,7 +283,7 @@ export default function LoginClient() {
         <div className="absolute -bottom-24 right-10 h-72 w-72 rounded-full bg-blue-700/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center py-10">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-start pt-2 py-10">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-3 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#5750F1] shadow-lg shadow-[#5750F1]/20 overflow-hidden">

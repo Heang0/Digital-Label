@@ -143,7 +143,7 @@ export const ProvisionLabelModal = ({
 
             <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Hardware ID (MAC/Serial) <span className="text-rose-500">*</span></label>
+                <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">Hardware ID (MAC/Serial) <span className="text-rose-500">*</span></label>
                 <div className="relative">
                    <Cpu className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                    <Input 
@@ -158,7 +158,7 @@ export const ProvisionLabelModal = ({
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
-                   <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Shelf Location / Aisle</label>
+                   <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">Shelf Location / Aisle</label>
                    {formData.labelId.match(/\d+/) && (
                      <span className="text-[8px] font-black text-[#5750F1] uppercase animate-pulse">Auto-Suggest Active</span>
                    )}
@@ -175,7 +175,7 @@ export const ProvisionLabelModal = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Deployment Branch <span className="text-rose-500">*</span></label>
+                <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">Deployment Branch <span className="text-rose-500">*</span></label>
                 <div className="relative">
                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                    <select 

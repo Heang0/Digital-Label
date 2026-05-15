@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users, Plus, User as UserIcon, Crown, Package, Zap, ShoppingCart, Edit, Trash2, Lock, Shield } from 'lucide-react';
+import { Users, Plus, User as UserIcon, Crown, Package, Zap, ShoppingCart, Edit, Trash2, Lock, Shield, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StaffMember, Branch } from '@/types/vendor';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -10,19 +10,22 @@ import { ROLE_PRESETS, StaffPosition } from '@/lib/role-presets';
 const ROLE_ICONS: Record<string, any> = {
   'Manager': Crown,
   'Cashier': ShoppingCart,
-  'Label Operator': Zap,
+  'Inventory Manager': Layers,
+  'Stock Controller': Package,
 };
 
 const ROLE_BADGE_COLORS: Record<string, string> = {
   'Manager': 'bg-indigo-500/10 text-indigo-600 border-indigo-100 dark:border-indigo-800/30',
   'Cashier': 'bg-emerald-500/10 text-emerald-600 border-emerald-100 dark:border-emerald-800/30',
-  'Label Operator': 'bg-cyan-500/10 text-cyan-600 border-cyan-100 dark:border-cyan-800/30',
+  'Inventory Manager': 'bg-purple-500/10 text-purple-600 border-purple-100 dark:border-purple-800/30',
+  'Stock Controller': 'bg-amber-500/10 text-amber-600 border-amber-100 dark:border-amber-800/30',
 };
 
 const ROLE_ICON_BG: Record<string, string> = {
   'Manager': 'bg-indigo-500',
   'Cashier': 'bg-emerald-500',
-  'Label Operator': 'bg-cyan-500',
+  'Inventory Manager': 'bg-purple-500',
+  'Stock Controller': 'bg-amber-500',
 };
 
 interface StaffTabProps {
@@ -62,7 +65,7 @@ export const StaffTab = ({
           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('staff_directory')}</h2>
           <p className="text-xs font-medium text-[#637381] dark:text-slate-400 mt-1">{t('staff_directory_desc')}</p>
         </div>
-        <Button onClick={() => setShowCreateStaff(true)} className="h-12 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-[#5750F1]/20">
+        <Button onClick={() => setShowCreateStaff(true)} className="h-11 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold gap-2 shadow-lg shadow-[#5750F1]/20">
           <Plus className="h-4 w-4" />
           {t('add_member')}
         </Button>
@@ -70,7 +73,7 @@ export const StaffTab = ({
 
       {branches.length > 1 && (
         <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border border-slate-200 dark:border-slate-800">
-          <label className="text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest mb-2 block">{t('filter_by_location')}</label>
+          <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest mb-2 block">{t('filter_by_location')}</label>
           <select 
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
