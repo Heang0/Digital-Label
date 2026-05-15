@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
+import { DashboardFooter } from '@/components/admin/DashboardFooter';
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
 
@@ -26,6 +28,11 @@ import { BranchesTab } from '@/components/vendor/tabs/BranchesTab';
 import { StaffTab } from '@/components/vendor/tabs/StaffTab';
 import { PromotionsTab } from '@/components/vendor/tabs/PromotionsTab';
 import { SalesTab } from '@/components/vendor/tabs/SalesTab';
+import { ActivityTab } from '@/components/vendor/tabs/ActivityTab';
+import { POSTab } from '@/components/vendor/tabs/POSTab';
+import { ScanAnalyticsTab } from '@/components/vendor/tabs/ScanAnalyticsTab';
+import { ReportingTab } from '@/components/vendor/tabs/ReportingTab';
+import { AdminLabelUI as LabelDesignerTab } from '@/components/admin/AdminLabelUI';
 import { SupportTab } from '@/components/vendor/tabs/SupportTab';
 import { SettingsTab } from '@/components/vendor/tabs/SettingsTab';
 import { StaffManagementModal } from '@/components/vendor/StaffManagementModal';
@@ -41,11 +48,13 @@ import { BranchManagementModal } from '@/components/vendor/BranchManagementModal
 
 // Business Logic Hook
 import { useVendorDashboard } from '@/hooks/useVendorDashboard';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export default function VendorDashboard() {
   const {
     selectedTab, setSelectedTab,
     loading,
+    hasHydrated,
     isRefreshing,
     company,
     branches,
@@ -105,6 +114,7 @@ export default function VendorDashboard() {
     handleDeletePromotion,
     handleDeleteCategory,
     handleProfileUpload,
+    handleLogoUpload,
     updateProfile,
     handleUnlinkProductFromLabel,
     handleDeleteLabel,
@@ -113,8 +123,27 @@ export default function VendorDashboard() {
     provisionLabel,
     handleBulkProvision,
     updateLabelLocation,
-    bulkAutoMapLocations
+    bulkAutoMapLocations,
+    handleBulkImport,
+    handleBulkExport,
+    downloadImportTemplate
   } = useVendorDashboard();
+  const { t } = useLanguage();
+  const router = useRouter();
+
+  // Redirect if not authorized
+  const redirecting = useRef(false);
+  useEffect(() => {
+    if (!hasHydrated || redirecting.current) return;
+    
+    if (!currentUser) {
+      redirecting.current = true;
+      router.push('/login');
+    } else if (currentUser.role !== 'vendor' && currentUser.role !== 'staff' && currentUser.role !== 'admin') {
+      redirecting.current = true;
+      router.push('/login');
+    }
+  }, [currentUser, hasHydrated, router]);
 
   // Handle ?editLabel=ID from QR scans
   useEffect(() => {
@@ -136,7 +165,7 @@ export default function VendorDashboard() {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
         
-        openLabelNotice('Node Located', `Entering management console for tag ${targetLabel.labelId}.`, 'success');
+        openLabelNotice(t('node_located'), t('node_located_desc').replace('{id}', targetLabel.labelId), 'success');
       }
     }
   }, [labels, loading, setSelectedLabel, setSelectedTab, openLabelNotice]);
@@ -147,10 +176,21 @@ export default function VendorDashboard() {
     (!l.location || l.location.toLowerCase().includes('unset'))
   ).length;
 
-  if (!currentUser || currentUser.role !== 'vendor') return null;
+  if (!hasHydrated) return null;
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#111928] overflow-hidden transition-colors duration-300">
+      {/* Subtle Loading Line (Elite Style) */}
+      {(loading || isRefreshing || !currentUser) && (
+        <div className="fixed top-0 left-0 right-0 z-[1000] h-0.5 bg-transparent overflow-hidden">
+          <motion.div 
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="h-full w-1/3 bg-gradient-to-r from-transparent via-[#5750F1] to-transparent shadow-[0_0_10px_#5750F1]"
+          />
+        </div>
+      )}
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {mobileNavOpen && (
@@ -194,7 +234,7 @@ export default function VendorDashboard() {
         <DashboardHeader
           onMenuOpen={() => setMobileNavOpen(true)}
           onRefresh={loadVendorData}
-          title={selectedTab}
+          title={t(selectedTab) || selectedTab}
           isRefreshing={isRefreshing || loading}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -210,10 +250,11 @@ export default function VendorDashboard() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
+              {/* Background Sync Status (Optional/Silent) */}
               {loading && !company && (
-                <div className="flex items-center gap-3 p-4 mb-6 glass rounded-xl text-sm font-bold text-[#5750F1]">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Syncing Platform Data...
+                <div className="fixed bottom-8 right-8 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#1C2434] shadow-2xl rounded-full text-[10px] font-black text-[#5750F1] uppercase tracking-widest border border-slate-100 dark:border-slate-800 animate-pulse">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  {t('syncing_platform')}
                 </div>
               )}
 
@@ -221,7 +262,7 @@ export default function VendorDashboard() {
                 <DashboardTab
                   currentUser={currentUser}
                   company={company}
-                  branches={branches}
+                  branches={branches as any}
                   labels={labels}
                   branchProducts={branchProducts}
                   issues={issues}
@@ -232,8 +273,9 @@ export default function VendorDashboard() {
                 />
               )}
 
-              {selectedTab === 'products' && (
+              {(selectedTab === 'products' || selectedTab === 'inventory') && (
                 <ProductsTab
+                  currentUser={currentUser}
                   products={products}
                   branches={branches}
                   categories={categories}
@@ -241,6 +283,8 @@ export default function VendorDashboard() {
                   setSelectedBranchId={setSelectedBranchId}
                   selectedFilterCategory={selectedFilterCategory}
                   setSelectedFilterCategory={setSelectedFilterCategory}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
                   paginatedProducts={paginatedProducts}
                   totalProductPages={totalProductPages}
                   productPage={productPage}
@@ -250,6 +294,9 @@ export default function VendorDashboard() {
                   setShowEditProduct={handleEditProduct}
                   handleDeleteProduct={handleDeleteProduct}
                   getDisplayStockForProduct={getDisplayStockForProduct}
+                  handleBulkImport={handleBulkImport}
+                  handleBulkExport={handleBulkExport}
+                  downloadImportTemplate={downloadImportTemplate}
                 />
               )}
 
@@ -265,6 +312,7 @@ export default function VendorDashboard() {
 
               {selectedTab === 'labels' && (
                 <LabelsTab
+                  currentUser={currentUser}
                   labels={filteredLabels}
                   branches={branches}
                   selectedBranchId={selectedBranchId}
@@ -298,17 +346,18 @@ export default function VendorDashboard() {
                 />
               )}
 
-              {selectedTab === 'branches' && (
-                <BranchesTab
+              {selectedTab === 'analytics' && (
+                <ScanAnalyticsTab
+                  currentUser={currentUser}
                   branches={branches}
-                  onCreateBranch={() => {
-                    setSelectedBranchForEdit(null);
-                    setShowCreateBranch(true);
-                  }}
-                  onEditBranch={handleEditBranch}
-                  onDeleteBranch={handleDeleteBranch}
-                  setSelectedTab={setSelectedTab as any}
-                  setSelectedBranchId={setSelectedBranchId}
+                  selectedBranchId={selectedBranchId}
+                />
+              )}
+
+              {selectedTab === 'reports' && (
+                <ReportingTab
+                  branches={branches}
+                  selectedBranchId={selectedBranchId}
                 />
               )}
 
@@ -348,13 +397,33 @@ export default function VendorDashboard() {
                   currentUser={currentUser}
                   company={company}
                   handleProfileUpload={handleProfileUpload}
+                  handleLogoUpload={handleLogoUpload}
                   updateProfile={updateProfile}
                 />
               )}
 
               {selectedTab === 'support' && <SupportTab />}
+
+              {selectedTab === 'pos' && <POSTab />}
+
+              {selectedTab === 'label-ui' && <LabelDesignerTab />}
+
+              {selectedTab === 'branches' && (
+                <BranchesTab
+                  branches={branches}
+                  onCreateBranch={() => {
+                    setSelectedBranchForEdit(null);
+                    setShowCreateBranch(true);
+                  }}
+                  onEditBranch={handleEditBranch}
+                  onDeleteBranch={handleDeleteBranch}
+                  setSelectedTab={setSelectedTab as any}
+                  setSelectedBranchId={setSelectedBranchId}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
+          <DashboardFooter />
         </main>
       </div>
 
@@ -367,9 +436,9 @@ export default function VendorDashboard() {
             <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mb-8">{labelModal.message}</p>
             <div className="flex justify-center gap-3">
               {labelModal.cancelLabel && (
-                <button onClick={() => setLabelModal(null)} className="px-6 py-2.5 text-xs font-bold text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">{labelModal.cancelLabel}</button>
+                <button onClick={() => setLabelModal(null)} className="px-6 py-2.5 text-xs font-bold text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(labelModal.cancelLabel) || labelModal.cancelLabel}</button>
               )}
-              <button onClick={() => { labelModal.onConfirm?.(); setLabelModal(null); }} className="px-8 py-2.5 bg-[#5750F1] text-white rounded-xl text-xs font-bold hover:bg-[#4A44D1] shadow-lg shadow-[#5750F1]/20 transition-all">{labelModal.confirmLabel || 'Acknowledge'}</button>
+              <button onClick={() => { labelModal.onConfirm?.(); setLabelModal(null); }} className="px-8 py-2.5 bg-[#5750F1] text-white rounded-xl text-xs font-bold hover:bg-[#4A44D1] shadow-lg shadow-[#5750F1]/20 transition-all">{t(labelModal.confirmLabel) || labelModal.confirmLabel || t('acknowledge')}</button>
             </div>
           </motion.div>
         </div>
@@ -479,10 +548,11 @@ export default function VendorDashboard() {
         }}
         onUpdateLocation={updateLabelLocation}
         onOpenDiscount={(l) => setActiveDiscountModal({
+          isOpen: true,
           labelId: l.id,
           productId: l.productId || '',
-          branchId: l.branchId || '',
-          currentPercent: l.discountPercent || 0
+          productName: l.productName || '',
+          currentPrice: l.currentPrice || 0
         })}
         onAssign={(labelId, branchId) => setAssignProductModal({ labelId, branchId })}
         onUnlink={handleUnlinkProductFromLabel}

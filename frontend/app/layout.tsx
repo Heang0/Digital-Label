@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Outfit } from 'next/font/google';
+import { Inter, Outfit, Kantumruy_Pro } from 'next/font/google';
 import './globals.css';
 import { NotificationProvider } from '@/components/ui/notification';
 
@@ -13,9 +13,15 @@ const outfit = Outfit({
   variable: '--font-outfit',
 });
 
+const kantumruy = Kantumruy_Pro({
+  subsets: ['khmer'],
+  variable: '--font-kantumruy',
+  weight: ['300', '400', '500', '600', '700'],
+});
+
 export const metadata: Metadata = {
-  title: 'Digital Label - Central Control for Your Chain Stores',
-  description: 'Digital Price Label Management System for Retail Chains',
+  title: 'Kitzu-Tech - Elevating Retail Performance',
+  description: 'Advanced Cloud Retail Infrastructure for Digital Pricing',
 };
 
 import { Providers } from './providers';
@@ -26,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${outfit.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${outfit.variable} ${kantumruy.variable}`}>
       <body className={inter.className}>
         <Providers>
           <NotificationProvider>{children}</NotificationProvider>

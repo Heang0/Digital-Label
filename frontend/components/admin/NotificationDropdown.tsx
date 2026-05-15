@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { useUserStore } from '@/lib/user-store';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Notification {
   id: string;
@@ -21,20 +22,30 @@ interface NotificationDropdownProps {
 }
 
 export const NotificationDropdown = ({ onTabChange }: NotificationDropdownProps) => {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useUserStore();
 
   useEffect(() => {
-    if (!currentUser?.companyId) return;
+    if (!currentUser) return;
 
-    // Minimalist query to avoid ANY composite index requirements
-    const q = query(
-      collection(db, 'notifications'),
-      where('companyId', '==', currentUser.companyId),
-      limit(100)
-    );
+    let q;
+    if (currentUser.role === 'admin') {
+      q = query(
+        collection(db, 'notifications'),
+        where('companyId', 'in', ['admin', 'all']),
+        limit(100)
+      );
+    } else {
+      if (!currentUser.companyId) return;
+      q = query(
+        collection(db, 'notifications'),
+        where('companyId', '==', currentUser.companyId),
+        limit(100)
+      );
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
@@ -157,16 +168,16 @@ export const NotificationDropdown = ({ onTabChange }: NotificationDropdownProps)
             >
               <div className="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/30">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-[#111928] dark:text-white">Notifications</h3>
+                  <h3 className="text-sm font-bold text-[#111928] dark:text-white">{t('notifications')}</h3>
                   <span className="px-2 py-0.5 rounded-full bg-[#5750F1] text-[10px] font-black text-white">
-                    {unreadCount} New
+                    {t('new_count').replace('{count}', unreadCount.toString())}
                   </span>
                 </div>
                 <button 
                   onClick={markAllRead}
                   className="text-[10px] font-bold text-[#5750F1] uppercase tracking-widest hover:underline"
                 >
-                  Mark all read
+                  {t('mark_all_read')}
                 </button>
               </div>
 

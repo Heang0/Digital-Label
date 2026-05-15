@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
+import { DashboardFooter } from '@/components/admin/DashboardFooter';
 import CategoryModal from '@/components/modals/CategoryModal';
 import ProductModal from '@/components/modals/ProductModal';
 
@@ -25,6 +26,8 @@ import { ProvisionLabelModal } from '@/components/vendor/ProvisionLabelModal';
 import { SmartAutoMapModal } from '@/components/vendor/SmartAutoMapModal';
 import { LabelNoticeModal } from '@/components/vendor/LabelNoticeModal';
 import { ReportIssueModal } from '@/components/vendor/ReportIssueModal';
+import { PromotionsTab } from '@/components/vendor/tabs/PromotionsTab';
+import { PromotionManagementModal } from '@/components/vendor/PromotionManagementModal';
 
 // Same business logic engine as vendor
 import { useVendorDashboard } from '@/hooks/useVendorDashboard';
@@ -47,14 +50,17 @@ export function ManagerStaffPage() {
     selectedBranchId, setSelectedBranchId,
     selectedFilterCategory, setSelectedFilterCategory,
     searchTerm, setSearchTerm,
+    promotions,
+    showCreatePromotion, setShowCreatePromotion,
+    editingPromotion, setEditingPromotion,
+    promotionForm, setPromotionForm,
+    createPromotion, updatePromotion, handleDeletePromotion,
     paginatedProducts,
     totalProductPages,
     productPage, setProductPage,
     mobileNavOpen, setMobileNavOpen,
     showCreateStaff, setShowCreateStaff,
     showProductModal, setShowProductModal,
-    showCreatePromotion, setShowCreatePromotion,
-    editingPromotion, setEditingPromotion,
     handleEditProduct,
     showEditStaff, setShowEditStaff,
     showResetPassword, setShowResetPassword,
@@ -96,7 +102,10 @@ export function ManagerStaffPage() {
     showReportIssue, setShowReportIssue,
     reportIssue,
     updateIssueStatus,
-    addIssueNote
+    addIssueNote,
+    downloadImportTemplate,
+    handleBulkImport,
+    handleBulkExport
   } = useVendorDashboard();
 
   const [showSmartMapModal, setShowSmartMapModal] = useState(false);
@@ -186,8 +195,8 @@ export function ManagerStaffPage() {
               {selectedTab === 'dashboard' && (
                 <DashboardTab
                   currentUser={currentUser}
-                  company={company}
-                  branches={managerBranches}
+                  company={company as any}
+                  branches={branches as any}
                   labels={labels}
                   branchProducts={branchProducts}
                   issues={issues}
@@ -200,6 +209,7 @@ export function ManagerStaffPage() {
 
               {selectedTab === 'products' && (
                 <ProductsTab
+                  currentUser={currentUser}
                   products={products}
                   branches={managerBranches}
                   categories={categories}
@@ -207,6 +217,8 @@ export function ManagerStaffPage() {
                   setSelectedBranchId={setSelectedBranchId}
                   selectedFilterCategory={selectedFilterCategory}
                   setSelectedFilterCategory={setSelectedFilterCategory}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
                   paginatedProducts={paginatedProducts}
                   totalProductPages={totalProductPages}
                   productPage={productPage}
@@ -216,6 +228,9 @@ export function ManagerStaffPage() {
                   setShowEditProduct={handleEditProduct}
                   handleDeleteProduct={handleDeleteProduct}
                   getDisplayStockForProduct={getDisplayStockForProduct}
+                  handleBulkImport={handleBulkImport}
+                  handleBulkExport={handleBulkExport}
+                  downloadImportTemplate={downloadImportTemplate}
                 />
               )}
 
@@ -230,7 +245,8 @@ export function ManagerStaffPage() {
               )}
 
               {selectedTab === 'labels' && (
-                <LabelsTab
+                <LabelsTab 
+                  currentUser={currentUser}
                   labels={labels}
                   branches={managerBranches}
                   selectedBranchId={selectedBranchId}
@@ -251,6 +267,7 @@ export function ManagerStaffPage() {
                   unsetLabelsCount={unsetLabelsCount}
                   bulkAutoMapLocations={bulkAutoMapLocations}
                   handleBulkProvision={handleBulkProvision}
+                  provisionLabel={provisionLabel}
                   openLabelConfirm={openLabelConfirm}
                 />
               )}
@@ -270,11 +287,21 @@ export function ManagerStaffPage() {
 
               {selectedTab === 'issues' && (
                 <StaffIssuesTab
-                  issues={issues}
+                  issues={issues as any}
                   onRefresh={loadVendorData}
                   onReportNew={() => setShowReportIssue(true)}
                   onUpdateStatus={updateIssueStatus}
                   onAddNote={addIssueNote}
+                />
+              )}
+
+              {selectedTab === 'promotions' && (
+                <PromotionsTab
+                  promotions={promotions}
+                  setShowCreatePromotion={setShowCreatePromotion}
+                  setEditingPromotion={setEditingPromotion}
+                  setPromotionForm={setPromotionForm}
+                  handleDeletePromotion={handleDeletePromotion}
                 />
               )}
 
@@ -298,6 +325,7 @@ export function ManagerStaffPage() {
               {selectedTab === 'support' && <SupportTab />}
             </motion.div>
           </AnimatePresence>
+          <DashboardFooter />
         </main>
       </div>
 
@@ -316,6 +344,18 @@ export function ManagerStaffPage() {
         assignSearchQuery={assignSearchQuery}
         setAssignSearchQuery={setAssignSearchQuery}
         assignProductToLabel={assignProductToLabel}
+      />
+
+      <PromotionManagementModal
+        showCreatePromotion={showCreatePromotion}
+        setShowCreatePromotion={setShowCreatePromotion}
+        editingPromotion={editingPromotion}
+        setEditingPromotion={setEditingPromotion}
+        promotionForm={promotionForm}
+        setPromotionForm={setPromotionForm}
+        createPromotion={createPromotion}
+        updatePromotion={updatePromotion}
+        products={products}
       />
 
       <CategoryModal
@@ -393,10 +433,11 @@ export function ManagerStaffPage() {
         }}
         onUpdateLocation={updateLabelLocation}
         onOpenDiscount={(l) => setActiveDiscountModal({
+          isOpen: true,
           labelId: l.id,
           productId: l.productId || '',
-          branchId: l.branchId || '',
-          currentPercent: l.discountPercent || 0
+          productName: l.productName || 'Unknown Product',
+          currentPrice: l.currentPrice || 0
         })}
         onAssign={(labelId, branchId) => setAssignProductModal({ labelId, branchId })}
         onUnlink={handleUnlinkProductFromLabel}

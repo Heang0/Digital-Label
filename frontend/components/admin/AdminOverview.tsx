@@ -13,6 +13,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface OverviewProps {
   metrics: {
@@ -26,6 +27,7 @@ interface OverviewProps {
 }
 
 export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
+  const { t } = useLanguage();
   const handleExportReport = () => {
     const reportData = [
       ['Metric', 'Value', 'Status'],
@@ -46,7 +48,7 @@ export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
   };
   const statCards = [
     { 
-      label: 'Total Vendors', 
+      label: t('total_vendors'), 
       value: metrics.totalUsers, 
       icon: Users, 
       color: 'text-blue-600', 
@@ -55,7 +57,7 @@ export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
       isPositive: true 
     },
     { 
-      label: 'Active Companies', 
+      label: t('active_companies'), 
       value: metrics.totalCompanies, 
       icon: Building2, 
       color: 'text-emerald-600', 
@@ -64,7 +66,7 @@ export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
       isPositive: true 
     },
     { 
-      label: 'Platform Activity', 
+      label: t('platform_activity'), 
       value: '2.4k', 
       icon: Zap, 
       color: 'text-amber-600', 
@@ -73,7 +75,7 @@ export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
       isPositive: false 
     },
     { 
-      label: 'Daily Revenue', 
+      label: t('daily_revenue'), 
       value: '$12,480', 
       icon: BarChart3, 
       color: 'text-indigo-600', 
@@ -91,21 +93,21 @@ export const AdminOverview = ({ metrics, onTabChange }: OverviewProps) => {
           <div className="flex items-center gap-2 text-[10px] font-bold text-[#5750F1] uppercase tracking-[0.2em] mb-2">
             Executive Control
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">System Overview</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">Real-time system-wide performance and operational metrics.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">{t('system_overview')}</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">{t('welcome_admin')}</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={handleExportReport}
             className="h-10 px-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
           >
-            Export Report
+            {t('export_report')}
           </button>
           <button 
             onClick={() => onTabChange('analytics')}
             className="h-10 px-6 rounded-lg bg-[#5750F1] text-white text-xs font-bold hover:bg-[#4a42e0] transition-all shadow-md shadow-[#5750F1]/10"
           >
-            View Analytics
+            {t('view_analytics')}
           </button>
         </div>
       </div>

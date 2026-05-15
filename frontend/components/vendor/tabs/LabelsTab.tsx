@@ -21,8 +21,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DigitalLabel, Branch } from '@/types/vendor';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
- interface LabelsTabProps {
+  interface LabelsTabProps {
+  currentUser: any;
   labels: DigitalLabel[];
   branches: Branch[];
   selectedBranchId: string;
@@ -48,6 +50,7 @@ import { DigitalLabel, Branch } from '@/types/vendor';
 }
 
 export const LabelsTab = ({
+  currentUser,
   labels,
   branches,
   selectedBranchId,
@@ -71,6 +74,7 @@ export const LabelsTab = ({
   provisionLabel,
   openLabelConfirm,
 }: LabelsTabProps) => {
+  const { t } = useLanguage();
   const [provisionCount, setProvisionCount] = useState(1);
   const [showManualProvision, setShowManualProvision] = useState(false);
   const [manualLabelData, setManualLabelData] = useState({ labelId: '', location: '' });
@@ -108,21 +112,21 @@ export const LabelsTab = ({
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <div className="h-1.5 w-1.5 rounded-full bg-[#5750F1] animate-pulse" />
-            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.25em]">Active Control System</span>
+            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.25em]">{t('active_control_system')}</span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-black text-[#111928] dark:text-white uppercase tracking-tight leading-none">Digital Labels</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-[#111928] dark:text-white uppercase tracking-tight leading-none">{t('label_mgmt')}</h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {branches.length > 1 && (
+          {branches.length > 1 && currentUser?.role === 'vendor' && (
             <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 pl-4 shadow-sm min-w-[200px]">
-               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 dark:border-slate-800 pr-3">Fleet</span>
+               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 dark:border-slate-800 pr-3">{t('fleet')}</span>
                <select 
                   className="flex-1 bg-transparent text-xs font-black outline-none border-none pr-6 py-1 cursor-pointer appearance-none"
                   value={selectedBranchId}
                   onChange={(e) => setSelectedBranchId(e.target.value)}
                >
-                  <option value="all">Global Network</option>
+                  <option value="all">{t('global_network')}</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                </select>
                <ChevronDown className="h-3 w-3 text-slate-400 -ml-5 pointer-events-none" />
@@ -132,19 +136,19 @@ export const LabelsTab = ({
           <Button 
             onClick={() => {
               if (selectedBranchId === 'all') {
-                openLabelNotice('Action Required', 'Please select a specific branch to update.', 'info');
+                openLabelNotice(t('action_required'), t('select_branch_first'), 'info');
                 return;
               }
               openLabelConfirm(
-                'Sync Global Fleet',
-                'This will update all physical price tags in this store. Continue?',
+                t('sync_fleet'),
+                t('sync_confirm'),
                 () => handleSyncAllLabels()
               );
             }}
             className="bg-[#10B981] hover:bg-[#059669] text-white rounded-none h-11 px-6 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 gap-2 border-none transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Sync Fleet
+            {t('sync_fleet')}
           </Button>
         </div>
       </div>
@@ -158,7 +162,7 @@ export const LabelsTab = ({
             <Input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search tags by ID, product, or shelf..."
+              placeholder={t('search_tags_placeholder')}
               className="pl-12 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold transition-all focus:ring-1 focus:ring-[#5750F1]"
             />
           </div>
@@ -184,7 +188,7 @@ export const LabelsTab = ({
               }}
               className="flex-1 h-12 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none border-none text-[10px] font-black uppercase tracking-widest px-6 transition-all"
             >
-              Add Dynamic Tags
+              {t('add_dynamic_tags')}
             </Button>
           </div>
 
@@ -202,7 +206,7 @@ export const LabelsTab = ({
               className="flex-1 h-12 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-[#5750F1] gap-2 hover:bg-[#5750F1] hover:text-white transition-all shadow-sm"
             >
               <Plus className="h-4 w-4" />
-              Manual Node
+              {t('manual_node')}
             </Button>
 
             <Button 
@@ -230,14 +234,14 @@ export const LabelsTab = ({
                   <Terminal className="h-4 w-4" />
                </div>
                <div>
-                  <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Manual Node Provisioning</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Store: {branches.find(b => b.id === selectedBranchId)?.name}</p>
+                  <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('manual_node_provisioning')}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('store')}: {branches.find(b => b.id === selectedBranchId)?.name}</p>
                </div>
             </div>
 
             <form onSubmit={handleManualProvision} className="space-y-4">
                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tag ID Code</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('tag_id_code')}</label>
                   <Input 
                     required
                     value={manualLabelData.labelId}
@@ -248,7 +252,7 @@ export const LabelsTab = ({
                </div>
 
                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Initial Placement (Optional)</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('initial_placement')}</label>
                   <Input 
                     value={manualLabelData.location}
                     onChange={(e) => setManualLabelData({ ...manualLabelData, location: e.target.value })}
@@ -264,13 +268,13 @@ export const LabelsTab = ({
                     onClick={() => setShowManualProvision(false)}
                     className="flex-1 rounded-none h-11 text-[10px] font-black uppercase tracking-widest"
                   >
-                    Cancel
+                    {t('cancel') || 'Cancel'}
                   </Button>
                   <Button 
                     type="submit"
                     className="flex-1 rounded-none h-11 bg-[#5750F1] hover:bg-[#4A44D1] text-white font-black text-[10px] uppercase tracking-widest border-none shadow-lg shadow-indigo-500/20"
                   >
-                    Provision Node
+                    {t('provision_node')}
                   </Button>
                </div>
             </form>
@@ -296,7 +300,7 @@ export const LabelsTab = ({
             {label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice && (
               <div className="absolute top-0 right-0 z-10">
                 <div className="bg-rose-500 text-white text-[8px] font-black px-2 py-1 uppercase tracking-tighter">
-                   Promo Active
+                   {t('promo_active')}
                 </div>
               </div>
             )}
@@ -331,7 +335,7 @@ export const LabelsTab = ({
                 <div>
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-[9px] font-black ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'text-rose-500' : 'text-[#5750F1]'} uppercase tracking-widest mb-1`}>Assigned Product</p>
+                      <p className={`text-[9px] font-black ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'text-rose-500' : 'text-[#5750F1]'} uppercase tracking-widest mb-1`}>{t('assigned_product')}</p>
                       <h4 className="text-sm font-black text-[#111928] dark:text-white line-clamp-1 group-hover:text-[#5750F1] transition-colors">{label.productName}</h4>
                     </div>
                   </div>
@@ -348,7 +352,7 @@ export const LabelsTab = ({
               ) : (
                 <div className="py-4 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 group-hover:border-[#5750F1]/20 transition-all">
                   <Plus className="h-5 w-5 text-slate-300 mb-2 group-hover:text-[#5750F1] transition-colors" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#5750F1]/60">Unlinked Node</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#5750F1]/60">{t('unlinked_node')}</span>
                 </div>
               )}
 
@@ -356,7 +360,7 @@ export const LabelsTab = ({
               <div className={`pt-4 border-t ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'border-rose-100 dark:border-rose-900/30' : 'border-slate-50 dark:border-slate-800/50'} flex items-center justify-between gap-4`}>
                 <div className="flex items-center gap-1.5 min-w-0">
                    <Box className="h-3 w-3 text-slate-400 shrink-0" />
-                   <span className="text-[9px] font-black text-[#637381] dark:text-slate-500 uppercase truncate">{label.location || 'Unplaced'}</span>
+                   <span className="text-[9px] font-black text-[#637381] dark:text-slate-500 uppercase truncate">{label.location || t('unplaced')}</span>
                 </div>
                 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -379,9 +383,9 @@ export const LabelsTab = ({
                   </button>
                   {label.productId && (
                     <button 
-                      onClick={(e) => { e.stopPropagation(); openLabelConfirm('Unlink Product', `Are you sure you want to remove the product from tag ${label.labelId}?`, () => handleUnlinkProductFromLabel(label.id)); }}
+                      onClick={(e) => { e.stopPropagation(); openLabelConfirm(t('unlink_product'), `${t('unlink_product_confirm')} ${label.labelId}?`, () => handleUnlinkProductFromLabel(label.id)); }}
                       className="h-7 w-7 flex items-center justify-center bg-amber-50 dark:bg-amber-900/20 text-amber-600 hover:bg-amber-500 hover:text-white transition-all border border-amber-100 dark:border-amber-800"
-                      title="Unlink Product"
+                      title={t('unlink_product')}
                     >
                       <ZapOff className="h-3 w-3" />
                     </button>
@@ -391,10 +395,11 @@ export const LabelsTab = ({
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         setActiveDiscountModal({
+                          isOpen: true,
                           labelId: label.id,
                           productId: label.productId!,
-                          branchId: label.branchId,
-                          currentPercent: label.discountPercent || 0
+                          productName: label.productName || 'Electronic Tag',
+                          currentPrice: label.finalPrice || label.currentPrice || 0
                         });
                       }}
                       className="h-7 w-7 flex items-center justify-center bg-[#5750F1]/10 text-[#5750F1] hover:bg-[#5750F1] hover:text-white transition-all border border-indigo-100 dark:border-indigo-800"
@@ -428,8 +433,8 @@ export const LabelsTab = ({
           <div className="h-20 w-20 bg-slate-50 dark:bg-slate-900 rounded-none flex items-center justify-center mb-6">
             <Terminal className="h-10 w-10 text-slate-200" />
           </div>
-          <h3 className="text-xl font-black text-[#111928] dark:text-white uppercase">No Nodes Detected</h3>
-          <p className="text-sm text-slate-400 mt-2 max-w-xs">Change your filters or click 'Add Tags' to provision new hardware labels.</p>
+          <h3 className="text-xl font-black text-[#111928] dark:text-white uppercase">{t('no_nodes_detected')}</h3>
+          <p className="text-sm text-slate-400 mt-2 max-w-xs">{t('no_nodes_desc')}</p>
         </div>
       )}
     </div>

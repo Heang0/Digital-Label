@@ -36,11 +36,20 @@ export const Footer = () => {
             viewport={{ once: true }}
           >
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                <Store className="h-5 w-5 text-white" />
+              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center overflow-hidden">
+                <img
+                  src="/logo.jpg"
+                  alt="Logo"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.target as any).style.display = 'none';
+                    (e.target as any).nextSibling.style.display = 'block';
+                  }}
+                />
+                <Store className="h-5 w-5 text-white hidden" />
               </div>
               <span className="text-xl font-bold text-white">
-                Digital Label
+                Kitzu-Tech
               </span>
             </div>
             <p className="text-sm">
@@ -66,8 +75,8 @@ export const Footer = () => {
                     transition={{ delay: linkIndex * 0.05 + colIndex * 0.1 + 0.3 }}
                     viewport={{ once: true }}
                   >
-                    <a 
-                      href={link === 'Demo' ? '/login' : `#${link.toLowerCase().replace(' ', '')}`} 
+                    <a
+                      href={link === 'Demo' ? '/login' : `#${link.toLowerCase().replace(' ', '')}`}
                       className="hover:text-white transition-colors duration-300 hover:pl-2 block"
                     >
                       {link}
@@ -86,7 +95,7 @@ export const Footer = () => {
           viewport={{ once: true }}
           className="border-t border-gray-800 mt-8 pt-8 text-center text-sm"
         >
-          <p>© 2026 Digital Label. All rights reserved to Kimmy and Her Bf.</p>
+          <p>© 2026 Kitzu-Tech. All rights reserved.</p>
         </motion.div>
       </div>
     </motion.footer>

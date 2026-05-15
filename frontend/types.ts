@@ -65,6 +65,8 @@ export interface Company {
   labelsCount?: number;
   branchesCount?: number;
   staffCount?: number;
+  productsCount?: number;
+  categoriesCount?: number;
 }
 
 export interface Branch {
@@ -74,7 +76,7 @@ export interface Branch {
   address: string;
   phone: string;
   managerId?: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'maintenance' | 'closed';
   createdAt: Timestamp | Date;
 }
 
@@ -102,6 +104,7 @@ export interface DigitalLabel {
   productId?: string | null;
   productName?: string;
   productSku?: string;
+  stock?: number;
   labelId: string;
   labelCode?: string;
   location: string;
@@ -130,4 +133,27 @@ export interface SystemMetrics {
   activeUsers24h: number;
   totalRevenue: number;
   conversionRate: number;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  targetId?: string;
+  targetType?: 'user' | 'company' | 'label' | 'product' | 'system';
+  details: string;
+  timestamp: Timestamp | Date;
+}
+
+export interface LabelSyncRecord {
+  id: string;
+  labelId: string;
+  labelCode: string;
+  companyId: string;
+  companyName?: string;
+  status: 'success' | 'failed' | 'pending';
+  error?: string;
+  retryCount: number;
+  lastAttempt: Timestamp | Date;
 }

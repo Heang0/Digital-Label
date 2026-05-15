@@ -9,6 +9,9 @@ import { ProfileModal } from './ProfileModal';
 import { ThemeToggle } from './ThemeToggle';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NotificationDropdown } from './NotificationDropdown';
+import { SearchInput } from './SearchInput';
+import { LanguageSelector } from './LanguageSelector';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface HeaderProps {
   onMenuOpen: () => void;
@@ -30,6 +33,7 @@ export const DashboardHeader = ({
   onTabChange
 }: HeaderProps) => {
   const { user } = useUserStore();
+  const { t } = useLanguage();
   const [progress, setProgress] = useState(0);
 
   // Simulate progress when refreshing
@@ -50,18 +54,29 @@ export const DashboardHeader = ({
   // Map internal tab IDs to professional titles
   const getPageTitle = (tab: string) => {
     switch(tab) {
-      case 'overview': return 'Executive Overview';
-      case 'dashboard': return 'Dashboard';
-      case 'labels': return 'Digital Labels';
-      case 'products': return 'Product Repository';
-      case 'categories': return 'Inventory classification';
-      case 'staff': return 'Team Management';
-      case 'promotions': return 'Growth Marketing';
-      case 'sales': return 'Sales Intelligence';
-      case 'support': return 'Support Center';
-      case 'settings': return 'Account Workspace';
-      case 'activity': return 'Global Activity Log';
-      default: return 'Dashboard';
+      case 'overview': return t('overview');
+      case 'dashboard': return t('overview');
+      case 'labels': return t('label_mgmt');
+      case 'products': return t('product_mgmt');
+      case 'categories': return t('category_mgmt');
+      case 'staff': return t('staff_mgmt');
+      case 'branches': return t('branch_mgmt');
+      case 'promotions': return t('promo_scheduler');
+      case 'sales': return t('sales_intelligence');
+      case 'activity': return t('activity_log');
+      case 'support': return t('support_center');
+      case 'settings': return t('settings');
+      case 'audit': return t('audit');
+      case 'sync': return t('sync');
+      case 'label-ui': return t('label_ui');
+      case 'analytics': return t('analytics');
+      case 'pos': return t('pos_system');
+      case 'reports': return t('reporting');
+      case 'analytics': return t('scan_analytics');
+      case 'audit': return t('tenant_audit');
+      case 'rbac': return t('rbac');
+      case 'inventory': return t('inventory');
+      default: return t('overview');
     }
   };
 
@@ -103,7 +118,7 @@ export const DashboardHeader = ({
               onClick={() => onTabChange('dashboard')}
             >
                <p className="text-[10px] font-semibold text-[#637381] dark:text-slate-500 uppercase tracking-[0.2em] mb-1 group-hover:text-[#5750F1] transition-colors">
-                 {title === 'overview' ? 'Main Menu' : 'Dashboard'}
+                 {title === 'overview' ? t('admin_workspace') : t('overview')}
                </p>
                <h1 className="text-lg font-semibold text-[#111928] dark:text-white leading-none tracking-tight group-hover:text-[#5750F1] transition-colors">
                  {getPageTitle(title)}
@@ -111,16 +126,12 @@ export const DashboardHeader = ({
             </div>
 
             <div className="hidden lg:block">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-[#637381] group-focus-within:text-[#5750F1] transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search resources..."
-                  value={searchTerm}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  className="w-[240px] h-10 pl-11 pr-4 rounded-none bg-[#F3F4F6] dark:bg-[#24303F] border-transparent text-xs font-medium text-[#111928] dark:text-white placeholder-[#637381] focus:bg-white dark:focus:bg-slate-800 focus:border-[#5750F1] outline-none transition-all"
-                />
-              </div>
+              <SearchInput 
+                value={searchTerm}
+                onChange={onSearchChange}
+                placeholder={t('search_resources')}
+                className="w-[280px]"
+              />
             </div>
           </div>
 
@@ -128,6 +139,7 @@ export const DashboardHeader = ({
           <div className="flex items-center gap-3 sm:gap-6">
             {/* Action Group */}
             <div className="flex items-center gap-2 sm:gap-4 border-r border-[#E2E8F0] dark:border-slate-700 pr-3 sm:pr-6">
+              <LanguageSelector />
               <ThemeToggle />
               <NotificationDropdown onTabChange={onTabChange} />
               <button 

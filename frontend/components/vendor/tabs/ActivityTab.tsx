@@ -18,6 +18,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Notification {
   id: string;
@@ -36,6 +37,7 @@ interface ActivityTabProps {
 }
 
 export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabProps) => {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,9 +116,9 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <div className="h-1.5 w-1.5 rounded-full bg-[#5750F1] animate-pulse" />
-            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.25em]">Audit Intelligence</span>
+            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.25em]">{t('audit_intelligence')}</span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Activity Log</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('activity_log')}</h2>
         </div>
       </div>
 
@@ -128,7 +130,7 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
               <Input 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search activity by event or message..."
+                placeholder={t('search_activity_placeholder')}
                 className="pl-12 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
               />
            </div>
@@ -140,18 +142,18 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
               >
-                 <option value="all">All Events</option>
-                 <option value="success">Success</option>
-                 <option value="warning">Warnings</option>
-                 <option value="alert">Alerts</option>
-                 <option value="info">System Info</option>
+                 <option value="all">{t('all_events')}</option>
+                 <option value="success">{t('success_event')}</option>
+                 <option value="warning">{t('warnings_event')}</option>
+                 <option value="alert">{t('alerts_event')}</option>
+                 <option value="info">{t('system_info')}</option>
               </select>
            </div>
 
            <div className="lg:col-span-3">
               <Button className="w-full h-12 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-white font-black text-[10px] uppercase tracking-widest gap-2">
                  <RefreshCw className="h-4 w-4" />
-                 Refresh Logs
+                 {t('refresh_logs')}
               </Button>
            </div>
         </div>
@@ -160,9 +162,9 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
       {/* Log Feed */}
       <div className="bg-white dark:bg-[#1C2434] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
          {loading ? (
-           <div className="py-40 flex flex-col items-center justify-center gap-4">
+          <div className="py-40 flex flex-col items-center justify-center gap-4">
               <RefreshCw className="h-8 w-8 animate-spin text-[#5750F1]" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reconstructing audit history...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('reconstructing_audit')}</p>
            </div>
          ) : filteredNotifications.length > 0 ? (
            <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -189,7 +191,7 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
                          <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{n.title}</h4>
                          {n.branchId && (
                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[8px] font-black text-slate-500 uppercase tracking-widest border border-slate-200 dark:border-slate-700">
-                              {n.branchId === 'all' ? 'Global' : branches.find(b => b.id === n.branchId)?.name || 'Branch'}
+                              {n.branchId === 'all' ? t('global') : branches.find(b => b.id === n.branchId)?.name || t('branch')}
                            </span>
                          )}
                          {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-[#5750F1]" />}
@@ -211,8 +213,8 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
               <div className="h-20 w-20 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center mb-6">
                  <Bell className="h-10 w-10 text-slate-200" />
               </div>
-              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Archive Empty</h3>
-              <p className="text-xs font-medium text-slate-400 mt-2 max-w-[240px]">No historical activity logs found matching your current filter criteria.</p>
+              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('archive_empty')}</h3>
+              <p className="text-xs font-medium text-slate-400 mt-2 max-w-[240px]">{t('archive_empty_desc')}</p>
            </div>
          )}
       </div>

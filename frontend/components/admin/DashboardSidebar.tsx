@@ -22,10 +22,18 @@ import {
   Percent,
   Plus,
   AlertCircle,
+  History,
+  ShoppingCart,
+  RefreshCcw,
+  Layers,
+  Shield,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { User } from '@/lib/user-store';
 import { motion } from 'framer-motion';
+import { useUserStore } from '@/lib/user-store';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface SidebarProps {
   currentUser: User;
@@ -42,6 +50,7 @@ export const DashboardSidebar = ({
   onLogout,
   onClose,
 }: SidebarProps) => {
+  const { t } = useLanguage();
   const isAdmin = currentUser?.role === 'admin';
   const isVendor = currentUser?.role === 'vendor';
   const isStaff = currentUser?.role === 'staff';
@@ -50,129 +59,168 @@ export const DashboardSidebar = ({
   const getMenuGroups = () => {
     if (isAdmin) return [
       {
-        label: 'Main Menu',
+        label: t('platform_control'),
         items: [
-          { id: 'overview', label: 'Dashboard', icon: LayoutGridIcon },
-          { id: 'users', label: 'Vendors', icon: Users },
-          { id: 'companies', label: 'Companies', icon: Building2 },
+          { id: 'overview', label: t('overview'), icon: LayoutGridIcon },
+          { id: 'users', label: t('vendors'), icon: Users },
+          { id: 'companies', label: t('companies'), icon: Building2 },
+          { id: 'audit', label: t('audit'), icon: History },
+          { id: 'sync', label: t('sync'), icon: RefreshCcw },
         ]
       },
       {
-        label: 'Insights',
+        label: t('insights'),
         items: [
-          { id: 'sales', label: 'Sales Intelligence', icon: Activity },
-          { id: 'staff', label: 'Team Management', icon: Users },
+          { id: 'analytics', label: t('analytics'), icon: Activity },
+          { id: 'revenue', label: t('financial_control'), icon: Wallet },
         ],
       },
       {
-        label: 'Expansion',
+        label: t('system_config'),
         items: [
-          { id: 'add-branch', label: 'Create New Branch', icon: Plus },
-        ],
-      },
-      {
-        label: 'Enterprise',
-        items: [
-          { id: 'settings', label: 'Global Settings', icon: Settings },
-          { id: 'support', label: 'Support', icon: HelpCircle },
+          { id: 'label-ui', label: t('label_ui'), icon: Store },
+          { id: 'settings', label: t('settings'), icon: Settings },
         ]
       }
     ];
 
     if (isVendor) return [
       {
-        label: 'Inventory',
+        label: t('inventory_mgmt'),
         items: [
-          { id: 'dashboard', label: 'Overview', icon: LayoutGridIcon },
-          { id: 'products', label: 'Products', icon: Package },
-          { id: 'categories', label: 'Categories', icon: LayoutGridIcon },
-          { id: 'labels', label: 'Digital Labels', icon: Terminal },
+          { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+          { id: 'products', label: t('product_mgmt'), icon: Package },
+          { id: 'categories', label: t('category_mgmt'), icon: Layers },
         ]
       },
       {
-        label: 'Operations',
+        label: t('operations'),
         items: [
-          { id: 'staff', label: 'Staff Management', icon: Users },
-          { id: 'promotions', label: 'Promotions', icon: Percent },
+          { id: 'staff', label: t('staff_mgmt'), icon: Users },
+          { id: 'promotions', label: t('promo_scheduler'), icon: Percent },
         ]
       },
       {
-        label: 'Expansion',
+        label: t('label_mgmt'),
         items: [
-          { id: 'branches', label: 'Manage Branches', icon: Building2 },
+          { id: 'labels', label: t('label_mgmt'), icon: Terminal },
+          { id: 'label-ui', label: t('label_ui_setting'), icon: Store },
         ]
       },
       {
-        label: 'General',
+        label: t('insights'),
         items: [
-          { id: 'settings', label: 'Settings', icon: Settings },
-          { id: 'support', label: 'Support', icon: HelpCircle },
+          { id: 'analytics', label: t('scan_analytics'), icon: Activity },
+          { id: 'reports', label: t('reporting'), icon: BarChart2 },
+          { id: 'activity', label: t('tenant_audit'), icon: History },
+        ]
+      },
+      {
+        label: t('system_config'),
+        items: [
+          { id: 'branches', label: t('branch_mgmt'), icon: Building2 },
+          { id: 'pos', label: t('pos_integration'), icon: Zap },
+          { id: 'settings', label: t('settings'), icon: Settings },
+          { id: 'support', label: t('support_tickets'), icon: HelpCircle },
         ]
       }
     ];
 
     // Staff — Manager gets vendor-level nav
-    if (isManager) return [
+    const isAdvancedStaff = isManager || currentUser?.permissions?.canCreateProducts || currentUser?.permissions?.canCreateLabels;
+    
+    if (isAdvancedStaff) {
+      const branchItems = [
+        { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+        { id: 'products', label: t('product_mgmt'), icon: Package },
+      ];
+      if (currentUser?.permissions?.canCreateProducts || isManager) {
+        branchItems.push({ id: 'categories', label: t('category_mgmt'), icon: Layers });
+      }
+      branchItems.push({ id: 'labels', label: t('label_mgmt'), icon: Terminal });
+
+      const teamItems = [];
+      if (currentUser?.permissions?.canManageStaff || isManager) {
+        teamItems.push({ id: 'staff', label: t('staff_mgmt'), icon: Users });
+      }
+      teamItems.push({ id: 'issues', label: t('incident_control'), icon: AlertCircle });
+      
+      if (currentUser?.permissions?.canCreatePromotions || isManager) {
+        teamItems.push({ id: 'promotions', label: t('promo_scheduler'), icon: Percent });
+      }
+
+      const insightItems = [];
+      if (currentUser?.permissions?.canViewReports || isManager) {
+        insightItems.push({ id: 'reports', label: t('performance'), icon: BarChart2 });
+        insightItems.push({ id: 'activity', label: t('tenant_audit'), icon: History });
+      }
+
+      const menu = [
+        { label: t('branch_mgmt'), items: branchItems },
+        { label: t('team'), items: teamItems },
+      ];
+
+      if (insightItems.length > 0) {
+        menu.push({ label: t('insights'), items: insightItems });
+      }
+
+      menu.push({
+        label: t('general'),
+        items: [{ id: 'settings', label: t('settings'), icon: Settings }]
+      });
+
+      return menu;
+    }
+
+    // Regular staff (Cashier, Stock, IT, etc.)
+    const operationsItems = [
+      { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+      { id: 'pos', label: t('pos_checkout') || 'POS Checkout', icon: ShoppingCart },
+      { id: 'inventory', label: t('inventory_mgmt'), icon: Package },
+    ];
+    
+    if (currentUser?.permissions?.canCreateProducts) {
+      operationsItems.push({ id: 'products', label: t('product_mgmt'), icon: Package });
+    }
+    
+    if (currentUser?.permissions?.canCreateLabels) {
+      operationsItems.push({ id: 'labels', label: t('label_mgmt'), icon: Terminal });
+    }
+
+    const insightItems = [];
+    if (currentUser?.permissions?.canViewReports) {
+      insightItems.push({ id: 'reports', label: t('reporting'), icon: BarChart2 });
+    }
+
+    const menu = [
       {
-        label: 'Branch Management',
-        items: [
-          { id: 'dashboard', label: 'Overview', icon: LayoutGridIcon },
-          { id: 'products', label: 'Products', icon: Package },
-          { id: 'categories', label: 'Categories', icon: LayoutGridIcon },
-          { id: 'labels', label: 'Digital Labels', icon: Terminal },
-        ]
+        label: t('operations'),
+        items: operationsItems
       },
       {
-        label: 'Team',
+        label: t('incident_control'),
         items: [
-          { id: 'staff', label: 'Staff', icon: Users },
-          { id: 'issues', label: 'Reported Issues', icon: AlertCircle },
-        ]
-      },
-      {
-        label: 'Insights',
-        items: [
-          { id: 'reports', label: 'Performance', icon: BarChart2 },
-        ]
-      },
-      {
-        label: 'General',
-        items: [
-          { id: 'settings', label: 'Settings', icon: Settings },
+          { id: 'issues', label: t('incident_control'), icon: AlertCircle },
         ]
       }
     ];
 
-    // Regular staff (Cashier, Stock, IT, etc.)
-    return [
-      {
-        label: 'Operations',
-        items: [
-          { id: 'dashboard', label: 'Overview', icon: LayoutGridIcon },
-          { id: 'inventory', label: 'Inventory', icon: Package },
-          { id: 'labels', label: 'Labels', icon: Terminal },
-        ]
-      },
-      {
-        label: 'Incident Control',
-        items: [
-          { id: 'issues', label: 'Reported Issues', icon: AlertCircle },
-        ]
-      },
-      {
-        label: 'Insights',
-        items: [
-          { id: 'reports', label: 'Performance', icon: BarChart2 },
-        ]
-      },
-      {
-        label: 'General',
-        items: [
-          { id: 'settings', label: 'Profile', icon: Settings },
-          { id: 'support', label: 'Help Desk', icon: HelpCircle },
-        ]
-      }
-    ];
+    if (insightItems.length > 0) {
+      menu.push({
+        label: t('insights'),
+        items: insightItems
+      });
+    }
+
+    menu.push({
+      label: t('general'),
+      items: [
+        { id: 'settings', label: t('profile'), icon: Settings },
+        { id: 'support', label: t('support_tickets'), icon: HelpCircle },
+      ]
+    });
+
+    return menu;
   };
 
   const menuGroups = getMenuGroups();
@@ -183,22 +231,27 @@ export const DashboardSidebar = ({
       {/* Background Subtle Gradient (Light Mode) */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#5750F1]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
 
-      {/* Brand Identity */}
       <div className="flex items-center gap-4 px-8 py-10 relative z-10">
-        <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#5750F1] text-white shadow-xl shadow-[#5750F1]/30 transform hover:scale-105 transition-transform">
-          <Zap className="h-6 w-6 fill-current" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-none bg-white dark:bg-[#1C2434] text-white shadow-lg border border-slate-100 dark:border-slate-800 transform hover:scale-105 transition-transform overflow-hidden group">
+          <img 
+            src={currentUser?.companyLogo || "/logo.jpg"} 
+            alt="Logo" 
+            className="h-full w-full object-contain p-1"
+            onError={(e) => {
+              (e.target as any).src = "/logo.jpg";
+            }}
+          />
         </div>
         <div className="min-w-0">
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <p className="text-xl font-bold text-[#111928] dark:text-white tracking-tighter leading-none truncate max-w-[120px]">
+              <p className="text-[15px] font-black text-[#111928] dark:text-white tracking-tight leading-none truncate max-w-[180px]">
                 {currentUser?.role === 'staff' 
-                  ? (currentUser?.branchName || 'NextAdmin')
-                  : (currentUser?.companyName || 'NextAdmin')}
+                  ? (currentUser?.branchName || 'Kitzu-Tech')
+                  : (currentUser?.companyName || 'Kitzu-Tech')}
               </p>
-              <span className="bg-[#5750F1] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-none shadow-sm shadow-[#5750F1]/20">PRO</span>
             </div>
-            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#637381] dark:text-slate-400 mt-1.5">Digital Label System</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#5750F1] mt-1.5">{t('platform_brand_name')}</p>
           </div>
         </div>
         {onClose && (
@@ -223,7 +276,9 @@ export const DashboardSidebar = ({
                   <button
                     key={item.id}
                     onClick={() => {
-                      setSelectedTab(item.id);
+                      if (selectedTab !== item.id) {
+                        setSelectedTab(item.id);
+                      }
                       if (onClose) onClose();
                     }}
                     className={`group relative flex w-full items-center gap-3.5 rounded-none px-5 py-3 text-sm font-semibold transition-all duration-300 ${
@@ -272,16 +327,6 @@ export const DashboardSidebar = ({
                       ? 'System Administrator'
                       : currentUser?.role}
               </p>
-              {currentUser?.branchId && (
-                <p className="truncate text-[8px] font-semibold text-[#637381] dark:text-slate-500 uppercase tracking-tight">
-                  <span className="opacity-50">Branch:</span> {currentUser.branchName || 'Primary Location'}
-                </p>
-              )}
-              {currentUser?.role === 'vendor' && currentUser?.companyId && (
-                <p className="truncate text-[8px] font-semibold text-[#637381] dark:text-slate-500 uppercase tracking-tight">
-                  <span className="opacity-50">Corporate ID:</span> {currentUser.companyId.slice(0, 8)}
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -291,7 +336,7 @@ export const DashboardSidebar = ({
           className="w-full h-11 flex items-center justify-center gap-2 rounded-none text-[#637381] dark:text-slate-400 hover:text-[#FB5050] dark:hover:text-[#FB5050] hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all font-bold text-xs border border-transparent hover:border-rose-200"
         >
           <LogOut className="h-4 w-4" />
-          Log out
+          {t('logout')}
         </button>
       </div>
     </aside>

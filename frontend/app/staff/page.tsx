@@ -1,5 +1,6 @@
 'use client';
-
+import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 
 // The Manager gets the FULL vendor experience
@@ -8,11 +9,21 @@ import { RegularStaffPage } from './StaffView';
 
 export default function StaffPage() {
   const { user, hasHydrated } = useUserStore();
+  const router = useRouter();
+  const redirecting = useRef(false);
+
+  useEffect(() => {
+    if (!hasHydrated || redirecting.current) return;
+    if (!user) {
+      redirecting.current = true;
+      router.push('/login');
+    }
+  }, [user, hasHydrated, router]);
   
   if (!hasHydrated) return null;
 
-  // Manager gets the full vendor-level experience
-  if (user?.position === 'Manager') {
+  const isManager = user?.position?.toLowerCase() === 'manager';
+  if (isManager || user?.permissions?.canCreateProducts || user?.permissions?.canCreateLabels) {
     return <ManagerStaffPage />;
   }
 

@@ -72,6 +72,7 @@ export interface DigitalLabel {
   productId: string | null;
   productName?: string;
   productSku?: string | null;
+  productCode?: string;
   branchId: string;
   currentPrice: number | null;
   basePrice?: number | null;
@@ -120,10 +121,21 @@ export interface Category {
 
 export function useStaffDashboard() {
   const router = useRouter();
-  const { user: currentUser, clearUser, hasHydrated } = useUserStore();
+  const { user: currentUser, setUser, clearUser, hasHydrated } = useUserStore();
   
   // States
   const [selectedTab, setSelectedTab] = useState<string>('dashboard');
+  
+  // Persist selected tab across refreshes
+  useEffect(() => {
+    const savedTab = localStorage.getItem('staff_selected_tab');
+    if (savedTab) setSelectedTab(savedTab);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('staff_selected_tab', selectedTab);
+  }, [selectedTab]);
+
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
@@ -142,6 +154,13 @@ export function useStaffDashboard() {
   const [showReportIssue, setShowReportIssue] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [activeDiscountModal, setActiveDiscountModal] = useState<{ 
+    isOpen: boolean, 
+    labelId: string, 
+    productId: string, 
+    productName: string, 
+    currentPrice: number 
+  } | null>(null);
   
   // Custom Notice Modals (for unified style)
   const [labelModal, setLabelModal] = useState<{
@@ -200,8 +219,32 @@ export function useStaffDashboard() {
         getDoc(fsDoc(db, 'branches', currentUser.branchId))
       ]);
 
-      if (compDoc.exists()) setCompany({ id: compDoc.id, ...compDoc.data() } as Company);
-      if (brDoc.exists()) setBranch({ id: brDoc.id, ...brDoc.data() } as Branch);
+      if (compDoc.exists()) {
+        const compData = compDoc.data() as any;
+        setCompany({ id: compDoc.id, ...compData } as Company);
+        
+        // Sync to user store for sidebar
+        if (currentUser.companyName !== compData.name || currentUser.companyLogo !== compData.logoUrl) {
+          setUser({
+            ...currentUser,
+            companyName: compData.name,
+            companyLogo: compData.logoUrl
+          });
+        }
+      }
+      
+      if (brDoc.exists()) {
+        const brData = brDoc.data() as any;
+        setBranch({ id: brDoc.id, ...brData } as Branch);
+        
+        // Sync branch name for sidebar
+        if (currentUser.branchName !== brData.name) {
+          setUser({
+            ...currentUser,
+            branchName: brData.name
+          });
+        }
+      }
 
       // Load products
       const bpSnap = await getDocs(query(
@@ -298,7 +341,7 @@ export function useStaffDashboard() {
   };
 
   // Actions
-  const updateStock = async (productId: string, value: number, mode: 'adjust' | 'set' = 'adjust') => {
+  const updateStock = async (productId: string, value: number, mode: 'adjust' | 'set' = 'adjust', silent: boolean = false) => {
     if (!currentUser?.branchId) return;
     try {
       const bpSnap = await getDocs(query(
@@ -327,7 +370,9 @@ export function useStaffDashboard() {
         lastUpdated: Timestamp.now()
       });
       
-      openLabelNotice('Stock Updated', `Inventory is now ${newStock} units (${status.replace('-', ' ')}).`, 'success');
+      if (!silent) {
+        openLabelNotice('Stock Updated', `Inventory is now ${newStock} units (${status.replace('-', ' ')}).`, 'success');
+      }
       loadStaffData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to update stock.', 'error');
@@ -437,6 +482,41 @@ export function useStaffDashboard() {
     }
   };
 
+  const executeManualDiscount = async (percent: number) => {
+    if (!activeDiscountModal) return;
+    try {
+      const { labelId, productId } = activeDiscountModal;
+      
+      if (labelId) {
+        // Single label discount
+        const label = labels.find(l => l.id === labelId);
+        if (!label) throw new Error("Label not found");
+        const basePrice = label.basePrice || label.currentPrice || 0;
+        await applyDiscountToLabel({ labelId, basePrice, percent });
+      } else if (productId) {
+        // Product-wide discount for this branch
+        const targetLabels = labels.filter(l => l.productId === productId);
+        if (targetLabels.length === 0) {
+          openLabelNotice('Info', 'No active tags found for this product.', 'info');
+          setActiveDiscountModal(null);
+          return;
+        }
+
+        await Promise.all(targetLabels.map(label => {
+          const basePrice = label.basePrice || label.currentPrice || 0;
+          return applyDiscountToLabel({ labelId: label.id, basePrice, percent });
+        }));
+      }
+
+      setActiveDiscountModal(null);
+      openLabelNotice('Campaign Active', `A ${percent}% discount has been pushed to the network.`, 'success');
+      loadStaffData();
+    } catch (error) {
+      console.error(error);
+      openLabelNotice('Error', 'Failed to apply discount override.', 'error');
+    }
+  };
+
   const handleProfileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
@@ -498,6 +578,7 @@ export function useStaffDashboard() {
     showReportIssue, setShowReportIssue,
     showProductModal, setShowProductModal,
     showCategoryModal, setShowCategoryModal,
+    activeDiscountModal, setActiveDiscountModal,
     labelModal, setLabelModal,
     labelConfirm, setLabelConfirm,
     currentUser,
@@ -508,6 +589,7 @@ export function useStaffDashboard() {
     handleSyncLabel,
     handleUnlinkProductFromLabel,
     handleDeleteLabel,
+    executeManualDiscount,
     handleProfileUpload,
     updateProfile,
     loadStaffData,

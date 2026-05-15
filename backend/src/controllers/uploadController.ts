@@ -32,3 +32,34 @@ export const uploadProfileImage = async (req: Request, res: Response): Promise<v
     });
   }
 };
+
+export const uploadProductImage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
+    }
+
+    const uploadResponse = await imagekit.upload({
+      file: req.file.buffer,
+      fileName: `product-${Date.now()}.webp`,
+      folder: '/digital-label/products',
+      useUniqueFileName: true,
+      transformation: {
+        pre: 'w-800,h-800,cm-pad_resize,bg-FFFFFF'
+      }
+    });
+
+    res.status(200).json({
+      message: 'Product image uploaded successfully',
+      url: uploadResponse.url,
+    });
+  } catch (error: any) {
+    console.error('❌ ImageKit Product Upload Error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      message: 'Internal server error during product image upload', 
+      error: error.message || error,
+      details: error
+    });
+  }
+};

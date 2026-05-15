@@ -11,7 +11,9 @@ export interface Company {
   ownerId: string;
   createdAt: Timestamp;
   code?: string;
+  taxId?: string;
   branches?: Branch[];
+  logoUrl?: string;
 }
 
 export interface Branch {
@@ -21,7 +23,9 @@ export interface Branch {
   phone: string;
   manager?: string;
   companyId: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'maintenance' | 'closed';
+  location?: string;
+  timezone?: string;
   createdAt: Timestamp;
 }
 
@@ -88,6 +92,8 @@ export interface DigitalLabel {
   productId: string | null;
   productName?: string;
   productSku?: string;
+  productCode?: string;
+  stock?: number;
   branchId: string;
   branchName?: string;
   companyId: string;

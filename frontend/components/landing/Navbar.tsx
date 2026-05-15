@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Store, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LanguageSelector } from '../admin/LanguageSelector';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <motion.nav 
@@ -25,26 +28,40 @@ export const Navbar = () => {
             transition={{ type: "spring", stiffness: 200, damping: 20 }}
             className="flex items-center gap-2"
           >
-            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Store className="h-5 w-5 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center overflow-hidden">
+              <img 
+                src="/logo.jpg" 
+                alt="Logo" 
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as any).style.display = 'none';
+                  (e.target as any).nextSibling.style.display = 'block';
+                }}
+              />
+              <Store className="h-5 w-5 text-white hidden" />
             </div>
-            <span className="text-xl font-bold text-gray-900">
-              Digital Label
+            <span className="text-xl font-black tracking-tight text-gray-900 uppercase">
+              Kitzu-Tech
             </span>
           </motion.div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            {['Features', 'Use Cases', 'Pricing', 'Contact'].map((item, index) => (
+            {[
+              { id: 'features', label: t('features') },
+              { id: 'usecases', label: t('use_cases') },
+              { id: 'pricing', label: t('pricing') },
+              { id: 'contact', label: t('contact') }
+            ].map((item, index) => (
               <motion.a
-                key={item}
+                key={item.id}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 + 0.3 }}
-                href={`#${item.toLowerCase().replace(' ', '')}`}
+                href={`#${item.id}`}
                 className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors relative group"
               >
-                {item}
+                {item.label}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
               </motion.a>
             ))}
@@ -52,6 +69,7 @@ export const Navbar = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-4">
+            <LanguageSelector />
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -59,7 +77,7 @@ export const Navbar = () => {
             >
               <Link href="/login">
                 <Button variant="outline" size="sm" className="relative overflow-hidden group">
-                  <span className="relative z-10">Sign In</span>
+                  <span className="relative z-10">{t('sign_in')}</span>
                   <span className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 translate-x-full group-hover:translate-x-0 transition-transform duration-300"></span>
                 </Button>
               </Link>
@@ -71,7 +89,7 @@ export const Navbar = () => {
             >
               <Link href="/register">
                 <Button size="sm" className="relative overflow-hidden group">
-                  <span className="relative z-10">Get Started Free</span>
+                  <span className="relative z-10">{t('get_started')}</span>
                   <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 translate-x-full group-hover:translate-x-0 transition-transform duration-300"></span>
                 </Button>
               </Link>

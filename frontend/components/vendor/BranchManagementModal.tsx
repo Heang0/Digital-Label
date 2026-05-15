@@ -11,10 +11,12 @@ import {
   Navigation,
   Check,
   RefreshCw,
-  Phone
+  Phone,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface BranchManagementModalProps {
   isOpen: boolean;
@@ -29,24 +31,29 @@ export const BranchManagementModal = ({
   onSubmit,
   editingBranch
 }: BranchManagementModalProps) => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     location: '',
     address: '',
-    phone: ''
+    phone: '',
+    timezone: 'Asia/Phnom_Penh',
+    status: 'active' as 'active' | 'maintenance' | 'closed'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingBranch) {
-      setFormData({
-        name: editingBranch.name || '',
-        location: editingBranch.location || '',
-        address: editingBranch.address || '',
-        phone: editingBranch.phone || ''
+      setFormData({ 
+        name: editingBranch.name, 
+        location: editingBranch.location || '', 
+        address: editingBranch.address, 
+        phone: editingBranch.phone || '',
+        timezone: editingBranch.timezone || 'Asia/Phnom_Penh',
+        status: editingBranch.status || 'active'
       });
     } else {
-      setFormData({ name: '', location: '', address: '', phone: '' });
+      setFormData({ name: '', location: '', address: '', phone: '', timezone: 'Asia/Phnom_Penh', status: 'active' });
     }
   }, [editingBranch, isOpen]);
 
@@ -55,7 +62,7 @@ export const BranchManagementModal = ({
     setIsSubmitting(true);
     try {
       await onSubmit(formData);
-      setFormData({ name: '', location: '', address: '', phone: '' });
+      setFormData({ name: '', location: '', address: '', phone: '', timezone: 'Asia/Phnom_Penh', status: 'active' });
       onClose();
     } catch (error) {
       console.error(error);
@@ -90,10 +97,10 @@ export const BranchManagementModal = ({
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-[#111928] dark:text-white uppercase tracking-tight">
-                    {editingBranch ? 'Modify Branch Data' : 'New Branch Entry'}
+                    {editingBranch ? t('edit_branch') : t('new_branch_entry')}
                   </h3>
                   <p className="text-[10px] font-black text-[#5750F1] uppercase tracking-widest">
-                    {editingBranch ? 'Store Configuration Update' : 'Retail Expansion Protocol'}
+                    {editingBranch ? t('branch_subtitle_edit') : t('branch_subtitle_new')}
                   </p>
                 </div>
               </div>
@@ -105,28 +112,28 @@ export const BranchManagementModal = ({
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Branch Name</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_name')}</label>
                   <div className="relative">
                     <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                     <Input 
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="e.g. Lucky TTP"
+                      placeholder={t('branch_name_placeholder')}
                       className="pl-10 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">General Area</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('general_area')}</label>
                   <div className="relative">
                     <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                     <Input 
                       required
                       value={formData.location}
                       onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      placeholder="e.g. Phnom Penh"
+                      placeholder={t('general_area_placeholder')}
                       className="pl-10 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
                     />
                   </div>
@@ -134,29 +141,60 @@ export const BranchManagementModal = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Address</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('physical_address')}</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                   <Input 
                     required
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    placeholder="Full street address..."
+                    placeholder={t('physical_address_placeholder')}
                     className="pl-10 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('contact_phone')}</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                   <Input 
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    placeholder="e.g. +855 12 345 678"
+                    placeholder={t('contact_phone_placeholder')}
                     className="pl-10 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_timezone')}</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                    <select 
+                      value={formData.timezone}
+                      onChange={(e) => setFormData({...formData, timezone: e.target.value})}
+                      className="pl-10 w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold appearance-none outline-none focus:border-[#5750F1] transition-colors"
+                    >
+                      <option value="Asia/Phnom_Penh">Asia/Phnom_Penh (ICT)</option>
+                      <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
+                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('branch_operational_status')}</label>
+                  <select 
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                    className="w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold px-4 outline-none"
+                  >
+                    <option value="active">{t('status_active')}</option>
+                    <option value="maintenance">{t('status_maintenance')}</option>
+                    <option value="closed">{t('status_closed')}</option>
+                  </select>
                 </div>
               </div>
 
@@ -167,7 +205,7 @@ export const BranchManagementModal = ({
                   variant="ghost" 
                   className="flex-1 h-12 rounded-none text-[10px] font-black uppercase tracking-widest"
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button 
                   type="submit"
@@ -175,7 +213,7 @@ export const BranchManagementModal = ({
                   className="flex-[2] h-12 bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none border-none text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 gap-2"
                 >
                   {isSubmitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : (editingBranch ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />)}
-                  {editingBranch ? 'Save Branch Changes' : 'Finalize Branch Creation'}
+                  {editingBranch ? t('save_branch') : t('create_branch')}
                 </Button>
               </div>
             </form>
@@ -184,7 +222,7 @@ export const BranchManagementModal = ({
             <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                 <span className="text-[8px] font-black text-emerald-500/80 uppercase tracking-[0.2em]">Ready for provision</span>
+                 <span className="text-[8px] font-black text-emerald-500/80 uppercase tracking-[0.2em]">{t('ready_for_provision')}</span>
               </div>
               <span className="text-[8px] font-mono text-slate-600 uppercase">System v2.4.0</span>
             </div>

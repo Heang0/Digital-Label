@@ -10,41 +10,61 @@ import { Loader2 } from 'lucide-react';
 export default function LabelPreviewPage() {
   const { id } = useParams();
   const [label, setLabel] = useState<DigitalLabel | null>(null);
+  const [design, setDesign] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [qrUrl, setQrUrl] = useState('');
 
   useEffect(() => {
     if (!id) return;
-    const unsub = onSnapshot(doc(db, 'labels', id as string), async (snap) => {
+    
+    // Listen to label data
+    const unsubLabel = onSnapshot(doc(db, 'labels', id as string), async (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         const labelData = { id: snap.id, ...data } as DigitalLabel;
         
-        // If branch name is missing, try to fetch it
         if (!labelData.branchName && labelData.branchId) {
           try {
             const branchSnap = await getDoc(doc(db, 'branches', labelData.branchId));
             if (branchSnap.exists()) {
               labelData.branchName = branchSnap.data().name;
             }
-          } catch (e) {
-            console.error('Error fetching branch name:', e);
-          }
+          } catch (e) {}
         }
-        
         setLabel(labelData);
       }
       setLoading(false);
     });
-    return () => unsub();
+
+    // Listen to global design config
+    const unsubDesign = onSnapshot(doc(db, 'system_config', 'label_design'), (snap) => {
+      if (snap.exists()) {
+        setDesign(snap.data());
+      } else {
+        // Fallback default design
+        setDesign({
+          template: 'standard',
+          showBattery: true,
+          showQrCode: true,
+          showStock: true,
+          highContrast: true,
+          fontFamily: 'Inter'
+        });
+      }
+    });
+
+    return () => {
+      unsubLabel();
+      unsubDesign();
+    };
   }, [id]);
 
   // Build QR URL client-side only
   useEffect(() => {
     if (label) {
       try {
-        const editUrl = `${window.location.origin}/label/${label.id}/edit`;
-        setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(editUrl)}`);
+        const shortUrl = `${window.location.origin}/l/${label.id}`;
+        setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shortUrl)}`);
       } catch (e) {
         console.error('Error creating QR URL:', e);
       }
@@ -115,112 +135,189 @@ export default function LabelPreviewPage() {
           </div>
 
           {/* E-Ink Screen Area */}
-          <div className="mx-5 mb-5 bg-white border-[2.5px] border-[#1a1a1a] rounded-[4px] overflow-hidden"
+          <div className="mx-5 mb-5 bg-white border-[2.5px] border-[#1a1a1a] rounded-[4px] overflow-hidden relative"
             style={{
               boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)',
+              fontFamily: design?.fontFamily || 'Inter',
+              filter: design?.highContrast ? 'contrast(1.2)' : 'none'
             }}
           >
-            {/* Row 1: Product Name + SKU */}
-            <div className="flex items-start justify-between border-b-[2.5px] border-[#1a1a1a] px-7 py-5">
-              <h1 className="text-[42px] font-black text-[#1a1a1a] tracking-tight uppercase leading-none">
-                {label.productName || 'PRODUCT'}
-              </h1>
-              <div className="text-right shrink-0 ml-6">
-                <span className="text-[13px] font-bold text-[#888] uppercase tracking-wider block">SKU</span>
-                <span className="text-[22px] font-black text-[#1a1a1a] tracking-tight leading-none">
-                  {label.productSku || 'PR-00000'}
-                </span>
-              </div>
+            {/* Status Bar */}
+            <div className="px-6 py-3 flex justify-between items-center border-b-[2.5px] border-[#1a1a1a]">
+               <div className="flex items-center gap-1.5">
+                  <div className="h-4 w-4 bg-black flex items-center justify-center text-white rounded-sm">
+                     <span className="text-[8px] font-black italic">S</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-tighter">SmartSync E-Ink</span>
+               </div>
+               {design?.showBattery && (
+                  <div className="flex items-center gap-1 border-[1.5px] border-black px-1 rounded-sm scale-90">
+                     <span className="text-[8px] font-black">{label.battery || 100}%</span>
+                     <div className="h-1.5 w-3 border-[1px] border-black relative">
+                        <div className="h-full bg-black" style={{ width: `${label.battery || 100}%` }} />
+                     </div>
+                  </div>
+               )}
             </div>
 
-            {/* Row 2: Promo + Pricing */}
-            <div className="flex border-b-[2.5px] border-[#1a1a1a]">
-              {/* Left: Sale Badge + Unit Price */}
-              <div className="w-[38%] border-r-[2.5px] border-[#1a1a1a] flex flex-col">
-                {/* Sale Badge */}
-                <div className="px-6 py-5 border-b-[2.5px] border-[#1a1a1a] flex items-start">
-                  {label.discountPercent ? (
-                    <div className="bg-[#CC2B2B] text-white px-5 py-3 inline-block">
-                      <span className="text-[13px] font-black uppercase block leading-none">SALE</span>
-                      <span className="text-[26px] font-black tracking-tight leading-none block mt-1">
-                        -{label.discountPercent}%
-                      </span>
+            {/* Template Rendering */}
+            {(design?.template === 'promo' || (label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice)) ? (
+               <>
+                 {/* Standard & Promo shared layout structure */}
+                 <div className="flex items-start justify-between border-b-[2.5px] border-[#1a1a1a] px-7 py-5">
+                    <div className="flex-1">
+                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Limited Time Offer</p>
+                       <h1 className="text-[46px] font-black text-[#1a1a1a] tracking-tighter uppercase leading-[0.9]">
+                        {label.productName || 'PRODUCT'}
+                       </h1>
                     </div>
-                  ) : (
-                    <div className="opacity-[0.03] text-[#1a1a1a]">
-                      <span className="text-[13px] font-black uppercase block leading-none">PROMO</span>
-                      <span className="text-[26px] font-black tracking-tight leading-none block mt-1">0%</span>
+                    <div className="bg-rose-600 text-white p-3 rotate-3 shadow-lg border-[2px] border-black">
+                       <span className="text-[10px] font-black block leading-none">SAVE</span>
+                       <span className="text-2xl font-black">
+                         {label.discountPercent || Math.round((1 - (label.finalPrice || 0) / (label.currentPrice || 1)) * 100)}%
+                       </span>
+                    </div>
+                 </div>
+
+                 <div className="flex border-b-[2.5px] border-[#1a1a1a]">
+                    <div className="w-[38%] border-r-[2.5px] border-[#1a1a1a] p-6 flex flex-col justify-center bg-slate-50/50">
+                       <span className="text-[11px] font-bold text-[#888] uppercase tracking-widest mb-1">Was</span>
+                       <span className="font-black text-[#1a1a1a] tracking-tight leading-none text-[24px] line-through opacity-40">
+                         ${originalPrice.toFixed(2)}
+                       </span>
+                       <span className="text-[11px] font-bold text-[#888] uppercase tracking-widest mt-3 mb-1">Now Only</span>
+                       <span className="text-[36px] font-black text-rose-600 leading-none">${finalPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center p-6">
+                       <div className="flex items-start">
+                          <span className="text-[36px] font-black text-black mt-8 mr-1">$</span>
+                          <span className="text-[140px] font-black text-black leading-[0.75] tracking-tighter">
+                            {wholePart}
+                          </span>
+                          <span className="text-[70px] font-black text-black leading-[0.9] tracking-tight mt-1">
+                            .{centsPart}
+                          </span>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="flex items-stretch">
+                    <div className="flex-1 px-7 py-5 flex flex-col justify-center border-r-[2.5px] border-black">
+                       <div className="flex items-end gap-[1.5px] h-[36px] w-full mb-2 opacity-80">
+                          {[...Array(60)].map((_, i) => (
+                            <div key={i} className="bg-rose-600 flex-1" style={{ height: `${20 + Math.random() * 80}%` }} />
+                          ))}
+                       </div>
+                       <div className="flex justify-between items-center">
+                          <span className="text-[12px] font-black tracking-[0.3em] uppercase">{label.labelCode || label.labelId}</span>
+                          {design?.showStock && (
+                             <span className="bg-black text-white px-2 py-0.5 text-[10px] font-black uppercase">In Stock: {label.stock || 0}</span>
+                          )}
+                       </div>
+                    </div>
+                    {design?.showQrCode && qrUrl && (
+                       <div className="w-[110px] p-4 flex items-center justify-center bg-white">
+                          <img src={qrUrl} className="w-[78px] h-[78px] object-contain" alt="QR" />
+                       </div>
+                    )}
+                 </div>
+               </>
+            ) : design?.template === 'minimal' ? (
+               <div className="p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
+                  <h1 className="text-4xl font-black text-black leading-tight mb-4 uppercase tracking-tighter">
+                    {label.productName || 'PRODUCT'}
+                  </h1>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black">$</span>
+                    <span className="text-8xl font-black tracking-tighter">{wholePart}.{centsPart}</span>
+                  </div>
+                  {design?.showQrCode && qrUrl && (
+                    <div className="mt-8 p-1 border-[2px] border-black">
+                       <img src={qrUrl} className="w-16 h-16" alt="QR" />
                     </div>
                   )}
-                </div>
+               </div>
+            ) : design?.template === 'inventory' ? (
+               <div className="p-0 flex flex-col min-h-[300px]">
+                  <div className="bg-black text-white p-4 flex justify-between items-center">
+                     <span className="text-[10px] font-black uppercase tracking-widest">Stock Control Log</span>
+                     <span className="text-lg font-black">{label.productSku}</span>
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col justify-center">
+                     <h2 className="text-2xl font-black text-black uppercase mb-2">{label.productName}</h2>
+                     <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="border-[2px] border-black p-3">
+                           <span className="text-[8px] font-black uppercase block text-slate-500">Current Stock</span>
+                           <span className="text-3xl font-black">{label.stock || 0}</span>
+                        </div>
+                        <div className="border-[2px] border-black p-3">
+                           <span className="text-[8px] font-black uppercase block text-slate-500">Price Point</span>
+                           <span className="text-3xl font-black">${finalPrice}</span>
+                        </div>
+                     </div>
+                  </div>
+                  <div className="p-4 border-t-[2px] border-black flex justify-between items-center">
+                     {design?.showQrCode && qrUrl && <img src={qrUrl} className="w-12 h-12" alt="QR" />}
+                     <div className="text-right">
+                        <span className="text-[8px] font-black uppercase block">Last Count</span>
+                        <span className="text-[10px] font-bold">{new Date().toLocaleDateString()}</span>
+                     </div>
+                  </div>
+               </div>
+            ) : (
+               <>
+                 {/* Standard layout structure */}
+                 <div className="flex items-start justify-between border-b-[2.5px] border-[#1a1a1a] px-7 py-5">
+                    <div className="flex-1">
+                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Premium Retail</p>
+                       <h1 className="text-[46px] font-black text-[#1a1a1a] tracking-tighter uppercase leading-[0.9]">
+                        {label.productName || 'PRODUCT'}
+                       </h1>
+                    </div>
+                 </div>
 
-                {/* Unit Price */}
-                <div className="px-6 py-5 flex-1 flex flex-col justify-end">
-                  <span className="text-[11px] font-bold text-[#888] uppercase tracking-widest leading-none">UNIT PRICE</span>
-                  <span className="text-[32px] font-black text-[#1a1a1a] tracking-tight leading-none mt-2">
-                    ${originalPrice.toFixed(2)}
-                  </span>
-                  <span className="text-[11px] font-bold text-[#CC2B2B] uppercase tracking-wider leading-none mt-2">PER EACH</span>
-                </div>
-              </div>
+                 <div className="flex border-b-[2.5px] border-[#1a1a1a]">
+                    <div className="w-[38%] border-r-[2.5px] border-[#1a1a1a] p-6 flex flex-col justify-center">
+                       <span className="text-[11px] font-bold text-[#888] uppercase tracking-widest mb-1">Unit Price</span>
+                       <span className="font-black text-[#1a1a1a] tracking-tight leading-none text-[32px]">
+                         ${originalPrice.toFixed(2)}
+                       </span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center p-6 bg-slate-50/50">
+                       <div className="flex items-start">
+                          <span className="text-[36px] font-black text-black mt-8 mr-1">$</span>
+                          <span className="text-[140px] font-black text-black leading-[0.75] tracking-tighter">
+                            {wholePart}
+                          </span>
+                          <span className="text-[70px] font-black text-black leading-[0.9] tracking-tight mt-1">
+                            .{centsPart}
+                          </span>
+                       </div>
+                    </div>
+                 </div>
 
-              {/* Right: Main Price Display */}
-              <div className="flex-1 relative flex items-center justify-center px-8 py-8">
-                {/* Strikethrough original price */}
-                {label.discountPercent && (
-                  <span 
-                    className="absolute top-5 right-8 text-[28px] font-black text-[#999] tracking-tight"
-                    style={{ textDecoration: 'line-through', textDecorationThickness: '2px' }}
-                  >
-                    ${originalPrice.toFixed(2)}
-                  </span>
-                )}
-
-                {/* Big Price */}
-                <div className="flex items-start">
-                  <span className="text-[36px] font-black text-[#1a1a1a] mt-8 mr-1">$</span>
-                  <span className="text-[140px] font-black text-[#1a1a1a] leading-[0.75] tracking-tighter">
-                    {wholePart}
-                  </span>
-                  <span className="text-[70px] font-black text-[#1a1a1a] leading-[0.9] tracking-tight mt-1">
-                    .{centsPart}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Row 3: Barcode + QR */}
-            <div className="flex">
-              {/* Barcode */}
-              <div className="flex-1 border-r-[2.5px] border-[#1a1a1a] px-7 py-4 flex flex-col items-center justify-center">
-                <div className="flex items-end gap-[2px] h-[48px] w-full max-w-[340px] mb-2">
-                  {[...Array(50)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className="bg-[#1a1a1a] w-full" 
-                      style={{ 
-                        height: `${i % 5 === 0 ? 100 : i % 3 === 0 ? 65 : 85}%`,
-                        width: i % 7 === 0 ? '3px' : '2px'
-                      }} 
-                    />
-                  ))}
-                </div>
-                <span className="text-[13px] font-bold text-[#1a1a1a] tracking-[0.4em] uppercase">
-                  {label.labelCode || label.labelId || 'DL-005'}
-                </span>
-              </div>
-
-              {/* QR Code */}
-              <div className="w-[120px] p-4 flex flex-col items-center justify-center">
-                {qrUrl && (
-                  <img 
-                    src={qrUrl}
-                    alt="Scan to manage"
-                    className="w-[72px] h-[72px] object-contain"
-                  />
-                )}
-              </div>
-            </div>
+                 <div className="flex items-stretch">
+                    <div className="flex-1 px-7 py-5 flex flex-col justify-center border-r-[2.5px] border-black">
+                       <div className="flex items-end gap-[1.5px] h-[36px] w-full mb-2 opacity-80">
+                          {[...Array(60)].map((_, i) => (
+                            <div key={i} className="bg-black flex-1" style={{ height: `${20 + Math.random() * 80}%` }} />
+                          ))}
+                       </div>
+                       <div className="flex justify-between items-center">
+                          <span className="text-[12px] font-black tracking-[0.3em] uppercase">{label.labelCode || label.labelId}</span>
+                          {design?.showStock && (
+                             <span className="bg-black text-white px-2 py-0.5 text-[10px] font-black uppercase">Stock: {label.stock || 0}</span>
+                          )}
+                       </div>
+                    </div>
+                    {design?.showQrCode && qrUrl && (
+                       <div className="w-[110px] p-4 flex items-center justify-center bg-white">
+                          <img src={qrUrl} className="w-[78px] h-[78px] object-contain" alt="QR" />
+                       </div>
+                    )}
+                 </div>
+               </>
+            )}
           </div>
         </div>
 

@@ -100,4 +100,60 @@
     backface-visibility: hidden;
   }
 }
+
+/* Khmer Language Overrides */
+.lang-km, 
+.lang-km body,
+.lang-km button,
+.lang-km input,
+.lang-km select,
+.lang-km textarea,
+.lang-km [class*="font-"] {
+  font-family: var(--font-kantumruy), sans-serif !important;
+}
+
+.lang-km h1, 
+.lang-km h2, 
+.lang-km h3, 
+.lang-km h4, 
+.lang-km h5, 
+.lang-km h6,
+.lang-km span,
+.lang-km p,
+.lang-km div,
+.lang-km button,
+.lang-km a,
+.lang-km label,
+.lang-km input,
+.lang-km select,
+.lang-km textarea,
+.lang-km table,
+.lang-km th,
+.lang-km td,
+.lang-km li {
+  font-family: var(--font-kantumruy), sans-serif !important;
+  font-weight: 400 !important;
+}
+
+/* Specifically target placeholders */
+.lang-km input::placeholder,
+.lang-km textarea::placeholder {
+  font-family: var(--font-kantumruy), sans-serif !important;
+  font-weight: 400 !important;
+}
+
+.lang-km .font-bold,
+.lang-km .font-semibold,
+.lang-km .font-black,
+.lang-km strong,
+.lang-km b {
+  font-weight: 500 !important;
+}
+
+/* Fix iPhone Input Zoom */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
  

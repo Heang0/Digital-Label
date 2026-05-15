@@ -40,8 +40,8 @@ export const AdminAnalytics = ({ metrics, companies }: AnalyticsProps) => {
       {/* Analytics Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Performance Analytics</h2>
-          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Deep dive into platform growth and vendor engagement metrics.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Platform Analytics</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Real-time performance and growth metrics for Kitzu-Tech.</p>
         </div>
         
         <div className="flex items-center gap-3">

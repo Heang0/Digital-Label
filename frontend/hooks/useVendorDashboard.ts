@@ -49,8 +49,18 @@ export function useVendorDashboard() {
   
   // States
   const [selectedTab, setSelectedTab] = useState<
-    'dashboard' | 'products' | 'categories' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings' | 'support' | 'branches' | 'issues'
+    'dashboard' | 'products' | 'categories' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings' | 'support' | 'branches' | 'issues' | 'activity' | 'inventory' | 'analytics' | 'audit' | 'pos' | 'label-ui' | 'sync' | 'rbac'
   >('dashboard');
+
+  // Persist selected tab across refreshes
+  useEffect(() => {
+    const savedTab = localStorage.getItem('vendor_selected_tab');
+    if (savedTab) setSelectedTab(savedTab as any);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('vendor_selected_tab', selectedTab);
+  }, [selectedTab]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
@@ -68,7 +78,13 @@ export function useVendorDashboard() {
   const [labelSyncFilter, setLabelSyncFilter] = useState<'all' | 'synced' | 'not-synced'>('all');
   const [assignProductModal, setAssignProductModal] = useState<{labelId: string, branchId: string, labelCode?: string} | null>(null);
   const [assignSearchQuery, setAssignSearchQuery] = useState('');
-  const [activeDiscountModal, setActiveDiscountModal] = useState<{labelId: string, productId: string, branchId: string, currentPercent: number} | null>(null);
+  const [activeDiscountModal, setActiveDiscountModal] = useState<{
+    isOpen: boolean, 
+    labelId: string, 
+    productId: string, 
+    productName: string, 
+    currentPrice: number
+  } | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<DigitalLabel | null>(null);
   const [labelFor3D, setLabelFor3D] = useState<DigitalLabel | null>(null);
   const [labelModal, setLabelModal] = useState<{
@@ -278,19 +294,33 @@ export function useVendorDashboard() {
         }
         
         // Update local store with branch name and company name for sidebar display
-        if ((myBranch && currentUser.branchName !== myBranch.name) || (myCompany && currentUser.companyName !== myCompany)) {
+        const companyLogo = companyDoc.exists() ? (companyDoc.data() as any).logoUrl : null;
+        
+        if (
+          (myBranch && currentUser.branchName !== myBranch.name) || 
+          (myCompany && currentUser.companyName !== myCompany) ||
+          (companyLogo && currentUser.companyLogo !== companyLogo)
+        ) {
           setUser({
             ...currentUser,
             branchName: myBranch?.name || currentUser.branchName,
-            companyName: myCompany || currentUser.companyName
+            companyName: myCompany || currentUser.companyName,
+            companyLogo: companyLogo || currentUser.companyLogo
           });
         }
       } else if (currentUser.role === 'vendor') {
-        const myCompany = companyDoc.exists() ? (companyDoc.data() as any).name : null;
-        if (myCompany && currentUser.companyName !== myCompany) {
+        const myCompanyData = companyDoc.exists() ? (companyDoc.data() as any) : null;
+        const myCompanyName = myCompanyData?.name;
+        const myCompanyLogo = myCompanyData?.logoUrl;
+
+        if (
+          (myCompanyName && currentUser.companyName !== myCompanyName) ||
+          (myCompanyLogo && currentUser.companyLogo !== myCompanyLogo)
+        ) {
           setUser({
             ...currentUser,
-            companyName: myCompany
+            companyName: myCompanyName || currentUser.companyName,
+            companyLogo: myCompanyLogo || currentUser.companyLogo
           });
         }
       }
@@ -423,7 +453,11 @@ export function useVendorDashboard() {
     }
     const term = searchTerm.trim().toLowerCase();
     if (term) {
-      items = items.filter(p => p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term));
+      items = items.filter(p => 
+        p.name.toLowerCase().includes(term) || 
+        p.sku.toLowerCase().includes(term) ||
+        (p.productCode || '').toLowerCase().includes(term)
+      );
     }
     return items;
   }, [products, branchProducts, selectedBranchId, selectedFilterCategory, searchTerm, isBranchFiltered]);
@@ -443,7 +477,9 @@ export function useVendorDashboard() {
       items = items.filter(l => 
         (l.labelId || '').toLowerCase().includes(term) || 
         (l.productName || '').toLowerCase().includes(term) ||
-        (l.productSku || '').toLowerCase().includes(term)
+        (l.productSku || '').toLowerCase().includes(term) ||
+        (l.productCode || '').toLowerCase().includes(term) ||
+        (l.productId || '').toLowerCase().includes(term)
       );
     }
 
@@ -742,6 +778,120 @@ export function useVendorDashboard() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser?.companyId) return;
+    
+    setIsRefreshing(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Upload to our backend (Cloudinary integration)
+      const response = await fetch('http://localhost:5000/api/upload/profile', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      const logoUrl = data.url;
+
+      // Update Company Document
+      await updateDoc(fsDoc(db, 'companies', currentUser.companyId), { logoUrl });
+      
+      // Update local state
+      setCompany(prev => prev ? { ...prev, logoUrl } : null);
+      setUser({ ...currentUser, companyLogo: logoUrl });
+      
+      openLabelNotice('Success', 'Store logo updated successfully!', 'success');
+    } catch (error) {
+      console.error('Logo upload error:', error);
+      openLabelNotice('Error', 'Logo upload failed.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleBulkImport = async (file: File) => {
+    if (!currentUser?.companyId) return;
+    setIsRefreshing(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        const newProducts = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(',').map(v => v.trim());
+          const product: any = {};
+          headers.forEach((header, index) => {
+            product[header] = values[index];
+          });
+          
+          if (product.name && product.baseprice) {
+            newProducts.push({
+              name: product.name,
+              sku: product.sku || makeSku(Math.floor(Math.random() * 1000000)),
+              basePrice: parseFloat(product.baseprice) || 0,
+              category: product.category || 'General',
+              stock: parseInt(product.stock) || 0,
+              minStock: parseInt(product.minstock) || 10,
+              description: product.description || '',
+              imageUrl: '',
+              status: 'active',
+              companyId: currentUser.companyId,
+              createdBy: currentUser.id,
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now()
+            });
+          }
+        }
+
+        if (newProducts.length === 0) {
+          openLabelNotice('Import Error', 'No valid products found in CSV.', 'error');
+          setIsRefreshing(false);
+          return;
+        }
+
+        const promises = newProducts.map(async (pData) => {
+          const productRef = await addDoc(collection(db, 'products'), pData);
+          const stockVal = pData.stock;
+          const minVal = pData.minStock;
+          let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
+          if (stockVal === 0) status = 'out-of-stock';
+          else if (stockVal <= minVal) status = 'low-stock';
+
+          await Promise.all(branches.map(branch => 
+            addDoc(collection(db, 'branch_products'), {
+              productId: productRef.id,
+              branchId: branch.id,
+              companyId: currentUser.companyId,
+              currentPrice: pData.basePrice,
+              stock: stockVal,
+              minStock: minVal,
+              status,
+              lastUpdated: Timestamp.now()
+            })
+          ));
+        });
+
+        await Promise.all(promises);
+        openLabelNotice('Success', `Imported ${newProducts.length} products successfully.`, 'success');
+        setIsRefreshing(false);
+      };
+      reader.readAsText(file);
+    } catch (error) {
+      console.error('Import error:', error);
+      openLabelNotice('Import Failed', 'Failed to process CSV file.', 'error');
+      setIsRefreshing(false);
+    }
+  };
+
   const handleBulkProvision = async (branchId: string, count: number) => {
     if (!currentUser?.companyId) return;
     try {
@@ -754,6 +904,62 @@ export function useVendorDashboard() {
     } catch (error: any) {
       openLabelNotice('Bulk Provision Failed', error.message || 'Could not generate labels.', 'error');
     }
+  };
+
+  const handleBulkExport = () => {
+    try {
+      const headers = ['Name', 'SKU', 'BasePrice', 'Category', 'Stock', 'MinStock', 'Description'];
+      const csvContent = [
+        headers.join(','),
+        ...products.map(p => {
+          const { stock, minStock } = getDisplayStockForProduct(p.id);
+          return [
+            `"${p.name}"`,
+            `"${p.sku}"`,
+            p.basePrice,
+            `"${p.category || 'General'}"`,
+            stock,
+            minStock || 10,
+            `"${(p.description || '').replace(/"/g, '""')}"`
+          ].join(',');
+        })
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export error:', error);
+      openLabelNotice('Export Failed', 'Failed to generate CSV export.', 'error');
+    }
+  };
+
+  const downloadImportTemplate = () => {
+    const headers = ['Name', 'SKU', 'BasePrice', 'Category', 'Stock', 'MinStock', 'Description'];
+    const sampleData = [
+      ['Sample Product', 'SKU-001', '19.99', 'Electronics', '100', '10', 'High quality sample product'],
+      ['Another Item', 'SKU-002', '5.50', 'Groceries', '50', '5', 'Fresh organic item']
+    ];
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'import_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const provisionLabel = async (data: { labelId: string; location: string; branchId: string }) => {
@@ -1128,11 +1334,13 @@ export function useVendorDashboard() {
     handleDeletePromotion,
     handleDeleteCategory,
     handleProfileUpload,
+    handleLogoUpload,
     updateProfile,
     createProductFromModal,
     updateProduct,
     getDisplayStockForProduct,
     currentUser,
+    hasHydrated,
     loadVendorData,
     openLabelConfirm,
     openLabelNotice,
@@ -1144,6 +1352,9 @@ export function useVendorDashboard() {
     showReportIssue, setShowReportIssue,
     reportIssue,
     updateIssueStatus,
-    addIssueNote
+    addIssueNote,
+    handleBulkImport,
+    handleBulkExport,
+    downloadImportTemplate
   };
 }

@@ -27,8 +27,9 @@ export default function SalesHistoryPanel(props: {
   branches: Branch[];
   initialBranchId?: string;
   canClear: boolean;
+  isVendor?: boolean;
 }) {
-  const { companyId, branches, initialBranchId, canClear } = props;
+  const { companyId, branches, initialBranchId, canClear, isVendor = true } = props;
 
   const [branchId, setBranchId] = useState<string>(initialBranchId || (branches[0]?.id ?? ''));
   const [mode, setMode] = useState<'today' | 'all' | 'date'>('today');
@@ -145,13 +146,18 @@ export default function SalesHistoryPanel(props: {
           <div className="sm:col-span-1">
             <label className="text-xs font-medium text-gray-600">Branch</label>
             <select
-              className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"
+              className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white ${!isVendor ? 'opacity-50 cursor-not-allowed' : ''}`}
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
+              disabled={!isVendor}
             >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
+              {!isVendor ? (
+                <option value={branchId}>{branches.find(b => b.id === branchId)?.name || 'My Branch'}</option>
+              ) : (
+                branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))
+              )}
             </select>
             {branchName && <p className="mt-1 text-xs text-gray-500 truncate">{branchName}</p>}
           </div>

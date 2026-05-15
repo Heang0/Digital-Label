@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Tag, Palette, Edit, Trash2, Plus } from 'lucide-react';
+import { X, Tag, Edit, Trash2, Plus } from 'lucide-react';
 import { createCategory, updateCategory, deleteCategory } from '@/lib/categories';
 import { Timestamp } from 'firebase/firestore';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Category {
   id: string;
@@ -42,6 +43,7 @@ export default function CategoryModal({
   category,
   onCategoryChange 
 }: CategoryModalProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -80,10 +82,8 @@ export default function CategoryModal({
       };
 
       if (category?.id) {
-        // Update existing category
         await updateCategory(category.id, payload);
       } else {
-        // Create new category
         await createCategory(companyId, payload);
       }
 
@@ -98,7 +98,7 @@ export default function CategoryModal({
   };
 
   const handleDelete = async () => {
-    if (!category?.id || !confirm(`Delete category "${category.name}"?`)) return;
+    if (!category?.id || !confirm(`${t('delete')} "${category.name}"?`)) return;
 
     setLoading(true);
     try {
@@ -126,9 +126,9 @@ export default function CategoryModal({
               </div>
               <div>
                 <h2 className="text-lg font-bold text-[#111928] dark:text-white">
-                  {category ? 'Edit Category' : 'New Category'}
+                  {category ? t('edit_category') : t('new_category')}
                 </h2>
-                <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest mt-0.5">Inventory Classification</p>
+                <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest mt-0.5">{t('inventory_classification')}</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
@@ -142,12 +142,12 @@ export default function CategoryModal({
             {/* Name */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
-                Category Name <span className="text-rose-500">*</span>
+                {t('category_name')} <span className="text-rose-500">*</span>
               </label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Dairy, Beverages, Fresh Produce"
+                placeholder={t('category_name_placeholder')}
                 required
                 disabled={loading}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
@@ -157,13 +157,13 @@ export default function CategoryModal({
             {/* Description */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
-                Description
+                {t('category_desc')}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 h-24 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
-                placeholder="Optional category description"
+                placeholder={t('category_desc_placeholder')}
                 disabled={loading}
               />
             </div>
@@ -171,7 +171,7 @@ export default function CategoryModal({
             {/* Color */}
             <div className="space-y-3">
               <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">
-                Identity Color
+                {t('identity_color')}
               </label>
               <div className="flex gap-2 flex-wrap">
                 {DEFAULT_COLORS.map((color) => (
@@ -199,7 +199,7 @@ export default function CategoryModal({
                   disabled={loading}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('delete')}
                 </Button>
               )}
             </div>
@@ -211,18 +211,18 @@ export default function CategoryModal({
                 onClick={onClose}
                 disabled={loading}
               >
-                Cancel
+                {t('cancel')}
               </Button>
               <Button type="submit" disabled={loading}>
                 {category ? (
                   <>
                     <Edit className="h-4 w-4 mr-2" />
-                    Update
+                    {t('update')}
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create
+                    {t('create')}
                   </>
                 )}
               </Button>

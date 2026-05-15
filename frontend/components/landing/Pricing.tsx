@@ -9,28 +9,28 @@ import { scaleIn, staggerContainer } from './animations';
 export const Pricing = () => {
   const plans = [
     {
-      name: 'Starter',
-      price: '$0',
-      note: 'Perfect for trying the platform',
-      items: ['1 store', 'Basic label sync', 'Email support'],
-      cta: 'Start Free',
+      name: 'Basic',
+      price: '$2',
+      note: 'For small chains',
+      items: ['Up to 5 branches', '1000 labels', 'Basic support'],
+      cta: 'Get Started',
       href: '/register',
       highlight: false,
     },
     {
-      name: 'Growth',
-      price: '$29',
-      note: 'For growing retail teams',
-      items: ['Up to 10 stores', 'Role permissions', 'Promotions & scheduling'],
-      cta: 'Get Started',
+      name: 'Professional',
+      price: '$10',
+      note: 'For growing retail chains',
+      items: ['Up to 20 branches', '5000 labels', 'Priority support', 'Advanced analytics'],
+      cta: 'Start Free Trial',
       href: '/register',
       highlight: true,
     },
     {
       name: 'Enterprise',
       price: 'Custom',
-      note: 'For large chains & integrations',
-      items: ['Unlimited stores', 'SLA & onboarding', 'Custom integrations'],
+      note: 'For large retail groups',
+      items: ['Unlimited branches', 'Unlimited labels', '24/7 VIP support', 'Custom integrations'],
       cta: 'Contact Sales',
       href: '#contact',
       highlight: false,
@@ -48,7 +48,7 @@ export const Pricing = () => {
         >
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Pricing</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Simple plans for single stores to large retail chains.
+            Scale your retail business with our enterprise-grade solutions.
           </p>
         </motion.div>
 

@@ -3,11 +3,14 @@
 import { useStaffDashboard } from '@/hooks/useStaffDashboard';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
+import { DashboardFooter } from '@/components/admin/DashboardFooter';
 import { StaffDashboardTab } from '@/components/staff/tabs/DashboardTab';
 import { StaffInventoryTab } from '@/components/staff/tabs/InventoryTab';
 import { StaffLabelsTab } from '@/components/staff/tabs/LabelsTab';
 import { StaffIssuesTab } from '@/components/staff/tabs/IssuesTab';
 import { SettingsTab } from '@/components/vendor/tabs/SettingsTab';
+import { ManualDiscountModal } from '@/components/vendor/ManualDiscountModal';
+import { POSTab } from '@/components/staff/tabs/POSTab';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Check, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
@@ -35,25 +38,27 @@ export function RegularStaffPage() {
     labelModal, setLabelModal,
     labelConfirm, setLabelConfirm,
     showReportIssue, setShowReportIssue,
+    activeDiscountModal, setActiveDiscountModal,
+    executeManualDiscount,
     handleProfileUpload,
     updateProfile
   } = useStaffDashboard();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-[#1C2434]">
-        <div className="h-16 w-16 bg-[#5750F1] flex items-center justify-center animate-pulse mb-6">
-           <RefreshCw className="h-8 w-8 text-white animate-spin" />
-        </div>
-        <p className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.3em] animate-pulse">Loading Branch Data...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-white dark:bg-[#121926] overflow-hidden">
+      {/* Subtle Loading Line (Elite Style) */}
+      {(loading || isRefreshing) && (
+        <div className="fixed top-0 left-0 right-0 z-[1000] h-0.5 bg-transparent overflow-hidden">
+          <motion.div 
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="h-full w-1/3 bg-gradient-to-r from-transparent via-[#5750F1] to-transparent shadow-[0_0_10px_#5750F1]"
+          />
+        </div>
+      )}
       {/* Desktop Sidebar */}
       <div className="hidden lg:block w-72 h-full flex-shrink-0">
         <DashboardSidebar 
@@ -133,9 +138,35 @@ export function RegularStaffPage() {
                     branchProducts={branchProducts}
                     onUpdateStock={updateStock}
                     onRefresh={loadStaffData}
+                    onOpenPriceUpdate={(product) => setActiveDiscountModal({ 
+                      isOpen: true, 
+                      labelId: '', 
+                      productId: product.productId, 
+                      productName: product.productDetails?.name || '',
+                      currentPrice: product.currentPrice 
+                    })}
+                    canChangePrices={currentUser?.permissions?.canChangePrices}
+                    canUpdateStock={currentUser?.permissions?.canUpdateStock}
                   />
                 </motion.div>
               )}
+ 
+               {selectedTab === 'pos' && (
+                 <motion.div 
+                   key="pos"
+                   initial={{ opacity: 0, y: 10 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   exit={{ opacity: 0, y: -10 }}
+                 >
+                   <POSTab branch={branch} 
+                     branchProducts={branchProducts}
+                     updateStock={updateStock}
+                     onRefresh={loadStaffData}
+                     currentUser={currentUser}
+                     openLabelNotice={openLabelNotice}
+                   />
+                 </motion.div>
+               )}
 
               {selectedTab === 'labels' && (
                 <motion.div 
@@ -158,6 +189,14 @@ export function RegularStaffPage() {
                     onReportIssue={(id) => {
                       setShowReportIssue(true);
                     }}
+                    onOpenDiscount={(l) => setActiveDiscountModal({
+                      isOpen: true,
+                      labelId: l.id,
+                      productId: l.productId || '',
+                      productName: l.productName || 'Electronic Tag',
+                      currentPrice: l.finalPrice || l.currentPrice || 0
+                    })}
+                    currentUser={currentUser as any}
                   />
                 </motion.div>
               )}
@@ -186,13 +225,14 @@ export function RegularStaffPage() {
                 >
                   <SettingsTab 
                     currentUser={currentUser}
-                    company={company}
+                    company={company as any}
                     handleProfileUpload={handleProfileUpload}
                     updateProfile={updateProfile}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
+            <DashboardFooter />
           </div>
         </main>
       </div>
@@ -226,6 +266,13 @@ export function RegularStaffPage() {
           />
         )}
       </AnimatePresence>
+
+      <ManualDiscountModal
+        activeDiscountModal={activeDiscountModal}
+        setActiveDiscountModal={setActiveDiscountModal}
+        executeManualDiscount={executeManualDiscount}
+        openLabelNotice={openLabelNotice}
+      />
     </div>
   );
 }

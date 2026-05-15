@@ -6,14 +6,18 @@ import {
   where, 
   getDoc, 
   doc as fsDoc,
-  Timestamp 
+  Timestamp,
+  limit,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { User, Company, SystemMetrics } from '@/types';
+import { User, Company, SystemMetrics, AuditLog, LabelSyncRecord } from '@/types';
 
 export const useAdminData = (currentUser: any) => {
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [syncRecords, setSyncRecords] = useState<LabelSyncRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({
     totalUsers: 0,
@@ -36,7 +40,7 @@ export const useAdminData = (currentUser: any) => {
     try {
       setLoading(true);
       
-      const usersQuery = query(collection(db, 'users'), where('role', '==', 'vendor'));
+      const usersQuery = query(collection(db, 'users'), where('role', 'in', ['vendor', 'admin']));
       const usersSnapshot = await getDocs(usersQuery);
       const usersData = usersSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -71,6 +75,12 @@ export const useAdminData = (currentUser: any) => {
           
           const labelsQuery = query(collection(db, 'labels'), where('companyId', '==', doc.id));
           const labelsSnapshot = await getDocs(labelsQuery);
+
+          const productsQuery = query(collection(db, 'products'), where('companyId', '==', doc.id));
+          const productsSnapshot = await getDocs(productsQuery);
+
+          const categoriesQuery = query(collection(db, 'categories'), where('companyId', '==', doc.id));
+          const categoriesSnapshot = await getDocs(categoriesQuery);
           
           // Get owner name
           let ownerName = '';
@@ -87,8 +97,10 @@ export const useAdminData = (currentUser: any) => {
             ownerName,
             branchesCount: branchesSnapshot.size,
             staffCount: staffSnapshot.size,
-            labelsCount: labelsSnapshot.size
-          } as Company;
+            labelsCount: labelsSnapshot.size,
+            productsCount: productsSnapshot.size,
+            categoriesCount: categoriesSnapshot.size
+          } as any;
         })
       );
       setCompanies(companiesData);
@@ -115,6 +127,16 @@ export const useAdminData = (currentUser: any) => {
         conversionRate: 4.2
       });
 
+      // Load Audit Logs
+      const auditSnapshot = await getDocs(query(collection(db, 'audit_logs'), limit(50), orderBy('timestamp', 'desc')));
+      const auditData = auditSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AuditLog[];
+      setAuditLogs(auditData);
+
+      // Load Sync Records
+      const syncSnapshot = await getDocs(query(collection(db, 'label_syncs'), limit(50), orderBy('lastAttempt', 'desc')));
+      const syncData = syncSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LabelSyncRecord[];
+      setSyncRecords(syncData);
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -135,6 +157,8 @@ export const useAdminData = (currentUser: any) => {
   return {
     users,
     companies,
+    auditLogs,
+    syncRecords,
     loading,
     systemMetrics,
     refreshData: () => loadData(400)

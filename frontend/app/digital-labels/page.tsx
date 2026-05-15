@@ -158,7 +158,7 @@ function DigitalLabelsContent() {
     return (
       <div className="min-h-screen bg-gray-50 p-6 text-gray-900">
         <div className="max-w-3xl mx-auto bg-white border rounded-xl p-6">
-          <h1 className="text-xl font-semibold">Digital Labels</h1>
+          <h1 className="text-xl font-semibold">Kitzu-Tech Labels</h1>
           <p className="text-gray-600 mt-2">
             Missing company info. Open this page from the Vendor dashboard or
             include `companyId` in the URL.
@@ -173,7 +173,7 @@ function DigitalLabelsContent() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col gap-2 mb-6">
           <h1 className="text-2xl font-semibold" style={{ fontFamily: 'Trebuchet MS, Verdana, sans-serif' }}>
-            Digital Labels
+            Kitzu-Tech
           </h1>
           <div className="text-sm text-gray-600">
             Company:{' '}

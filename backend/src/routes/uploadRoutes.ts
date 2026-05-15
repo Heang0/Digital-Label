@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadProfileImage } from '../controllers/uploadController';
+import { uploadProfileImage, uploadProductImage } from '../controllers/uploadController';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -19,5 +19,18 @@ router.post('/profile', (req, res, next) => {
     next();
   });
 }, uploadProfileImage);
+
+// POST /api/upload/product
+router.post('/product', (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      return res.status(500).json({ 
+        message: 'Multer upload failed', 
+        error: err.message || err 
+      });
+    }
+    next();
+  });
+}, uploadProductImage);
 
 export default router;

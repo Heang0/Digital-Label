@@ -170,7 +170,7 @@ function DigitalLabelContent() {
         <div className="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-10 text-center max-w-sm w-full">
           <Cpu className="h-16 w-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Label Offline</h3>
-          <p className="text-sm font-medium text-slate-500">This digital label is not registered or cannot be reached.</p>
+          <p className="text-sm font-medium text-slate-500">This Kitzu-Tech label is not registered or cannot be reached.</p>
         </div>
       ) : (
         <div className="w-full max-w-[800px] flex flex-col items-center gap-6">
@@ -198,7 +198,7 @@ function DigitalLabelContent() {
               <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
               
               {/* Physical branding & LED */}
-              <div className="absolute top-2 left-6 text-[8px] font-bold text-slate-400/80 uppercase tracking-widest pointer-events-none">LabelSync 4.2</div>
+              <div className="absolute top-2 left-6 text-[8px] font-bold text-slate-400/80 uppercase tracking-widest pointer-events-none">Kitzu-Tech ESL</div>
               <div className="absolute top-2.5 right-6 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.8)] animate-pulse" />
               <div className="absolute top-2 right-9 w-1.5 h-1.5 rounded-full bg-slate-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]" /> {/* Sensor hole */}
               

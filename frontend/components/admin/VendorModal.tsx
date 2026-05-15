@@ -20,7 +20,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
     email: '',
     password: '',
     companyId: '',
-    status: 'active' as const
+    status: 'active' as 'active' | 'pending' | 'suspended' | 'inactive'
   });
 
   useEffect(() => {

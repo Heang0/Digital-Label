@@ -21,8 +21,8 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
     code: '',
     address: '',
     phone: '',
-    subscription: 'basic' as const,
-    status: 'active' as const
+    subscription: 'basic' as 'basic' | 'pro' | 'enterprise',
+    status: 'active' as 'active' | 'pending' | 'suspended'
   });
 
   useEffect(() => {

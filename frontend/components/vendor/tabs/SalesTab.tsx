@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, DollarSign, ShoppingBag, ArrowUpRight, Activity } from 'lucide-react';
 import SalesHistoryPanel from '@/components/cashier/SalesHistoryPanel';
 import { Branch } from '@/types/vendor';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface SalesTabProps {
   currentUser: any;
@@ -16,20 +17,21 @@ export const SalesTab = ({
   branches,
   selectedBranchId
 }: SalesTabProps) => {
+  const { t } = useLanguage();
   return (
     <div className="space-y-8 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Sales Intelligence</h2>
-          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Deep-dive into transactional data and revenue performance.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">{t('sales_intelligence')}</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">{t('sales_intelligence_desc')}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
          {[
-            { label: 'Avg Transaction', value: '$42.50', trend: '+5.2%', icon: DollarSign, color: 'text-[#5750F1]' },
-            { label: 'Basket Size', value: '3.8 Items', trend: '+1.4%', icon: ShoppingBag, color: 'text-emerald-500' },
-            { label: 'Conversion', value: '18.4%', trend: '-0.8%', icon: Activity, color: 'text-amber-500' },
+            { label: t('avg_transaction'), value: '$42.50', trend: '+5.2%', icon: DollarSign, color: 'text-[#5750F1]' },
+            { label: t('basket_size'), value: '3.8 Items', trend: '+1.4%', icon: ShoppingBag, color: 'text-emerald-500' },
+            { label: t('conversion'), value: '18.4%', trend: '-0.8%', icon: Activity, color: 'text-amber-500' },
          ].map((stat, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="premium-card p-6">
                <div className="flex items-center justify-between mb-4">
@@ -52,7 +54,8 @@ export const SalesTab = ({
             companyId={currentUser?.companyId || ''} 
             branches={branches}
             initialBranchId={selectedBranchId === 'all' ? undefined : selectedBranchId}
-            canClear={true}
+            canClear={currentUser?.role === 'vendor'}
+            isVendor={currentUser?.role === 'vendor'}
          />
       </div>
     </div>

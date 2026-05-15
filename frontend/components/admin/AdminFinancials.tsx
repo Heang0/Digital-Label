@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export const AdminFinancials = () => {
+  const { t } = useLanguage();
   const stats = [
     { label: 'Total Revenue', value: '$124,592.00', trend: '+12.5%', icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
     { label: 'Active Subscriptions', value: '842', trend: '+4.2%', icon: CreditCard, color: 'text-[#5750F1]', bg: 'bg-[#5750F1]/10' },
@@ -30,8 +32,8 @@ export const AdminFinancials = () => {
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Financial Overview</h2>
-          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Monitor revenue streams and platform transactions.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">{t('financial_overview')}</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">{t('financial_desc') || 'Monitor revenue streams and platform transactions.'}</p>
         </div>
         <Button variant="outline" className="h-11 rounded-lg border-[#E2E8F0] dark:border-slate-800 text-sm font-bold gap-2">
            <Download className="h-4 w-4" />
@@ -72,11 +74,11 @@ export const AdminFinancials = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#F9FAFB] dark:bg-[#313D4A] border-b border-[#E2E8F0] dark:border-slate-700 text-xs font-bold uppercase tracking-widest text-[#637381] dark:text-slate-400">
-                <th className="px-7 py-4">Transaction ID</th>
-                <th className="px-7 py-4">Entity</th>
-                <th className="px-7 py-4">Amount</th>
-                <th className="px-7 py-4">Date</th>
-                <th className="px-7 py-4 text-right">Status</th>
+                <th className="px-7 py-4">{t('transaction_id') || 'Transaction ID'}</th>
+                <th className="px-7 py-4">{t('entity') || 'Entity'}</th>
+                <th className="px-7 py-4">{t('amount') || 'Amount'}</th>
+                <th className="px-7 py-4">{t('date') || 'Date'}</th>
+                <th className="px-7 py-4 text-right">{t('status')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-700">

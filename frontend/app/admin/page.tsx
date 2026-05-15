@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { auth, db, logOut } from '@/lib/firebase';
@@ -16,6 +16,7 @@ import {
 import { useAdminData } from '@/hooks/useAdminData';
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
+import { DashboardFooter } from '@/components/admin/DashboardFooter';
 import { AdminOverview } from '@/components/admin/AdminOverview';
 import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminCompanies } from '@/components/admin/AdminCompanies';
@@ -24,15 +25,31 @@ import { VendorModal } from '@/components/admin/VendorModal';
 import { CompanyModal } from '@/components/admin/CompanyModal';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { AdminFinancials } from '@/components/admin/AdminFinancials';
+import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
+import { AdminLabelSync } from '@/components/admin/AdminLabelSync';
+import { AdminLabelUI } from '@/components/admin/AdminLabelUI';
+import { logAction } from '@/lib/audit';
 import { User, Company } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { RefreshCw } from 'lucide-react';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { user: currentUser, clearUser, hasHydrated } = useUserStore();
-  const { users, companies, loading, systemMetrics, refreshData } = useAdminData(currentUser);
+  const { users, companies, auditLogs, syncRecords, loading, systemMetrics, refreshData } = useAdminData(currentUser);
 
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'analytics' | 'settings' | 'revenue'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'analytics' | 'settings' | 'revenue' | 'audit' | 'sync' | 'label-ui'>('overview');
+  
+  // Persist selected tab across refreshes
+  useEffect(() => {
+    const savedTab = localStorage.getItem('admin_selected_tab');
+    if (savedTab) setSelectedTab(savedTab as any);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('admin_selected_tab', selectedTab);
+  }, [selectedTab]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -44,13 +61,18 @@ export default function AdminDashboard() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
   // Redirect if not admin
+  const redirecting = useRef(false);
   useEffect(() => {
-    if (!hasHydrated) return;
+    if (!hasHydrated || redirecting.current) return;
+    
     if (!currentUser) {
+      redirecting.current = true;
       router.push('/login');
     } else if (currentUser.role !== 'admin') {
+      redirecting.current = true;
       if (currentUser.role === 'vendor') router.push('/vendor');
-      if (currentUser.role === 'staff') router.push('/staff');
+      else if (currentUser.role === 'staff') router.push('/staff');
+      else router.push('/login');
     }
   }, [currentUser, hasHydrated, router]);
 
@@ -102,6 +124,15 @@ export default function AdminDashboard() {
 
       refreshData();
       alert(`Vendor ${editingVendor ? 'updated' : 'created'} successfully!`);
+      
+      logAction(
+        currentUser.id,
+        currentUser.name,
+        editingVendor ? 'UPDATE_VENDOR' : 'CREATE_VENDOR',
+        `${editingVendor ? 'Updated' : 'Created'} vendor ${data.email}`,
+        editingVendor?.id || 'new',
+        'user'
+      );
     } catch (error: any) {
       alert(error.message);
       throw error;
@@ -160,7 +191,28 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
       await deleteDoc(fsDoc(db, 'users', id));
+      logAction(currentUser.id, currentUser.name, 'DELETE_USER', `Deleted user ${id}`, id, 'user');
       refreshData();
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      await updateDoc(fsDoc(db, 'users', id), { status: newStatus });
+      logAction(currentUser.id, currentUser.name, 'UPDATE_STATUS', `Changed user ${id} status to ${newStatus}`, id, 'user');
+      refreshData();
+    } catch (error) {
+      console.error('Error changing status:', error);
+    }
+  };
+
+  const handleRoleChange = async (id: string, newRole: string) => {
+    try {
+      await updateDoc(fsDoc(db, 'users', id), { role: newRole });
+      logAction(currentUser.id, currentUser.name, 'UPDATE_ROLE', `Changed user ${id} role to ${newRole}`, id, 'user');
+      refreshData();
+    } catch (error) {
+      console.error('Error changing role:', error);
     }
   };
 
@@ -171,16 +223,21 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!hasHydrated || !currentUser || currentUser.role !== 'admin') {
-    return (
-      <div className="min-h-screen grid place-items-center bg-slate-50">
-        <div className="h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (!hasHydrated) return null;
 
   return (
-    <div className="flex h-screen bg-[#F1F5F9] dark:bg-[#1C2434] overflow-hidden transition-colors duration-300">
+    <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#111928] overflow-hidden transition-colors duration-300">
+      {/* Subtle Loading Line (Elite Style) */}
+      {(loading || !currentUser) && (
+        <div className="fixed top-0 left-0 right-0 z-[1000] h-0.5 bg-transparent overflow-hidden">
+          <motion.div 
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="h-full w-1/3 bg-gradient-to-r from-transparent via-[#5750F1] to-transparent shadow-[0_0_10px_#5750F1]"
+          />
+        </div>
+      )}
       {/* Mobile Drawer */}
       <AnimatePresence>
         {mobileMenuOpen && (
@@ -252,9 +309,12 @@ export default function AdminDashboard() {
                 <AdminUsers 
                   users={users} 
                   searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
                   onEdit={(u) => handleOpenVendorModal(u)}
                   onDelete={handleDeleteUser}
                   onSuspend={handleSuspendUser}
+                  onStatusChange={handleStatusChange}
+                  onRoleChange={handleRoleChange}
                   onCreate={() => handleOpenVendorModal(null)}
                 />
               )}
@@ -262,6 +322,7 @@ export default function AdminDashboard() {
                 <AdminCompanies 
                   companies={companies} 
                   searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
                   onEdit={(c) => handleOpenCompanyModal(c)}
                   onDelete={handleDeleteCompany}
                   onSuspend={handleSuspendCompany}
@@ -275,8 +336,33 @@ export default function AdminDashboard() {
                 />
               )}
               {selectedTab === 'revenue' && <AdminFinancials />}
+              {selectedTab === 'audit' && (
+                <AdminAuditLog 
+                  logs={auditLogs} 
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                />
+              )}
+              {selectedTab === 'sync' && (
+                <>
+                  <AdminLabelSync 
+                    records={syncRecords} 
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    refresh={refreshData} 
+                  />
+                  {loading && (
+                    <div className="fixed bottom-8 right-8 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#1C2434] shadow-2xl rounded-full text-[10px] font-black text-[#5750F1] uppercase tracking-widest border border-slate-100 dark:border-slate-800 animate-pulse">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      SYNCING
+                    </div>
+                  )}
+                </>
+              )}
+              {selectedTab === 'label-ui' && <AdminLabelUI />}
             </motion.div>
           </AnimatePresence>
+          <DashboardFooter />
         </main>
       </div>
 

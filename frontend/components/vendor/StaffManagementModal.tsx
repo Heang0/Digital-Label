@@ -2,11 +2,12 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, User as UserIcon, Shield, Crown, Package, Wrench, ShoppingCart } from 'lucide-react';
+import { X, Check, User as UserIcon, Shield, Crown, Package, Zap, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { User, Branch, StaffMember, StaffPermissions } from '@/types';
 import { ROLE_PRESETS, PERMISSION_LABELS, getPermissionsForRole, StaffPosition } from '@/lib/role-presets';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface StaffManagementModalProps {
   showCreateStaff: boolean;
@@ -26,17 +27,13 @@ interface StaffManagementModalProps {
 const ROLE_ICONS: Record<string, any> = {
   'Manager': Crown,
   'Cashier': ShoppingCart,
-  'Inventory Specialist': Package,
-  'IT Support': Wrench,
-  'Sales Associate': UserIcon,
+  'Label Operator': Zap,
 };
 
 const ROLE_COLORS: Record<string, string> = {
   'Manager': 'bg-indigo-500',
   'Cashier': 'bg-emerald-500',
-  'Inventory Specialist': 'bg-amber-500',
-  'IT Support': 'bg-cyan-500',
-  'Sales Associate': 'bg-rose-500',
+  'Label Operator': 'bg-cyan-500',
 };
 
 export const StaffManagementModal = ({
@@ -53,6 +50,7 @@ export const StaffManagementModal = ({
   branches,
   currentUser
 }: StaffManagementModalProps) => {
+  const { t } = useLanguage();
   const isOpen = showCreateStaff || showEditStaff;
   const isCreate = showCreateStaff;
   const currentForm = isCreate ? staffForm : editStaffForm;
@@ -94,9 +92,9 @@ export const StaffManagementModal = ({
             <div className="flex items-center justify-between px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div>
                 <h3 className="text-lg md:text-xl font-black text-[#111928] dark:text-white uppercase tracking-tight">
-                  {isCreate ? 'Add New Team Member' : 'Edit Staff Member'}
+                  {isCreate ? t('add_team_member') : t('edit_staff_member')}
                 </h3>
-                <p className="text-[10px] font-bold text-[#637381] mt-1 uppercase tracking-widest">Select a role — permissions are set automatically.</p>
+                <p className="text-[10px] font-bold text-[#637381] mt-1 uppercase tracking-widest">{t('role_preset')} — {t('access_permissions')}.</p>
               </div>
               <Button 
                 variant="ghost" 
@@ -112,7 +110,7 @@ export const StaffManagementModal = ({
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Full Name</label>
+                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('full_name')}</label>
                   <Input 
                     required
                     placeholder="e.g. John Doe"
@@ -122,7 +120,7 @@ export const StaffManagementModal = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Email Address</label>
+                  <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('email_address')}</label>
                   <Input 
                     required
                     type="email"
@@ -134,14 +132,14 @@ export const StaffManagementModal = ({
                 </div>
                 {branches.length > 1 ? (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Assigned Branch</label>
+                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('assign_branch')}</label>
                     <select
                       required
                       className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
                       value={currentForm.branchId}
                       onChange={(e) => setCurrentForm({...currentForm, branchId: e.target.value})}
                     >
-                      <option value="">Select a branch...</option>
+                      <option value="">{t('select_branch_placeholder')}</option>
                       {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
                   </div>
@@ -157,7 +155,7 @@ export const StaffManagementModal = ({
                 )}
                 {isCreate && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Initial Password</label>
+                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('temp_password')}</label>
                     <Input 
                       required
                       type="password"
@@ -169,14 +167,14 @@ export const StaffManagementModal = ({
                 )}
                 {!isCreate && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">Status</label>
+                    <label className="text-[10px] font-black text-[#637381] uppercase tracking-[0.15em]">{t('status')}</label>
                     <select
                       className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
                       value={editStaffForm.status}
                       onChange={(e) => setEditStaffForm({...editStaffForm, status: e.target.value as any})}
                     >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="active">{t('active')}</option>
+                      <option value="inactive">{t('inactive')}</option>
                     </select>
                   </div>
                 )}
@@ -186,8 +184,8 @@ export const StaffManagementModal = ({
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <Shield className="h-4 w-4 text-[#5750F1]" />
-                  <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Select Role</h4>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-auto">Permissions auto-apply</span>
+                  <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('select_role')}</h4>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-auto">{t('permissions_auto_apply')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -217,8 +215,8 @@ export const StaffManagementModal = ({
                           <div className={`h-10 w-10 ${bgColor} flex items-center justify-center mb-3`}>
                             <RoleIcon className="h-5 w-5 text-white" />
                           </div>
-                          <p className="text-xs font-black text-[#111928] dark:text-white uppercase tracking-tight mb-1">{preset.label}</p>
-                          <p className="text-[9px] font-medium text-slate-400 leading-relaxed line-clamp-2">{preset.description}</p>
+                          <p className="text-xs font-black text-[#111928] dark:text-white uppercase tracking-tight mb-1">{t(preset.label)}</p>
+                          <p className="text-[9px] font-medium text-slate-400 leading-relaxed line-clamp-2">{t(preset.description)}</p>
                         </button>
                       );
                     })}
@@ -229,7 +227,7 @@ export const StaffManagementModal = ({
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <Check className="h-4 w-4 text-emerald-500" />
-                  <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Granted Permissions</h4>
+                  <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('granted_permissions')}</h4>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.entries(PERMISSION_LABELS).map(([key, { label, icon }]) => {
@@ -247,7 +245,7 @@ export const StaffManagementModal = ({
                         <Icon className={`h-4 w-4 ${granted ? 'text-emerald-500' : 'text-slate-400'}`} />
                         <span className={`text-[9px] font-black uppercase tracking-widest ${
                           granted ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 line-through'
-                        }`}>{label}</span>
+                        }`}>{t(label)}</span>
                       </div>
                     );
                   })}
@@ -262,13 +260,13 @@ export const StaffManagementModal = ({
                   onClick={handleClose}
                   className="h-12 px-6 font-black text-[10px] uppercase tracking-widest rounded-none"
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button 
                   type="submit"
                   className="h-12 px-8 bg-[#5750F1] hover:bg-[#4A44D1] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 rounded-none"
                 >
-                  {isCreate ? 'Add Staff Member' : 'Save Changes'}
+                  {isCreate ? t('add_team_member') : t('update')}
                 </Button>
               </div>
             </form>

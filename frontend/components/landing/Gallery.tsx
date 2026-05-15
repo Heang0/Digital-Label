@@ -19,7 +19,7 @@ export const Gallery = () => {
     },
     {
       src: 'https://www.electronicshelftags.com/wp-content/uploads/2025/08/digital-labels-fopr-clothing-4.png',
-      alt: 'Digital labels used in clothing retail',
+      alt: 'Kitzu-Tech labels used in clothing retail',
     },
   ];
 
@@ -36,10 +36,10 @@ export const Gallery = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              See digital labels in real stores
+              See Kitzu-Tech labels in real stores
             </h2>
             <p className="mt-4 text-lg text-gray-600 max-w-xl">
-              Digital Label helps retailers update pricing in real time and keep shelves accurate—fast, clean,
+              Kitzu-Tech helps retailers update pricing in real time and keep shelves accurate—fast, clean,
               and consistent across every branch.
             </p>
             <div className="mt-6 flex flex-wrap gap-3 text-sm">

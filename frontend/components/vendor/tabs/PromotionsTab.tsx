@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Percent, Plus, Edit, Trash2, Calendar, ShoppingBag, Clock, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Promotion } from '@/types/vendor';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface PromotionsTabProps {
   promotions: Promotion[];
@@ -20,16 +21,17 @@ export const PromotionsTab = ({
   setPromotionForm,
   handleDeletePromotion
 }: PromotionsTabProps) => {
+  const { t } = useLanguage();
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Campaign Center</h2>
-          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Create and manage discounts across your storefronts.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">{t('campaign_center')}</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">{t('campaign_center_desc')}</p>
         </div>
         <Button onClick={() => setShowCreatePromotion(true)} className="h-11 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold gap-2">
           <Plus className="h-4 w-4" />
-          New Promotion
+          {t('new_promotion')}
         </Button>
       </div>
 
@@ -74,18 +76,26 @@ export const PromotionsTab = ({
                       </div>
                       <div className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
                         promo.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}>{promo.status}</div>
+                      }`}>{t(promo.status) || promo.status}</div>
                    </div>
                 </div>
                 <p className="text-xs font-medium text-[#637381] line-clamp-2 mb-4">{promo.description}</p>
                 <div className="flex items-center gap-6">
                    <div>
-                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">Value</p>
-                      <p className="text-sm font-black text-[#111928] dark:text-white">{promo.type === 'percentage' ? `${promo.value}% Off` : `$${promo.value} Flat`}</p>
+                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">{t('value_label')}</p>
+                      <p className="text-sm font-black text-[#111928] dark:text-white">
+                        {promo.type === 'percentage' 
+                          ? t('percent_off').replace('{value}', promo.value.toString()) 
+                          : t('flat_off').replace('{value}', promo.value.toString())}
+                      </p>
                    </div>
                    <div>
-                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">Target</p>
-                      <p className="text-sm font-black text-[#111928] dark:text-white capitalize">{promo.applyTo === 'all' ? 'Entire Inventory' : `${promo.productIds?.length || 0} Products`}</p>
+                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">{t('target_label')}</p>
+                      <p className="text-sm font-black text-[#111928] dark:text-white capitalize">
+                        {promo.applyTo === 'all' 
+                          ? t('entire_inventory') 
+                          : t('promo_products_count').replace('{count}', (promo.productIds?.length || 0).toString())}
+                      </p>
                    </div>
                 </div>
              </div>
@@ -94,8 +104,8 @@ export const PromotionsTab = ({
         {promotions.length === 0 && (
           <div className="xl:col-span-2 py-20 premium-card text-center">
             <ShoppingBag className="h-12 w-12 text-slate-200 dark:text-slate-800 mx-auto mb-3" />
-            <p className="text-sm font-bold text-[#111928] dark:text-white">No active campaigns</p>
-            <p className="text-xs text-[#637381] mt-1">Create your first discount event to drive sales.</p>
+            <p className="text-sm font-bold text-[#111928] dark:text-white">{t('no_active_campaigns')}</p>
+            <p className="text-xs text-[#637381] mt-1">{t('create_first_discount')}</p>
           </div>
         )}
       </div>

@@ -18,17 +18,33 @@ import {
 import { User } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { SearchInput } from './SearchInput';
 
 interface UsersProps {
   users: User[];
   searchTerm: string;
+  onSearchChange: (value: string) => void;
   onEdit: (user: User) => void;
   onDelete: (id: string) => void;
   onSuspend: (id: string, status: any) => void;
+  onStatusChange: (id: string, newStatus: string) => void;
+  onRoleChange: (id: string, newRole: string) => void;
   onCreate: () => void;
 }
 
-export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onCreate }: UsersProps) => {
+export const AdminUsers = ({ 
+  users, 
+  searchTerm, 
+  onSearchChange,
+  onEdit, 
+  onDelete, 
+  onSuspend, 
+  onStatusChange, 
+  onRoleChange, 
+  onCreate 
+}: UsersProps) => {
+  const { t } = useLanguage();
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -38,6 +54,7 @@ export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onC
     switch (status) {
       case 'active': return 'bg-[#10B981]/10 text-[#10B981]';
       case 'suspended': return 'bg-[#FB5050]/10 text-[#FB5050]';
+      case 'pending': return 'bg-amber-100 text-amber-600';
       default: return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
     }
   };
@@ -66,14 +83,20 @@ export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onC
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Page Header (NextAdmin Style) */}
+      {/* Page Header (Digital Label Style) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">Vendors</h2>
-          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">Manage and monitor all platform vendors.</p>
+          <h2 className="text-2xl font-bold text-[#111928] dark:text-white tracking-tight">{t('vendors')}</h2>
+          <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mt-1">{t('manage_vendors')}</p>
         </div>
 
         <div className="flex items-center gap-3">
+          <SearchInput 
+            value={searchTerm}
+            onChange={onSearchChange}
+            placeholder={t('search')}
+            className="w-full sm:w-80"
+          />
           <Button
             variant="outline"
             onClick={() => {
@@ -90,14 +113,14 @@ export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onC
             className="h-11 px-6 rounded-lg border border-[#E2E8F0] dark:border-slate-800 text-sm font-bold text-[#637381] dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2"
           >
             <Download className="h-4 w-4" />
-            <span className="hidden xs:inline">Export Data</span>
+            <span className="hidden xs:inline">{t('export_data')}</span>
           </Button>
           <Button
             onClick={onCreate}
             className="h-11 px-6 rounded-lg bg-[#5750F1] hover:bg-[#4a42e0] text-white font-bold text-sm shadow-md shadow-[#5750F1]/10 transition-all gap-2"
           >
             <UserPlus className="h-4 w-4" />
-            Add New Vendor
+            {t('add_vendor')}
           </Button>
         </div>
       </div>
@@ -108,11 +131,11 @@ export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onC
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#F9FAFB] dark:bg-[#313D4A] border-b border-[#E2E8F0] dark:border-slate-700">
-                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">Vendor Info</th>
-                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">Company</th>
-                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">Status</th>
-                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">Role</th>
-                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize text-right">Actions</th>
+                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">{t('name')}</th>
+                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">{t('company')}</th>
+                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">{t('status')}</th>
+                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize">{t('role')}</th>
+                <th className="px-6 py-4.5 text-sm font-semibold text-[#637381] dark:text-slate-400 capitalize text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] dark:divide-slate-700">
@@ -148,12 +171,38 @@ export const AdminUsers = ({ users, searchTerm, onEdit, onDelete, onSuspend, onC
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-xs font-bold text-[#637381] dark:text-slate-500 uppercase tracking-widest">
-                        {user.role}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${user.role === 'admin' ? 'text-indigo-500' : 'text-[#637381]'}`}>
+                          {user.role}
+                        </span>
+                        {user.role === 'admin' && (
+                          <button 
+                            onClick={() => onRoleChange(user.id, user.role === 'admin' ? 'super-admin' : 'admin')}
+                            className="text-[8px] font-bold text-slate-400 hover:text-indigo-500 text-left underline"
+                          >
+                            Toggle Super Admin
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {user.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => onStatusChange(user.id, 'active')}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 transition-all"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => onStatusChange(user.id, 'suspended')}
+                              className="px-2.5 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-all"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => onEdit(user)}
                           className="p-2 rounded-lg text-[#637381] dark:text-slate-400 hover:text-[#5750F1] hover:bg-[#5750F1]/5 transition-all"

@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Company, Branch, DigitalLabel, BranchProduct, IssueReport } from '@/types/vendor';
 import SalesHistoryPanel from '@/components/cashier/SalesHistoryPanel';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface DashboardTabProps {
   currentUser: any;
@@ -47,6 +48,7 @@ export const DashboardTab = ({
   setSelectedTab,
   setShowCreateBranch
 }: DashboardTabProps) => {
+  const { t } = useLanguage();
   // Stats calculation
   const branchLabels = labels.filter(l => selectedBranchId === 'all' ? true : l.branchId === selectedBranchId);
   const totalLabels = branchLabels.length;
@@ -65,10 +67,10 @@ export const DashboardTab = ({
       {/* Premium Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {[
-           { label: 'Managed Items', value: `${totalItems}`, sub: 'Total Products', icon: Package, color: 'bg-[#5750F1]', trend: 'Active', isUp: true },
-           { label: 'Low Stock Alert', value: `${lowStockItems}`, sub: 'Restock Required', icon: AlertCircle, color: 'bg-rose-500', trend: 'Inventory', isUp: false },
-           { label: 'Open Issues', value: `${openIssues}`, sub: 'Unresolved Reports', icon: Activity, color: 'bg-amber-500', trend: 'Maintenance', isUp: false },
-           { label: 'Active Labels', value: `${activeLabels}`, sub: `of ${totalLabels} tags`, icon: Tag, color: 'bg-indigo-500', trend: 'Live', isUp: true },
+           { label: t('managed_items'), value: `${totalItems}`, sub: t('total_products'), icon: Package, color: 'bg-[#5750F1]', trend: t('active'), isUp: true },
+           { label: t('low_stock_alert'), value: `${lowStockItems}`, sub: t('restock_required'), icon: AlertCircle, color: 'bg-rose-500', trend: t('inventory'), isUp: false },
+           { label: t('open_issues'), value: `${openIssues}`, sub: t('unresolved_reports'), icon: Activity, color: 'bg-amber-500', trend: t('maintenance'), isUp: false },
+           { label: t('active_labels'), value: `${activeLabels}`, sub: t('of_tags').replace('{count}', totalLabels.toString()), icon: Tag, color: 'bg-indigo-500', trend: t('live'), isUp: true },
         ].map((stat, i) => (
            <motion.div 
               key={stat.label}
@@ -101,17 +103,17 @@ export const DashboardTab = ({
            <div className="premium-card p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                  <div>
-                    <h3 className="text-xl font-bold text-[#111928] dark:text-white">Performance Analytics</h3>
-                    <p className="text-sm font-medium text-[#637381] mt-1">Real-time sales tracking across retail locations.</p>
+                    <h3 className="text-xl font-bold text-[#111928] dark:text-white">{t('performance_analytics')}</h3>
+                    <p className="text-sm font-medium text-[#637381] mt-1">{t('sales_tracking')}</p>
                  </div>
-                 {branches.length > 1 && (
+                 {branches.length > 1 && currentUser?.role === 'vendor' && (
                    <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700">
                          <button 
                             onClick={() => setSelectedBranchId('all')}
                             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${selectedBranchId === 'all' ? 'bg-white dark:bg-[#1C2434] text-[#5750F1] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                          >
-                            Global
+                            {t('global')}
                          </button>
                          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
                          <select 
@@ -119,7 +121,7 @@ export const DashboardTab = ({
                             value={selectedBranchId}
                             onChange={(e) => setSelectedBranchId(e.target.value)}
                          >
-                            <option value="all" disabled>Select Branch</option>
+                            <option value="all" disabled>{t('select_branch')}</option>
                             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                          </select>
                       </div>
@@ -128,12 +130,13 @@ export const DashboardTab = ({
               </div>
 
               <div className="bg-slate-50 dark:bg-[#1C2434] rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
-                 <SalesHistoryPanel 
-                    companyId={currentUser?.companyId || ''} 
-                    branches={branches}
-                    initialBranchId={selectedBranchId === 'all' ? undefined : selectedBranchId}
-                    canClear={true}
-                 />
+                  <SalesHistoryPanel 
+                     companyId={currentUser?.companyId || ''} 
+                     branches={branches}
+                     initialBranchId={selectedBranchId === 'all' ? undefined : selectedBranchId}
+                     canClear={currentUser?.role === 'vendor'}
+                     isVendor={currentUser?.role === 'vendor'}
+                  />
               </div>
            </div>
 
@@ -143,15 +146,15 @@ export const DashboardTab = ({
                  <div className="h-14 w-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-[#5750F1] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Package className="h-7 w-7" />
                  </div>
-                 <h4 className="text-sm font-bold text-[#111928] dark:text-white">Product Repository</h4>
-                 <p className="text-xs text-slate-400 mt-1">Manage global inventory</p>
+                 <h4 className="text-sm font-bold text-[#111928] dark:text-white">{t('product_repo')}</h4>
+                 <p className="text-xs text-slate-400 mt-1">{t('manage_inventory')}</p>
               </div>
               <div className="premium-card p-6 flex flex-col items-center text-center group cursor-pointer hover:border-emerald-500/20 transition-all" onClick={() => setSelectedTab('labels')}>
                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Tag className="h-7 w-7" />
                  </div>
-                 <h4 className="text-sm font-bold text-[#111928] dark:text-white">Digital Tags</h4>
-                 <p className="text-xs text-slate-400 mt-1">Sync electronic price tags</p>
+                 <h4 className="text-sm font-bold text-[#111928] dark:text-white">{t('digital_tags')}</h4>
+                 <p className="text-xs text-slate-400 mt-1">{t('sync_tags')}</p>
               </div>
            </div>
         </div>
@@ -159,13 +162,13 @@ export const DashboardTab = ({
         <div className="space-y-8">
            {/* Operations Panel */}
            <div className="premium-card p-8">
-              <h3 className="text-lg font-bold text-[#111928] dark:text-white mb-6">Operations</h3>
+              <h3 className="text-lg font-bold text-[#111928] dark:text-white mb-6">{t('operations')}</h3>
               <div className="space-y-3">
                  {[
-                    { label: 'Update Prices', icon: DollarSign, color: 'text-emerald-500', tab: 'products' },
-                    { label: 'Manage Staff', icon: Users, color: 'text-[#5750F1]', tab: 'staff' },
-                    { label: 'Campaign Center', icon: ShoppingBag, color: 'text-amber-500', tab: 'promotions' },
-                    { label: 'Label Status', icon: Activity, color: 'text-rose-500', tab: 'labels' },
+                    { label: t('update_prices'), icon: DollarSign, color: 'text-emerald-500', tab: 'products' },
+                    { label: t('manage_staff'), icon: Users, color: 'text-[#5750F1]', tab: 'staff' },
+                    { label: t('campaign_center'), icon: ShoppingBag, color: 'text-amber-500', tab: 'promotions' },
+                    { label: t('label_status'), icon: Activity, color: 'text-rose-500', tab: 'labels' },
                  ].map((action) => (
                     <button 
                        key={action.label}
@@ -190,7 +193,7 @@ export const DashboardTab = ({
                  <Building2 className="h-24 w-24" />
               </div>
               <div className="relative z-10">
-                 <h3 className="text-lg font-bold mb-6">Active Branches</h3>
+                 <h3 className="text-lg font-bold mb-6">{t('active_branches')}</h3>
                  <div className="space-y-4">
                     {branches.slice(0, 3).map(branch => (
                        <div key={branch.id} className="flex items-center justify-between">
@@ -198,12 +201,12 @@ export const DashboardTab = ({
                              <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
                              <span className="text-sm font-bold text-slate-100">{branch.name}</span>
                           </div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md border border-white/10">Active</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md border border-white/10">{t('active')}</span>
                        </div>
                     ))}
                     {branches.length > 3 && (
                        <button className="text-xs font-bold text-[#5750F1] hover:text-white transition-colors pt-2">
-                          +{branches.length - 3} more locations
+                          {t('more_locations').replace('{count}', (branches.length - 3).toString())}
                        </button>
                     )}
                  </div>
@@ -213,7 +216,7 @@ export const DashboardTab = ({
                        className="w-full mt-8 bg-[#5750F1] hover:bg-[#4A44D1] text-xs font-bold rounded-xl h-11"
                     >
                        <Plus className="h-4 w-4 mr-2" />
-                       New Branch
+                       {t('new_branch')}
                     </Button>
                  )}
               </div>

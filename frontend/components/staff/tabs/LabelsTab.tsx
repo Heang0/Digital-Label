@@ -14,11 +14,16 @@ import {
   Plus,
   Box,
   Maximize2,
-  AlertCircle
+  AlertCircle,
+  ScanLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DigitalLabel } from '@/hooks/useStaffDashboard';
+import { Tag } from 'lucide-react';
+import { User } from '@/lib/user-store';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { BarcodeScannerModal } from '@/components/ui/BarcodeScannerModal';
 
 interface StaffLabelsTabProps {
   labels: DigitalLabel[];
@@ -32,6 +37,8 @@ interface StaffLabelsTabProps {
   openLabelConfirm: (title: string, message: string, onConfirm: () => void) => void;
   isRefreshing?: boolean;
   onReportIssue: (labelId: string) => void;
+  onOpenDiscount?: (label: DigitalLabel) => void;
+  currentUser?: User;
 }
 
 export const StaffLabelsTab = ({
@@ -45,8 +52,12 @@ export const StaffLabelsTab = ({
   openLabelNotice,
   openLabelConfirm,
   isRefreshing,
-  onReportIssue
+  onReportIssue,
+  onOpenDiscount,
+  currentUser
 }: StaffLabelsTabProps) => {
+  const { t } = useLanguage();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const sortedLabels = useMemo(() => {
     return [...labels].sort((a, b) => {
@@ -62,6 +73,8 @@ export const StaffLabelsTab = ({
       return (
         (l.labelId || '').toLowerCase().includes(term) ||
         (l.productName || '').toLowerCase().includes(term) ||
+        (l.productSku || '').toLowerCase().includes(term) ||
+        (l.productCode || '').toLowerCase().includes(term) ||
         (l.location || '').toLowerCase().includes(term)
       );
     });
@@ -74,24 +87,24 @@ export const StaffLabelsTab = ({
         <div>
            <div className="flex items-center gap-2 mb-1">
               <Terminal className="h-4 w-4 text-[#5750F1]" />
-              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">Active Control System</span>
+              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">{t('active_control_system')}</span>
            </div>
-           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Digital Labels</h2>
+           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('digital_labels')}</h2>
         </div>
 
         <div className="flex items-center gap-3">
           <Button 
             onClick={() => {
               openLabelConfirm(
-                'Sync Branch Fleet',
-                'This will update all physical price tags in this store. Continue?',
+                t('sync_branch_fleet'),
+                t('sync_branch_fleet_desc'),
                 () => handleSyncAllLabels()
               );
             }}
             className="bg-[#10B981] hover:bg-[#059669] text-white rounded-none h-12 px-6 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 gap-2 border-none"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Sync Fleet
+            {t('sync_fleet')}
           </Button>
         </div>
       </div>
@@ -103,9 +116,17 @@ export const StaffLabelsTab = ({
           <Input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search tags by ID, product, or shelf..."
+            placeholder={t('search_tags_placeholder')}
             className="pl-12 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold"
           />
+          <Button 
+            onClick={() => setIsScannerOpen(true)}
+            variant="outline"
+            className="absolute right-0 top-0 h-12 w-12 p-0 rounded-none border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#5750F1] hover:bg-[#5750F1] hover:text-white transition-colors"
+            title={t('scan_barcode')}
+          >
+            <ScanLine className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -121,7 +142,7 @@ export const StaffLabelsTab = ({
             {label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice && (
               <div className="absolute top-0 right-0 z-10">
                 <div className="bg-rose-500 text-white text-[8px] font-black px-2 py-1 uppercase tracking-tighter">
-                   Promo Active
+                   {t('promo_active')}
                 </div>
               </div>
             )}
@@ -147,7 +168,7 @@ export const StaffLabelsTab = ({
                 <div className="min-h-[60px]">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className={`text-[9px] font-black ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'text-rose-500' : 'text-[#5750F1]'} uppercase tracking-widest mb-1`}>Assigned Product</p>
+                      <p className={`text-[9px] font-black ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'text-rose-500' : 'text-[#5750F1]'} uppercase tracking-widest mb-1`}>{t('assigned_product')}</p>
                       <h4 className="text-sm font-black text-[#111928] dark:text-white line-clamp-2 group-hover:text-[#5750F1] transition-colors">{label.productName}</h4>
                     </div>
                   </div>
@@ -164,7 +185,7 @@ export const StaffLabelsTab = ({
               ) : (
                 <div className="py-6 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 group-hover:border-[#5750F1]/20 transition-all">
                   <Plus className="h-5 w-5 text-slate-300 mb-2 group-hover:text-[#5750F1] transition-colors" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#5750F1]/60">Unlinked Node</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#5750F1]/60">{t('unlinked_node')}</span>
                 </div>
               )}
 
@@ -193,11 +214,20 @@ export const StaffLabelsTab = ({
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
+                  {label.productId && onOpenDiscount && currentUser?.permissions?.canChangePrices && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onOpenDiscount(label); }}
+                      className="h-8 w-8 flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-[#5750F1] hover:bg-[#5750F1] hover:text-white transition-all border border-indigo-100 dark:border-indigo-800"
+                      title={t('adjust_pricing')}
+                    >
+                      <Tag className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {label.productId && (
                     <button 
-                      onClick={(e) => { e.stopPropagation(); openLabelConfirm('Unlink Product', `Are you sure you want to remove the product from tag ${label.labelId}?`, () => handleUnlinkProductFromLabel(label.id)); }}
+                      onClick={(e) => { e.stopPropagation(); openLabelConfirm(t('unlink_product'), `${t('unlink_product_confirm')} ${label.labelId}?`, () => handleUnlinkProductFromLabel(label.id)); }}
                       className="h-8 w-8 flex items-center justify-center bg-amber-50 dark:bg-amber-900/20 text-amber-600 hover:bg-amber-500 hover:text-white transition-all border border-amber-100 dark:border-amber-800"
-                      title="Unlink Product"
+                      title={t('unlink_product')}
                     >
                       <ZapOff className="h-3.5 w-3.5" />
                     </button>
@@ -229,6 +259,14 @@ export const StaffLabelsTab = ({
            <p className="text-xs font-medium text-slate-400 mt-1">Try adjusting your search or filters.</p>
         </div>
       )}
+
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={(decodedText) => {
+          setSearchTerm(decodedText);
+        }}
+      />
     </div>
   );
 };

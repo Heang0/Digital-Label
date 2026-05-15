@@ -9,8 +9,12 @@ export interface User {
   photoURL?: string;
   companyId?: string;
   companyName?: string;
+  companyLogo?: string;
   branchId?: string;
   branchName?: string;
+  phone?: string;
+  username?: string;
+  bio?: string;
   position?: string; // Add this
   permissions?: { // Add this
     canViewProducts: boolean;
@@ -21,6 +25,7 @@ export interface User {
     canCreateProducts?: boolean;
     canCreateLabels?: boolean;
     canCreatePromotions?: boolean;
+    canManageStaff?: boolean;
     maxPriceChange?: number;
   };
 }

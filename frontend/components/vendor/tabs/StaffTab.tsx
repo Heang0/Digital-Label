@@ -1,33 +1,28 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users, Plus, User as UserIcon, Crown, Package, Wrench, ShoppingCart, Edit, Trash2, Lock, Shield } from 'lucide-react';
+import { Users, Plus, User as UserIcon, Crown, Package, Zap, ShoppingCart, Edit, Trash2, Lock, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StaffMember, Branch } from '@/types/vendor';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { ROLE_PRESETS, StaffPosition } from '@/lib/role-presets';
 
 const ROLE_ICONS: Record<string, any> = {
   'Manager': Crown,
   'Cashier': ShoppingCart,
-  'Inventory Specialist': Package,
-  'IT Support': Wrench,
-  'Sales Associate': UserIcon,
+  'Label Operator': Zap,
 };
 
 const ROLE_BADGE_COLORS: Record<string, string> = {
   'Manager': 'bg-indigo-500/10 text-indigo-600 border-indigo-100 dark:border-indigo-800/30',
   'Cashier': 'bg-emerald-500/10 text-emerald-600 border-emerald-100 dark:border-emerald-800/30',
-  'Inventory Specialist': 'bg-amber-500/10 text-amber-600 border-amber-100 dark:border-amber-800/30',
-  'IT Support': 'bg-cyan-500/10 text-cyan-600 border-cyan-100 dark:border-cyan-800/30',
-  'Sales Associate': 'bg-rose-500/10 text-rose-600 border-rose-100 dark:border-rose-800/30',
+  'Label Operator': 'bg-cyan-500/10 text-cyan-600 border-cyan-100 dark:border-cyan-800/30',
 };
 
 const ROLE_ICON_BG: Record<string, string> = {
   'Manager': 'bg-indigo-500',
   'Cashier': 'bg-emerald-500',
-  'Inventory Specialist': 'bg-amber-500',
-  'IT Support': 'bg-cyan-500',
-  'Sales Associate': 'bg-rose-500',
+  'Label Operator': 'bg-cyan-500',
 };
 
 interface StaffTabProps {
@@ -51,6 +46,7 @@ export const StaffTab = ({
   handleDeleteStaff,
   setShowResetPassword
 }: StaffTabProps) => {
+  const { t } = useLanguage();
   const filteredStaff = staffMembers.filter(member => 
     selectedBranchId === 'all' || member.branchId === selectedBranchId
   );
@@ -61,26 +57,26 @@ export const StaffTab = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Shield className="h-4 w-4 text-[#5750F1]" />
-            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">Personnel Control</span>
+            <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">{t('personnel_control')}</span>
           </div>
-          <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Staff Directory</h2>
-          <p className="text-xs font-medium text-[#637381] dark:text-slate-400 mt-1">Manage team members — permissions auto-apply by role.</p>
+          <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('staff_directory')}</h2>
+          <p className="text-xs font-medium text-[#637381] dark:text-slate-400 mt-1">{t('staff_directory_desc')}</p>
         </div>
         <Button onClick={() => setShowCreateStaff(true)} className="h-12 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-[#5750F1]/20">
           <Plus className="h-4 w-4" />
-          Add Member
+          {t('add_member')}
         </Button>
       </div>
 
       {branches.length > 1 && (
         <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border border-slate-200 dark:border-slate-800">
-          <label className="text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest mb-2 block">Filter by Location</label>
+          <label className="text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest mb-2 block">{t('filter_by_location')}</label>
           <select 
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
             className="w-full md:w-64 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 text-xs font-black text-[#111928] dark:text-white outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all"
           >
-            <option value="all">All Branches</option>
+            <option value="all">{t('all_branches')}</option>
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </div>
@@ -114,19 +110,18 @@ export const StaffTab = ({
                 {/* Role Badge */}
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 border text-[9px] font-black uppercase tracking-widest mb-5 ${badgeColor}`}>
                   <RoleIcon className="h-3 w-3" />
-                  {ROLE_PRESETS[member.position as StaffPosition]?.label || member.position}
+                  {t(ROLE_PRESETS[member.position as StaffPosition]?.label || member.position)}
                 </div>
 
-                {/* Details */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-[#637381]">Branch</span>
-                    <span className="text-[#111928] dark:text-white">{member.branchName || 'Global Access'}</span>
+                    <span className="text-[#637381]">{t('branch')}</span>
+                    <span className="text-[#111928] dark:text-white">{member.branchName || t('global_access')}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-[#637381]">Permissions</span>
+                    <span className="text-[#637381]">{t('permissions')}</span>
                     <span className="text-[10px] text-[#5750F1] font-black uppercase tracking-widest">
-                      {Object.values(member.permissions || {}).filter(v => v === true).length} Active
+                      {t('active_count').replace('{count}', Object.values(member.permissions || {}).filter(v => v === true).length.toString())}
                     </span>
                   </div>
                 </div>
@@ -136,7 +131,7 @@ export const StaffTab = ({
               <div className="px-6 py-3 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className={`h-1.5 w-1.5 rounded-full ${member.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span className="text-[9px] font-black text-[#637381] uppercase tracking-widest">{member.status}</span>
+                  <span className="text-[9px] font-black text-[#637381] uppercase tracking-widest">{t(member.status) || member.status}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setShowResetPassword(member.id)} className="h-8 w-8 flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-[#5750F1] transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
@@ -153,11 +148,11 @@ export const StaffTab = ({
             </motion.div>
           );
         })}
-        {filteredStaff.length === 0 && (
+         {filteredStaff.length === 0 && (
           <div className="md:col-span-2 xl:col-span-3 py-20 bg-white dark:bg-[#1C2434] border-2 border-dashed border-slate-100 dark:border-slate-800 text-center">
             <Users className="h-12 w-12 text-slate-200 dark:text-slate-800 mx-auto mb-3" />
-            <p className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">No team members onboarded</p>
-            <p className="text-xs text-[#637381] mt-1">Add staff to manage specific branch locations.</p>
+            <p className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('no_staff_onboarded')}</p>
+            <p className="text-xs text-[#637381] mt-1">{t('no_staff_desc')}</p>
           </div>
         )}
       </div>

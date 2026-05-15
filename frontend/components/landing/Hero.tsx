@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { fadeInUp, staggerContainer, floatAnimation, slideInFromRight, pulseAnimation } from './animations';
 
 export const Hero = () => {
+  const { t } = useLanguage();
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white">
       <div className="absolute inset-0">
@@ -35,23 +37,22 @@ export const Hero = () => {
           >
             <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold tracking-wide">
               <Zap className="h-4 w-4 text-blue-300" />
-              Retail pricing, unified in seconds
+              {t('hero_tag')}
             </motion.div>
 
             <motion.h1 variants={fadeInUp} className="mt-6 text-4xl md:text-6xl font-semibold text-slate-900 leading-tight">
-              A modern command center for digital shelf labels.
+              {t('hero_title')}
             </motion.h1>
 
             <motion.p variants={fadeInUp} className="mt-5 text-lg text-slate-600 max-w-xl">
-              Push price updates, promos, and stock alerts to every aisle instantly. Keep teams aligned with
-              real-time visibility across all stores.
+              {t('hero_desc')}
             </motion.p>
 
             <motion.div variants={fadeInUp} className="mt-8 flex flex-col sm:flex-row gap-4">
               <Link href="/register">
                 <Button size="lg" className="gap-2 relative overflow-hidden group">
-                  <span className="relative z-10 flex items-center">
-                    Start Free Trial
+                   <span className="relative z-10 flex items-center">
+                    {t('start_trial')}
                     <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </span>
                   <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 translate-x-full group-hover:translate-x-0 transition-transform duration-300"></span>
@@ -59,7 +60,7 @@ export const Hero = () => {
               </Link>
               <Link href="/login">
                 <Button variant="outline" size="lg" className="border-slate-300 text-slate-900 hover:bg-slate-100 hover:border-slate-400 transition-all duration-300">
-                  Watch Demo
+                  {t('watch_demo')}
                 </Button>
               </Link>
             </motion.div>
@@ -68,16 +69,20 @@ export const Hero = () => {
               variants={fadeInUp}
               className="mt-8 flex flex-wrap gap-3 text-xs text-slate-500"
             >
-              {['Instant price sync', 'Branch-level control', 'Offline-safe labels'].map((tag, index) => (
+              {[
+                { id: 'instant_sync', label: t('instant_sync') },
+                { id: 'branch_control', label: t('branch_control') },
+                { id: 'offline_safe', label: t('offline_safe') }
+              ].map((tag, index) => (
                 <motion.span
-                  key={tag}
+                  key={tag.id}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 + 0.5 }}
                   whileHover={{ scale: 1.05, y: -2 }}
                   className="rounded-full border border-slate-200 px-3 py-1 hover:border-blue-300 hover:bg-blue-50 transition-all cursor-default"
                 >
-                  {tag}
+                  {tag.label}
                 </motion.span>
               ))}
             </motion.div>

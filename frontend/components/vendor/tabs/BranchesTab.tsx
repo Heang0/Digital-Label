@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Branch } from '@/types/vendor';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface BranchesTabProps {
   branches: Branch[];
@@ -33,6 +34,7 @@ export const BranchesTab = ({
   setSelectedTab,
   setSelectedBranchId
 }: BranchesTabProps) => {
+  const { t } = useLanguage();
   return (
     <div className="space-y-8 pb-20">
       {/* Header */}
@@ -40,10 +42,10 @@ export const BranchesTab = ({
         <div>
            <div className="flex items-center gap-2 mb-1">
               <Building2 className="h-4 w-4 text-[#5750F1]" />
-              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">Retail Infrastructure</span>
+              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">{t('retail_infrastructure')}</span>
            </div>
-           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Branch Network</h2>
-           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">Manage and monitor {branches.length} physical locations.</p>
+           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('branch_network')}</h2>
+           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">{t('branch_network_desc').replace('{count}', branches.length.toString())}</p>
         </div>
 
         <Button 
@@ -51,7 +53,7 @@ export const BranchesTab = ({
           className="bg-[#5750F1] hover:bg-[#4A44D1] text-white rounded-none h-12 px-8 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#5750F1]/20 gap-2 border-none"
         >
           <Plus className="h-4 w-4" />
-          Add New Store
+          {t('add_new_store')}
         </Button>
       </div>
 
@@ -95,7 +97,7 @@ export const BranchesTab = ({
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
-                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed">{branch.address || 'Address not registered'}</p>
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed">{branch.address || t('address_not_registered')}</p>
               </div>
               {branch.phone && (
                 <div className="flex items-center gap-3">
@@ -115,7 +117,7 @@ export const BranchesTab = ({
                 className="flex-1 flex items-center justify-center gap-2 py-2 text-[9px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-[#5750F1] hover:text-[#5750F1] transition-all"
               >
                  <Activity className="h-3 w-3" />
-                 View Labels
+                 {t('view_labels')}
               </button>
               <button 
                 onClick={() => {
@@ -125,7 +127,7 @@ export const BranchesTab = ({
                 className="flex-1 flex items-center justify-center gap-2 py-2 text-[9px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-[#5750F1] hover:text-[#5750F1] transition-all"
               >
                  <ArrowRight className="h-3 w-3" />
-                 Manage Staff
+                 {t('manage_staff')}
               </button>
             </div>
           </motion.div>
@@ -139,8 +141,8 @@ export const BranchesTab = ({
           <div className="h-16 w-16 bg-slate-50 dark:bg-slate-900 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Plus className="h-8 w-8 text-slate-300 group-hover:text-[#5750F1]" />
           </div>
-          <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Expand Network</h4>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Register new location</p>
+          <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('expand_network')}</h4>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{t('register_new_location')}</p>
         </motion.div>
       </div>
     </div>

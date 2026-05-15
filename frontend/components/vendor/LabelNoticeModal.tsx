@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle2, Info, XCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface LabelNoticeModalProps {
   modal: {
@@ -17,6 +18,7 @@ interface LabelNoticeModalProps {
 }
 
 export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
+  const { t } = useLanguage();
   if (!modal) return null;
 
   const getIcon = () => {
@@ -72,7 +74,7 @@ export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
                 {modal.title}
               </h3>
               <p className="text-xs font-bold text-[#637381] dark:text-slate-500 uppercase tracking-widest">
-                Action Response
+                {t('action_response')}
               </p>
             </div>
 
@@ -102,7 +104,7 @@ export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
                     'bg-[#5750F1] hover:bg-[#4A44D1] shadow-indigo-500/20'
                   }`}
                 >
-                  {modal.confirmLabel || 'OK'}
+                  {modal.confirmLabel || t('ok')}
                 </Button>
               </div>
             </div>

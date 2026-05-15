@@ -15,8 +15,11 @@ import {
   deleteCurrentUser,
 } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
+import { ROLE_PRESETS, StaffPosition } from '@/lib/role-presets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { LanguageSelector } from '@/components/admin/LanguageSelector';
 
 type DemoAccount = {
   email: string;
@@ -30,6 +33,7 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useUserStore();
+  const { t } = useLanguage();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -138,20 +142,30 @@ export default function LoginClient() {
       const isDemoStaff = selectedDemo === 'staff' || userData.email === 'staff.demo@store.com';
       const normalizedUser = isDemoStaff
         ? {
-            ...userData,
-            permissions: {
-              canViewProducts: true,
-              canUpdateStock: true,
-              canReportIssues: true,
-              canViewReports: true,
-              canChangePrices: true,
-              canCreateProducts: true,
-              canCreateLabels: true,
-              canCreatePromotions: true,
-              maxPriceChange: 0,
-            },
-          }
+          ...userData,
+          permissions: {
+            canViewProducts: true,
+            canUpdateStock: true,
+            canReportIssues: true,
+            canViewReports: true,
+            canChangePrices: true,
+            canCreateProducts: true,
+            canCreateLabels: true,
+            canCreatePromotions: true,
+            maxPriceChange: 0,
+          },
+        }
         : userData;
+
+      // Apply role presets if staff user is missing permissions
+      if (normalizedUser.role === 'staff' && !normalizedUser.permissions && normalizedUser.position) {
+        const positionKey = normalizedUser.position as StaffPosition;
+        // Case insensitive matching for position
+        const presetKey = Object.keys(ROLE_PRESETS).find(k => k.toLowerCase() === (positionKey || '').toLowerCase()) as StaffPosition;
+        if (presetKey && ROLE_PRESETS[presetKey]) {
+          normalizedUser.permissions = ROLE_PRESETS[presetKey].permissions;
+        }
+      }
 
       setUser(normalizedUser);
 
@@ -269,18 +283,30 @@ export default function LoginClient() {
         <div className="absolute -bottom-24 right-10 h-72 w-72 rounded-full bg-blue-700/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-center">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center py-10">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 shadow-sm">
-              <Store className="h-7 w-7 text-white" />
+            <div className="mx-auto mb-3 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#5750F1] shadow-lg shadow-[#5750F1]/20 overflow-hidden">
+              <img
+                src="/logo.jpg"
+                alt="Logo"
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as any).style.display = 'none';
+                  (e.target as any).nextSibling.style.display = 'block';
+                }}
+              />
+              <Store className="h-8 w-8 text-white hidden" />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-6 text-center">
-              <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
-              <p className="mt-1 text-sm text-gray-600">Welcome back. Please enter your details.</p>
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 relative">
+            <div className="absolute top-4 right-4">
+              <LanguageSelector />
+            </div>
+            <div className="mb-6 text-center pt-8 sm:pt-4">
+              <h2 className="text-2xl font-bold text-gray-900">{t('welcome_back')}</h2>
+              <p className="mt-1 text-sm text-gray-600">{t('sign_in_desc')}</p>
             </div>
 
             {error && (
@@ -305,7 +331,7 @@ export default function LoginClient() {
             )}
 
             <div className="mb-6">
-              <p className="text-sm font-medium text-gray-700">Try demo</p>
+              <p className="text-sm font-medium text-gray-700">{t('demo_accounts')}</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {demoAccounts.map((account) => {
                   const active = selectedDemo === account.role;
@@ -344,7 +370,7 @@ export default function LoginClient() {
 
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-gray-200" />
-              <span className="text-xs text-gray-500">or</span>
+              <span className="text-xs text-gray-500">{t('or_continue')}</span>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
 
@@ -379,7 +405,7 @@ export default function LoginClient() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                  Email
+                  {t('email_addr')}
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -401,7 +427,7 @@ export default function LoginClient() {
 
               <div className="space-y-2">
                 <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                  Password
+                  {t('password')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -425,7 +451,7 @@ export default function LoginClient() {
                     onClick={openResetModal}
                     className="text-sm font-medium text-blue-600 hover:underline"
                   >
-                    Forgot password?
+                    {t('forgot_pw')}
                   </button>
                 </div>
               </div>
@@ -434,11 +460,11 @@ export default function LoginClient() {
                 {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Signing in...
+                    {t('signing_in') || 'Signing in...'}
                   </>
                 ) : (
                   <>
-                    Sign In
+                    {t('login_btn')}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
@@ -446,16 +472,24 @@ export default function LoginClient() {
 
               <div className="flex flex-col gap-2 pt-1 text-sm text-center sm:items-center">
                 <p className="text-gray-600">
-                  Don&apos;t have an account?{' '}
+                  {t('no_account')}{' '}
                   <Link href="/register" className="font-medium text-blue-600 hover:underline">
-                    Register Now
+                    {t('register_btn')}
                   </Link>
                 </p>
               </div>
             </form>
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-500">© 2026 Digital Label. All rights reserved.</p>
+        </div>
+
+        {/* Powered by — pinned to page bottom */}
+        <div className="mt-auto pt-16 pb-6 flex flex-col items-center gap-3">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{t('powered_by')}</p>
+          <div className="h-10 w-10 overflow-hidden rounded-xl shadow-md border border-white">
+            <img src="/logo.jpg" alt="Logo" className="h-full w-full object-cover" />
+          </div>
+          <p className="text-[12px] font-black text-gray-900 uppercase tracking-[0.4em]">Kitzu-Tech</p>
         </div>
       </div>
 

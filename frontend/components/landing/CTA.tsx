@@ -54,7 +54,7 @@ export const CTA = () => {
           viewport={{ once: true }}
           className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto"
         >
-          Join hundreds of retail chains already using Digital Label Pro
+          Join hundreds of retail chains already using Kitzu-Tech Pro
         </motion.p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <motion.div
