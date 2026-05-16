@@ -77,7 +77,7 @@ export const StaffTab = ({
           <select 
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="w-full md:w-64 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 text-xs font-black text-[#111928] dark:text-white outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all"
+            className="w-full md:w-64 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 text-xs font-black text-[#111928] dark:text-white outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
           >
             <option value="all">{t('all_branches')}</option>
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -106,7 +106,7 @@ export const StaffTab = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-[#111928] dark:text-white truncate uppercase tracking-tight">{member.name}</p>
-                    <p className="text-[10px] font-medium text-[#637381] truncate">{member.email}</p>
+                    <p className="text-[10px] font-medium text-[#637381] dark:text-slate-400 truncate">{member.email}</p>
                   </div>
                 </div>
 
@@ -117,12 +117,12 @@ export const StaffTab = ({
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-[#637381]">{t('branch')}</span>
-                    <span className="text-[#111928] dark:text-white">{member.branchName || t('global_access')}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[#637381] dark:text-slate-500 text-xs font-bold">{t('branch')}</span>
+                    <span className="text-[#111928] dark:text-white text-xs font-bold">{member.branchName || t('global_access')}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-[#637381]">{t('permissions')}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[#637381] dark:text-slate-500 text-xs font-bold">{t('permissions')}</span>
                     <span className="text-[10px] text-[#5750F1] font-black uppercase tracking-widest">
                       {t('active_count').replace('{count}', Object.values(member.permissions || {}).filter(v => v === true).length.toString())}
                     </span>
@@ -134,7 +134,7 @@ export const StaffTab = ({
               <div className="px-6 py-3 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className={`h-1.5 w-1.5 rounded-full ${member.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span className="text-[9px] font-black text-[#637381] uppercase tracking-widest">{t(member.status) || member.status}</span>
+                  <span className="text-[9px] font-black text-[#637381] dark:text-slate-400 uppercase tracking-widest">{t(member.status) || member.status}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setShowResetPassword(member.id)} className="h-8 w-8 flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-[#5750F1] transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
@@ -155,7 +155,7 @@ export const StaffTab = ({
           <div className="md:col-span-2 xl:col-span-3 py-20 bg-white dark:bg-[#1C2434] border-2 border-dashed border-slate-100 dark:border-slate-800 text-center">
             <Users className="h-12 w-12 text-slate-200 dark:text-slate-800 mx-auto mb-3" />
             <p className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('no_staff_onboarded')}</p>
-            <p className="text-xs text-[#637381] mt-1">{t('no_staff_desc')}</p>
+            <p className="text-xs text-[#637381] dark:text-slate-400 mt-1">{t('no_staff_desc')}</p>
           </div>
         )}
       </div>

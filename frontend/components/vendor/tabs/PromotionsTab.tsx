@@ -79,10 +79,10 @@ export const PromotionsTab = ({
                       }`}>{t(promo.status) || promo.status}</div>
                    </div>
                 </div>
-                <p className="text-xs font-medium text-[#637381] line-clamp-2 mb-4">{promo.description}</p>
+                <p className="text-xs font-medium text-[#637381] dark:text-slate-400 line-clamp-2 mb-4">{promo.description}</p>
                 <div className="flex items-center gap-6">
                    <div>
-                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">{t('value_label')}</p>
+                      <p className="text-[10px] font-bold text-[#637381] dark:text-slate-500 uppercase tracking-widest">{t('value_label')}</p>
                       <p className="text-sm font-black text-[#111928] dark:text-white">
                         {promo.type === 'percentage' 
                           ? t('percent_off').replace('{value}', promo.value.toString()) 
@@ -90,7 +90,7 @@ export const PromotionsTab = ({
                       </p>
                    </div>
                    <div>
-                      <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest">{t('target_label')}</p>
+                      <p className="text-[10px] font-bold text-[#637381] dark:text-slate-500 uppercase tracking-widest">{t('target_label')}</p>
                       <p className="text-sm font-black text-[#111928] dark:text-white capitalize">
                         {promo.applyTo === 'all' 
                           ? t('entire_inventory') 

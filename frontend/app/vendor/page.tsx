@@ -32,7 +32,7 @@ import { ActivityTab } from '@/components/vendor/tabs/ActivityTab';
 import { POSTab } from '@/components/vendor/tabs/POSTab';
 import { ScanAnalyticsTab } from '@/components/vendor/tabs/ScanAnalyticsTab';
 import { ReportingTab } from '@/components/vendor/tabs/ReportingTab';
-import { AdminLabelUI as LabelDesignerTab } from '@/components/admin/AdminLabelUI';
+import { LabelDesignerTab } from '@/components/vendor/tabs/LabelDesignerTab';
 import { SupportTab } from '@/components/vendor/tabs/SupportTab';
 import { SettingsTab } from '@/components/vendor/tabs/SettingsTab';
 import { StaffManagementModal } from '@/components/vendor/StaffManagementModal';
@@ -138,10 +138,10 @@ export default function VendorDashboard() {
     
     if (!currentUser) {
       redirecting.current = true;
-      router.push('/login');
+      router.replace('/login');
     } else if (currentUser.role !== 'vendor' && currentUser.role !== 'staff' && currentUser.role !== 'admin') {
       redirecting.current = true;
-      router.push('/login');
+      router.replace('/login');
     }
   }, [currentUser, hasHydrated, router]);
 
@@ -358,6 +358,7 @@ export default function VendorDashboard() {
                 <ReportingTab
                   branches={branches}
                   selectedBranchId={selectedBranchId}
+                  currentUser={currentUser}
                 />
               )}
 
@@ -406,7 +407,7 @@ export default function VendorDashboard() {
 
               {selectedTab === 'pos' && <POSTab />}
 
-              {selectedTab === 'label-ui' && <LabelDesignerTab />}
+              {selectedTab === 'label-ui' && <LabelDesignerTab companyId={company?.id || ''} />}
 
               {selectedTab === 'branches' && (
                 <BranchesTab

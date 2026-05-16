@@ -121,9 +121,9 @@ export default function ProductModal({
                 <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest mt-0.5">{t('master_inventory')}</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
-              <X className="h-5 w-5" />
-            </button>
+                 <Button variant="ghost" size="sm" onClick={onClose} className="h-10 w-10 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-white/60 hover:text-slate-900 dark:hover:text-white transition-colors">
+                    <X className="h-5 w-5" />
+                 </Button>
           </div>
         </div>
 
@@ -199,7 +199,7 @@ export default function ProductModal({
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                 required
                 disabled={loading}
               >
@@ -393,6 +393,7 @@ export default function ProductModal({
               variant="outline"
               onClick={onClose}
               disabled={loading}
+              className="dark:text-white border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               {t('cancel')}
             </Button>

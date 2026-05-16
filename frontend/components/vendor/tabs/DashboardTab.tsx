@@ -117,7 +117,7 @@ export const DashboardTab = ({
                          </button>
                          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
                          <select 
-                            className="bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-300 outline-none px-2 cursor-pointer"
+                            className="bg-transparent border-none text-[10px] font-black text-[#5750F1] outline-none cursor-pointer uppercase tracking-widest [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                             value={selectedBranchId}
                             onChange={(e) => setSelectedBranchId(e.target.value)}
                          >

@@ -75,7 +75,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
               <h3 className="text-lg font-bold text-[#111928] dark:text-white">
                 {editingCompany ? 'Edit Company Profile' : 'Onboard New Company'}
               </h3>
-              <button onClick={onClose} className="p-2 text-[#637381] hover:text-[#111928] dark:hover:text-white transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#5750F1] transition-all">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -145,7 +145,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   <select 
                     value={formData.subscription}
                     onChange={(e) => setFormData({...formData, subscription: e.target.value as any})}
-                    className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer"
+                    className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                   >
                     <option value="basic">Basic</option>
                     <option value="pro">Pro</option>
@@ -157,7 +157,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-                    className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer"
+                    className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                   >
                     <option value="active">Active</option>
                     <option value="suspended">Suspended</option>

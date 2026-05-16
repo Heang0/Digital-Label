@@ -14,9 +14,12 @@ import {
   ShieldCheck,
   ChevronRight,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useUserStore } from '@/lib/user-store';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const BilingualLabel = ({
   en,
@@ -38,6 +41,8 @@ export default function PublicProductPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { user: currentUser } = useUserStore();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const loadData = async () => {
@@ -267,12 +272,26 @@ export default function PublicProductPage() {
               <BilingualLabel en="Find in Store" km="ស្វែងរកក្នុងហាង" />
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
-            <button
-              onClick={() => router.push(`/label-product/${labelId}`)}
-              className="h-10 w-full rounded-none border border-slate-200 bg-white px-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
-            >
-              <BilingualLabel en="Merchant Administrative Access" km="ចូលគ្រប់គ្រងពាណិជ្ជករ" />
-            </button>
+            {/* Merchant Access - Only visible/accessible to staff/vendors */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+              {currentUser && (currentUser.role === 'vendor' || currentUser.role === 'staff' || currentUser.role === 'admin') ? (
+                <button
+                  onClick={() => router.push(`/label-product/${labelId}`)}
+                  className="h-12 w-full rounded-none border border-indigo-100 bg-indigo-50/50 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-[#5750F1] transition-all hover:bg-indigo-100 flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  <BilingualLabel en="Merchant Administrative Access" km="ចូលគ្រប់គ្រងពាណិជ្ជករ" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => router.push(`/login?next=${encodeURIComponent(`/label-product/${labelId}`)}`)}
+                  className="h-10 w-full rounded-none border border-slate-100 bg-white px-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center gap-2"
+                >
+                  <Lock className="h-3 w-3" />
+                  <BilingualLabel en="Staff / Vendor Login" km="បុគ្គលិក / អាជីវករ ចូលប្រើប្រាស់" />
+                </button>
+              )}
+            </div>
           </div>
         </motion.section>
       </main>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Minus, Plus, Search, ShoppingCart, Trash2, User as UserIcon } from 'lucide-react';
+import { Minus, Package, Plus, Search, ShoppingCart, Trash2, User as UserIcon } from 'lucide-react';
 import {
   collection,
   deleteDoc,
@@ -21,67 +21,19 @@ import {
 import { db } from '@/lib/firebase';
 import { nextBranchSequence } from '@/lib/id-generator';
 
-type StaffUser = {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'vendor' | 'staff';
-  branchId?: string;
-  position?: string;
-};
-
-type Branch = {
-  id: string;
-  name: string;
-  address?: string;
-  phone?: string;
-};
-
-type Category = {
-  id: string;
-  name: string;
-};
-
-type Product = {
-  id: string;
-  name: string;
-  sku: string;
-  productCode?: string;
-  category: string;
-};
-
-type BranchProduct = {
-  id: string;
-  productId: string;
-  currentPrice: number;
-  stock: number;
-  productDetails?: Product;
-};
-
-type DigitalLabel = {
-  id: string;
-  productId: string | null;
-  branchId: string;
-  basePrice?: number | null;
-  finalPrice?: number | null;
-  discountPercent?: number | null;
-};
-
-type CartItem = {
-  key: string;
-  productId: string;
-  name: string;
-  category?: string;
-  qty: number;
-  baseUnitPrice: number;
-  finalUnitPrice: number;
-  discountPercent?: number | null;
-};
-
-function money(n: number) {
-  if (!Number.isFinite(n)) return '$0.00';
-  return `$${n.toFixed(2)}`;
-}
+import { ProductGrid } from './ProductGrid';
+import { CartItemList } from './CartItemList';
+import { SalesHistoryTable } from './SalesHistoryTable';
+import { CheckoutFlowModal } from './CheckoutFlowModal';
+import { 
+  StaffUser, 
+  Branch, 
+  Category, 
+  BranchProduct, 
+  DigitalLabel, 
+  CartItem, 
+  money 
+} from './types';
 
 export default function CashierTab(props: {
   currentUser: StaffUser;
@@ -214,6 +166,7 @@ export default function CashierTab(props: {
           baseUnitPrice: base,
           finalUnitPrice: final,
           discountPercent,
+          imageUrl: bp.productDetails?.imageUrl || null,
         },
       ];
     });
@@ -608,9 +561,9 @@ export default function CashierTab(props: {
         <div className="lg:col-span-2 bg-white rounded-xl border p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Cashier (Demo)</h2>
+              <h2 className="text-2xl font-bold text-gray-900">បេឡាករ (Cashier)</h2>
               <p className="text-gray-600 mt-1">
-                Add items by <span className="font-medium">Product ID</span> (or SKU/Product Code) or pick from category.
+                ស្វែងរកតាម <span className="font-medium text-blue-600">លេខសម្គាល់ផលិតផល (Product ID)</span>, SKU ឬស្កេនបាកូដ។
               </p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 bg-gray-50">
@@ -621,18 +574,22 @@ export default function CashierTab(props: {
 
           <div className="mt-5 flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700">Product ID (demo barcode)</label>
+              <label className="text-sm font-semibold text-gray-700">ស្កេនបាកូដ ឬបញ្ចូលលេខកូដផលិតផល</label>
               <div className="mt-2 flex gap-2">
                 <Input
                   value={productIdInput}
                   onChange={(e) => setProductIdInput(e.target.value)}
-                  placeholder="Enter Product ID / SKU / Product Code"
+                  placeholder="បញ្ចូលលេខសម្គាល់ / SKU / បាកូដ"
+                  className="h-11 rounded-xl"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addFromInput();
                   }}
                 />
-                <Button onClick={addFromInput}>Add</Button>
-                <Button variant="outline" onClick={simulateScan} type="button">Simulate Scan</Button>
+                <Button onClick={addFromInput} className="h-11 px-6 rounded-xl">បន្ថែម</Button>
+                <Button variant="outline" onClick={simulateScan} type="button" className="h-11 px-4 rounded-xl shrink-0">
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">ស្កេនសាកល្បង</span>
+                </Button>
               </div>
               {checkoutNote && <p className="text-sm text-red-600 mt-2">{checkoutNote}</p>}
               <p className="text-xs text-gray-500 mt-2">
@@ -657,21 +614,21 @@ export default function CashierTab(props: {
 
         {/* Totals card */}
         <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">Summary</h3>
+          <h3 className="text-lg font-bold text-gray-900">សរុបការទូទាត់ (Summary)</h3>
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Subtotal</span>
+              <span className="text-gray-600">សរុប (Subtotal)</span>
               <span className="font-medium text-gray-900">{money(totals.subtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Discount</span>
+              <span className="text-gray-600">បញ្ចុះតម្លៃ (Discount)</span>
               <span className={cn('font-medium', totals.discount > 0 ? 'text-emerald-700' : 'text-gray-900')}>
                 -{money(totals.discount)}
               </span>
             </div>
             <div className="border-t pt-3 flex items-center justify-between">
-              <span className="text-gray-900 font-semibold">Total</span>
-              <span className="text-xl font-bold text-gray-900">{money(totals.total)}</span>
+              <span className="text-gray-900 font-bold">សរុបត្រូវបង់ (Total)</span>
+              <span className="text-2xl font-black text-gray-900">{money(totals.total)}</span>
             </div>
           </div>
 
@@ -680,12 +637,12 @@ export default function CashierTab(props: {
               variant="outline"
               onClick={clearCart}
               disabled={cart.length === 0}
-              className="w-full"
+              className="w-full h-11 rounded-xl"
             >
-              Clear
+              សម្អាត
             </Button>
-            <Button onClick={openCheckout} disabled={cart.length === 0} className="w-full">
-              Checkout
+            <Button onClick={openCheckout} disabled={cart.length === 0} className="w-full h-11 rounded-xl font-bold">
+              បង់ប្រាក់
             </Button>
           </div>
 
@@ -695,389 +652,69 @@ export default function CashierTab(props: {
         </div>
       </div>
 
-      {/* Categories + products */}
-      <div className="bg-white rounded-xl border p-5 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Browse products</h3>
-            <p className="text-gray-600 text-sm">Choose a category then tap a product to add it.</p>
-          </div>
-          <div className="relative w-full lg:w-96">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search name / SKU / code / ID"
-              className="pl-10"
-            />
-          </div>
-        </div>
+      <ProductGrid 
+        categories={categories}
+        filteredProducts={filteredProducts}
+        activeCategory={activeCategory}
+        setActiveCategory={setActiveCategory}
+        productSearch={productSearch}
+        setProductSearch={setProductSearch}
+        addToCart={addToCart}
+        effectivePriceForProduct={effectivePriceForProduct}
+      />
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveCategory('all')}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-sm border transition-colors',
-              activeCategory === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            )}
-          >
-            All
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setActiveCategory(c.name)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-sm border transition-colors',
-                activeCategory === c.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-              )}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filteredProducts.map((bp) => {
-            const pd = bp.productDetails;
-            if (!pd) return null;
-            const p = effectivePriceForProduct(bp.productId, bp.currentPrice);
-            const hasDiscount = p.final < p.base;
-
-            return (
-              <button
-                key={bp.id}
-                type="button"
-                onClick={() => addToCart(bp)}
-                className="text-left rounded-xl border p-4 hover:shadow-sm hover:border-gray-300 transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{pd.name}</p>
-                    <p className="text-xs text-gray-500 mt-1 truncate">ID: {bp.productId}</p>
-                    <p className="text-xs text-gray-500 truncate">SKU: {pd.sku}{pd.productCode ? ` · Code: ${pd.productCode}` : ''}</p>
-                  </div>
-                  {hasDiscount && (
-                    <span className="shrink-0 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 text-xs font-semibold">
-                      SALE{p.discountPercent ? ` ${p.discountPercent}%` : ''}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-end justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">{money(p.final)}</p>
-                    {hasDiscount && (
-                      <p className="text-xs text-gray-500 line-through">{money(p.base)}</p>
-                    )}
-                  </div>
-                  <span className={cn('text-xs font-medium', bp.stock <= 0 ? 'text-red-600' : bp.stock < 5 ? 'text-yellow-700' : 'text-gray-600')}>
-                    Stock: {bp.stock}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-
-          {filteredProducts.length === 0 && (
-            <div className="col-span-full text-center py-10 text-gray-500">
-              No products found for this category/search.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Cart */}
-      <div className="bg-white rounded-xl border p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Cart</h3>
-          <Button variant="outline" size="sm" onClick={clearCart} disabled={cart.length === 0}>
-            <Trash2 className="h-4 w-4 mr-2" /> Clear
-          </Button>
-        </div>
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
-                <th className="py-2 pr-4">Item</th>
-                <th className="py-2 pr-4">Price</th>
-                <th className="py-2 pr-4">Qty</th>
-                <th className="py-2 pr-4">Total</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {cart.map((item) => {
-                const hasDiscount = item.finalUnitPrice < item.baseUnitPrice;
-                return (
-                  <tr key={item.key} className="border-b last:border-b-0">
-                    <td className="py-3 pr-4">
-                      <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.productId}{item.category ? ` · ${item.category}` : ''}</p>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <p className="font-semibold text-gray-900">{money(item.finalUnitPrice)}</p>
-                      {hasDiscount && <p className="text-xs text-gray-500 line-through">{money(item.baseUnitPrice)}</p>}
-                    </td>
-                   <td className="py-3 pr-4">
-                      <div className="inline-flex items-center gap-2 rounded-xl border px-2 py-1 bg-white text-gray-900">
-                        <button
-                          type="button"
-                          className="p-1 hover:bg-gray-50 rounded-lg text-gray-900"
-                          onClick={() => setQty(item.key, item.qty - 1)}
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus className="h-4 w-4 text-gray-900" />
-                        </button>
-
-                        <span className="w-8 text-center font-semibold text-gray-900">{item.qty}</span>
-
-                        <button
-                          type="button"
-                          className="p-1 hover:bg-gray-50 rounded-lg text-gray-900"
-                          onClick={() => setQty(item.key, item.qty + 1)}
-                          aria-label="Increase quantity"
-                        >
-                          <Plus className="h-4 w-4 text-gray-900" />
-                        </button>
-                      </div>
-                    </td>
-
-                    <td className="py-3 pr-4 font-semibold text-gray-900">{money(item.finalUnitPrice * item.qty)}</td>
-                    <td className="py-3">
-                      <Button variant="outline" size="sm" onClick={() => setQty(item.key, 0)}>
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {cart.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-10 text-center text-gray-500">
-                    No items yet. Add by Product ID or pick from the product grid.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <CartItemList 
+        cart={cart}
+        setQty={setQty}
+        clearCart={clearCart}
+      />
 
       {/* Sales history */}
       {canViewSales && (
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Sales history</h3>
-              <p className="text-sm text-gray-600">View sales for today or previous days. Vendors and manager-level staff can clear history.</p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select
-                className="h-9 rounded-xl border bg-white px-3 text-sm"
-                value={historyMode}
-                onChange={(e) => setHistoryMode(e.target.value as any)}
-              >
-                <option value="today">Today</option>
-                <option value="date">Pick date</option>
-                <option value="all">All</option>
-              </select>
-
-              {historyMode === 'date' && (
-                <Input
-                  type="date"
-                  value={historyDate}
-                  onChange={(e) => setHistoryDate(e.target.value)}
-                  className="h-9"
-                />
-              )}
-
-              <Button variant="outline" onClick={fetchSales} disabled={salesLoading}>
-                Refresh
-              </Button>
-
-              {canManageSales && (
-                <Button variant="outline" onClick={clearSalesHistory} disabled={salesLoading}>
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
-                  <th className="py-2 pr-4">Time</th>
-                  <th className="py-2 pr-4">Items</th>
-                  <th className="py-2 pr-4">Subtotal</th>
-                  <th className="py-2 pr-4">Discount</th>
-                  <th className="py-2 pr-4">Total</th>
-                  <th className="py-2">Staff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((s) => {
-                  const ts: any = s.createdAt;
-                  const d = ts?.toDate ? ts.toDate() : null;
-                  const time = d ? d.toLocaleString() : '—';
-                  const items = Array.isArray(s.items) ? s.items.reduce((n: number, it: any) => n + Number(it.qty || 0), 0) : 0;
-                  return (
-                    <tr key={s.id} className="border-b last:border-b-0">
-                      <td className="py-3 pr-4 text-sm text-gray-700 whitespace-nowrap">{time}</td>
-                      <td className="py-3 pr-4 text-sm text-gray-700">{items}</td>
-                      <td className="py-3 pr-4 text-sm font-semibold text-gray-900">{money(Number(s.subtotal || 0))}</td>
-                      <td className="py-3 pr-4 text-sm text-emerald-700">-{money(Number(s.discountTotal || 0))}</td>
-                      <td className="py-3 pr-4 text-sm font-bold text-gray-900">{money(Number(s.total || 0))}</td>
-                      <td className="py-3 text-sm text-gray-700">{s.staffName || '—'}</td>
-                    </tr>
-                  );
-                })}
-
-                {salesLoading && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-500">Loading…</td>
-                  </tr>
-                )}
-                {!salesLoading && sales.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-500">No sales found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <SalesHistoryTable 
+          sales={sales}
+          salesLoading={salesLoading}
+          historyMode={historyMode}
+          setHistoryMode={setHistoryMode}
+          historyDate={historyDate}
+          setHistoryDate={setHistoryDate}
+          fetchSales={fetchSales}
+          canManageSales={canManageSales}
+          clearSalesHistory={clearSalesHistory}
+        />
       )}
 
-      {/* Checkout modal + receipt */}
-      {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl border overflow-hidden">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <div>
-                <div className="text-lg font-semibold text-gray-900">Confirm checkout</div>
-                <div className="text-sm text-gray-600">This will create a real sale record for vendor/staff history.</div>
-              </div>
-              <Button variant="outline" onClick={() => setIsCheckoutOpen(false)} disabled={isSavingSale}>
-                Close
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-              <div className="p-6">
-                <label className="text-sm font-semibold text-gray-700">Cash received</label>
-                <Input
-                  className="mt-2"
-                  value={cashReceived}
-                  onChange={(e) => setCashReceived(e.target.value)}
-                  placeholder="e.g. 20.00"
-                />
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">{money(totals.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Discount</span>
-                    <span className="font-medium text-emerald-700">-{money(totals.discount)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-bold">{money(totals.total)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Change</span>
-                    <span className="font-medium">{money(Math.max(0, Number(cashReceived || 0) - totals.total))}</span>
-                  </div>
-                </div>
-
-                {saleError && <div className="mt-3 text-sm text-red-600">{saleError}</div>}
-
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Button
-                    onClick={confirmCheckout}
-                    disabled={isSavingSale || cart.length === 0 || Boolean(savedSaleId)}
-                    className="w-full"
-                  >
-                    {savedSaleId ? 'Saved' : isSavingSale ? 'Saving…' : 'Confirm & Save'}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCheckoutOpen(false)}
-                    disabled={isSavingSale}
-                    className="w-full"
-                  >
-                    Close
-                  </Button>
-
-                  {savedSaleId && (
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={() => printReceipt(receiptPreviewText)}
-                        className="w-full"
-                      >
-                        Print Receipt
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => downloadReceipt(receiptPreviewText, savedReceiptNo)}
-                        className="w-full"
-                      >
-                        Download Receipt
-                      </Button>
-                    </>
-                  )}
-
-                  {savedSaleId && (
-                    <Button
-                      onClick={() => {
-                        setIsCheckoutOpen(false);
-                        clearCart();
-                        setProductIdInput('');
-                      }}
-                      className="w-full sm:col-span-2"
-                    >
-                      Finish (New Sale)
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50">
-                <div className="rounded-xl border bg-white p-4 font-mono text-xs leading-5 whitespace-pre-wrap overflow-auto text-gray-900">
-                  {receiptPreviewText}
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  {savedSaleId
-                    ? `Saved as ${savedReceiptNo}. You can print or download the receipt.`
-                    : 'Receipt preview (paper style).'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CheckoutFlowModal 
+        isCheckoutOpen={isCheckoutOpen}
+        setIsCheckoutOpen={setIsCheckoutOpen}
+        isSavingSale={isSavingSale}
+        cart={cart}
+        totals={totals}
+        cashReceived={cashReceived}
+        setCashReceived={setCashReceived}
+        saleError={saleError}
+        confirmCheckout={confirmCheckout}
+        savedSaleId={savedSaleId}
+        savedReceiptNo={savedReceiptNo}
+        receiptPreviewText={receiptPreviewText}
+        printReceipt={printReceipt}
+        downloadReceipt={downloadReceipt}
+        clearCart={clearCart}
+        setProductIdInput={setProductIdInput}
+      />
 
       {/* Mobile bottom bar (app-like) */}
       {!isCheckoutOpen && cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-          <div className="mx-auto max-w-7xl px-4 pb-4">
-            <div className="rounded-2xl border bg-white shadow-lg p-3 flex items-center justify-between gap-3">
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden animate-in slide-in-from-bottom duration-300">
+          <div className="mx-auto max-w-7xl px-4 pb-6">
+            <div className="rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-md shadow-2xl p-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-xs text-gray-500">Total</div>
-                <div className="text-lg font-bold text-gray-900 truncate">{money(totals.total)}</div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">សរុបត្រូវបង់</div>
+                <div className="text-xl font-black text-gray-900 truncate leading-tight">{money(totals.total)}</div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={clearCart} className="h-10">Clear</Button>
-                <Button onClick={openCheckout} className="h-10">Checkout</Button>
+                <Button variant="outline" onClick={clearCart} className="h-11 px-4 rounded-xl border-gray-200 font-medium">សម្អាត</Button>
+                <Button onClick={openCheckout} className="h-11 px-6 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 shadow-md">បង់ប្រាក់</Button>
               </div>
             </div>
           </div>

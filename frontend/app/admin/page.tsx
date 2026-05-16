@@ -67,12 +67,12 @@ export default function AdminDashboard() {
     
     if (!currentUser) {
       redirecting.current = true;
-      router.push('/login');
+      router.replace('/login');
     } else if (currentUser.role !== 'admin') {
       redirecting.current = true;
-      if (currentUser.role === 'vendor') router.push('/vendor');
-      else if (currentUser.role === 'staff') router.push('/staff');
-      else router.push('/login');
+      if (currentUser.role === 'vendor') router.replace('/vendor');
+      else if (currentUser.role === 'staff') router.replace('/staff');
+      else router.replace('/login');
     }
   }, [currentUser, hasHydrated, router]);
 

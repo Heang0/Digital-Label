@@ -76,11 +76,11 @@ export default function LoginClient() {
 
         setUser(userData);
         const nextPath = searchParams.get('next');
-        if (nextPath && nextPath.startsWith('/')) router.push(nextPath);
-        else if (userData.role === 'admin') router.push('/admin');
-        else if (userData.role === 'vendor') router.push('/vendor');
-        else if (userData.role === 'staff') router.push('/staff');
-        else router.push('/vendor');
+        if (nextPath && nextPath.startsWith('/')) router.replace(nextPath);
+        else if (userData.role === 'admin') router.replace('/admin');
+        else if (userData.role === 'vendor') router.replace('/vendor');
+        else if (userData.role === 'staff') router.replace('/staff');
+        else router.replace('/vendor');
       } catch (e: any) {
         // Ignore when there is no redirect result
         setError(e?.message || 'Failed to complete Google sign-in.');
@@ -168,18 +168,18 @@ export default function LoginClient() {
       }
 
       setUser(normalizedUser);
-
+      
       const nextPath = searchParams.get('next');
       if (nextPath && nextPath.startsWith('/')) {
-        router.push(nextPath);
+        router.replace(nextPath);
       } else if (normalizedUser.role === 'admin') {
-        router.push('/admin');
+        router.replace('/admin');
       } else if (normalizedUser.role === 'vendor') {
-        router.push('/vendor');
+        router.replace('/vendor');
       } else if (normalizedUser.role === 'staff') {
-        router.push('/staff');
+        router.replace('/staff');
       } else {
-        router.push('/vendor');
+        router.replace('/vendor');
       }
     } catch (error: any) {
       setIsLoading(false);
@@ -222,11 +222,11 @@ export default function LoginClient() {
       setUser(userData);
 
       const nextPath = searchParams.get('next');
-      if (nextPath && nextPath.startsWith('/')) router.push(nextPath);
-      else if (userData.role === 'admin') router.push('/admin');
-      else if (userData.role === 'vendor') router.push('/vendor');
-      else if (userData.role === 'staff') router.push('/staff');
-      else router.push('/vendor');
+      if (nextPath && nextPath.startsWith('/')) router.replace(nextPath);
+      else if (userData.role === 'admin') router.replace('/admin');
+      else if (userData.role === 'vendor') router.replace('/vendor');
+      else if (userData.role === 'staff') router.replace('/staff');
+      else router.replace('/vendor');
     } catch (error: any) {
       // Firebase will block creating a second account with the same email.
       // In that case we ask the user to sign in with password once, then we link Google to that account.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Save, 
   Upload, 
@@ -21,6 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Company } from '@/types/vendor';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
+import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal';
+
 interface SettingsTabProps {
   currentUser: any;
   company: Company | null;
@@ -37,12 +39,26 @@ export const SettingsTab = ({
   updateProfile
 }: SettingsTabProps) => {
   const { t } = useLanguage();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profileData, setProfileData] = useState({
     name: currentUser?.name || '',
     phone: company?.phone || '',
     taxId: company?.taxId || '',
     address: company?.address || '',
   });
+
+  // Sync state when data arrives
+  useEffect(() => {
+    if (currentUser || company) {
+      setProfileData({
+        name: currentUser?.name || '',
+        phone: company?.phone || '',
+        taxId: company?.taxId || '',
+        address: company?.address || '',
+      });
+    }
+  }, [currentUser, company]);
+
   const [isSaving, setIsSaving] = useState(false);
   const isStaff = currentUser?.role === 'staff' || currentUser?.position === 'Manager';
 
@@ -57,6 +73,11 @@ export const SettingsTab = ({
 
   return (
     <div className="max-w-4xl space-y-8 pb-20">
+      <ChangePasswordModal 
+        isOpen={showPasswordModal} 
+        onClose={() => setShowPasswordModal(false)} 
+      />
+      
       <div className="flex items-center justify-between">
         <div>
            <div className="flex items-center gap-2 mb-1.5">
@@ -109,7 +130,11 @@ export const SettingsTab = ({
 
            <div className="bg-white dark:bg-[#1C2434] p-8 border border-slate-200 dark:border-slate-800 space-y-6">
               <h4 className="text-xs font-black text-[#637381] dark:text-slate-500 uppercase tracking-[0.3em]">{t('security_center')}</h4>
-              <Button variant="outline" className="w-full h-12 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2">
+              <Button 
+                onClick={() => setShowPasswordModal(true)}
+                variant="outline" 
+                className="w-full h-12 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2"
+              >
                  <Lock className="h-4 w-4" />
                  {t('change_password')}
               </Button>
@@ -230,7 +255,7 @@ export const SettingsTab = ({
                     <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('registered_email')}</label>
                     <div className="relative">
                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                       <Input readOnly value={currentUser?.email} className="pl-11 h-12 rounded-none bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-xs opacity-60" />
+                       <Input readOnly value={currentUser?.email || ''} className="pl-11 h-12 rounded-none bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-xs opacity-60" />
                     </div>
                  </div>
               </div>

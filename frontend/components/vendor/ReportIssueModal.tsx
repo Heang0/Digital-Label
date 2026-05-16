@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DigitalLabel } from '@/types/vendor';
 
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+
 interface ReportIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,6 +24,7 @@ export const ReportIssueModal = ({
   labels,
   selectedBranchId 
 }: ReportIssueModalProps) => {
+  const { t } = useLanguage();
   const [labelId, setLabelId] = useState('');
   const [issue, setIssue] = useState('');
   const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
@@ -90,8 +93,8 @@ export const ReportIssueModal = ({
                      <AlertCircle className="h-5 w-5" />
                   </div>
                   <div>
-                     <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight leading-none mb-1">Maintenance Flag</h3>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Control System</p>
+                     <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight leading-none mb-1">{t('report_incident')}</h3>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('hardware_discrepancy')}</p>
                   </div>
                </div>
                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
@@ -104,7 +107,7 @@ export const ReportIssueModal = ({
                <div className="space-y-2">
                   <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Tag className="h-3 w-3" />
-                     Hardware Node / Item ID
+                     {t('tag_id')}
                   </label>
                   
                   <div className="relative">
@@ -115,12 +118,12 @@ export const ReportIssueModal = ({
                           setIsSearching(true);
                         }}
                         onFocus={() => setIsSearching(true)}
-                        placeholder="Search by ID, Product, or Shelf..."
+                        placeholder={t('search_tag_placeholder')}
                         className="h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold pl-4 pr-10"
                      />
                      {labelId && !searchQuery && (
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                           <span className="text-[8px] font-black bg-rose-500 text-white px-1.5 py-0.5 uppercase">Selected</span>
+                           <span className="text-[8px] font-black bg-rose-500 text-white px-1.5 py-0.5 uppercase">{t('selected') || 'Selected'}</span>
                         </div>
                      )}
 
@@ -155,11 +158,11 @@ export const ReportIssueModal = ({
                                           <span className="text-[10px] font-black text-[#111928] dark:text-white uppercase tracking-widest">{l.labelId}</span>
                                           {l.location && <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{l.location}</span>}
                                        </div>
-                                       <p className="text-[10px] font-bold text-slate-500 truncate">{l.productName || 'Unassigned Node'}</p>
+                                       <p className="text-[10px] font-bold text-slate-500 truncate">{l.productName || t('unassigned_node')}</p>
                                     </button>
                                  )) : (
                                     <div className="p-8 text-center">
-                                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching tags found</p>
+                                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('no_matching_tags')}</p>
                                     </div>
                                  )}
                               </motion.div>
@@ -178,7 +181,7 @@ export const ReportIssueModal = ({
                            <Terminal className="h-4 w-4 text-slate-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                           <p className="text-[10px] font-black text-[#111928] dark:text-white uppercase truncate">{selectedLabelData.productName || 'System Hardware'}</p>
+                           <p className="text-[10px] font-black text-[#111928] dark:text-white uppercase truncate">{selectedLabelData.productName || t('system_hardware')}</p>
                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedLabelData.labelId} • {selectedLabelData.location || 'Warehouse'}</p>
                         </div>
                      </motion.div>
@@ -189,13 +192,13 @@ export const ReportIssueModal = ({
                <div className="space-y-2">
                   <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Hammer className="h-3 w-3" />
-                     Issue Description
+                     {t('incident_details')}
                   </label>
                   <textarea
                     required
                     value={issue}
                     onChange={(e) => setIssue(e.target.value)}
-                    placeholder="Describe the discrepancy or hardware failure..."
+                    placeholder={t('describe_issue')}
                     className="w-full min-h-[100px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 text-xs font-bold focus:ring-1 focus:ring-rose-500 outline-none resize-none"
                   />
                </div>
@@ -204,13 +207,13 @@ export const ReportIssueModal = ({
                <div className="space-y-2">
                   <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.2em] flex items-center gap-2">
                      <Flag className="h-3 w-3" />
-                     Maintenance Priority
+                     {t('maintenance_priority')}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                      {[
-                        { id: 'low', label: 'Low', color: 'border-blue-200 text-blue-500 bg-blue-50/50' },
-                        { id: 'medium', label: 'Medium', color: 'border-amber-200 text-amber-500 bg-amber-50/50' },
-                        { id: 'high', label: 'High', color: 'border-rose-200 text-rose-500 bg-rose-50/50' }
+                        { id: 'low', label: t('priority_low'), color: 'border-blue-200 text-blue-500 bg-blue-50/50' },
+                        { id: 'medium', label: t('priority_medium'), color: 'border-amber-200 text-amber-500 bg-amber-50/50' },
+                        { id: 'high', label: t('priority_high'), color: 'border-rose-200 text-rose-500 bg-rose-50/50' }
                      ].map(p => (
                        <button
                          key={p.id}
@@ -234,14 +237,14 @@ export const ReportIssueModal = ({
                     onClick={onClose}
                     className="flex-1 h-12 rounded-none text-[10px] font-black uppercase tracking-widest"
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                   <Button 
                     type="submit"
                     disabled={loading}
                     className="flex-1 h-12 rounded-none bg-rose-500 hover:bg-rose-600 text-white border-none text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20"
                   >
-                    {loading ? 'Submitting...' : 'Flag System Issue'}
+                    {loading ? t('submitting') : t('flag_system_issue')}
                   </Button>
                </div>
             </form>

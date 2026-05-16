@@ -4,6 +4,8 @@ import { X, Tag, Battery, Wifi, Activity, MapPin, Package, Calendar, RefreshCw, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DigitalLabel } from '@/types/vendor';
+import { LabelUIConfig, getLabelConfig, DEFAULT_LABEL_CONFIG } from '@/lib/label-config';
+import { LabelPreview } from '@/components/ui/LabelPreview';
 
 interface LabelDetailModalProps {
   label: DigitalLabel | null;
@@ -18,9 +20,14 @@ interface LabelDetailModalProps {
 export const LabelDetailModal = ({ label, onClose, onSync, onUpdateLocation, onOpenDiscount, onAssign, onUnlink }: LabelDetailModalProps) => {
   const [location, setLocation] = useState(label?.location || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [config, setConfig] = useState<LabelUIConfig>(DEFAULT_LABEL_CONFIG);
 
   useEffect(() => {
-    if (label) setLocation(label.location || '');
+    if (label) {
+      setLocation(label.location || '');
+      // Fetch label config for this company
+      getLabelConfig(label.companyId).then(setConfig);
+    }
   }, [label]);
 
   if (!label) return null;
@@ -64,7 +71,7 @@ export const LabelDetailModal = ({ label, onClose, onSync, onUpdateLocation, onO
                     <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest mt-0.5">{label.labelCode || label.labelId}</p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-none text-slate-400 transition-colors">
+                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-none text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -76,44 +83,34 @@ export const LabelDetailModal = ({ label, onClose, onSync, onUpdateLocation, onO
                   <motion.div 
                      initial={{ rotateY: -10, rotateX: 5 }}
                      animate={{ rotateY: 0, rotateX: 0 }}
-                     className="relative w-full max-w-[340px] h-[180px] bg-white rounded-none shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden"
+                     className="relative w-full max-w-[340px] h-[190px] bg-white rounded-none shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden"
                   >
-                     {/* E-Ink Display Screen */}
-                     <div className="absolute inset-[10px] bg-[#fdfdfd] border border-slate-100 rounded-none shadow-inner flex flex-col p-4">
-                        <div className="flex justify-between items-start opacity-40 grayscale">
-                           <span className="text-[8px] font-black text-slate-900 tracking-tighter uppercase">Smart Label 2.4"</span>
-                           <div className="flex gap-1">
-                              <div className="h-1 w-1 rounded-none bg-slate-900" />
-                              <div className="h-1 w-1 rounded-none bg-slate-900" />
-                           </div>
+                     {label.productId ? (
+                        <LabelPreview 
+                           config={config}
+                           productName={label.productName || 'Unknown Product'}
+                           price={label.currentPrice || 0}
+                           discountPrice={label.finalPrice || undefined}
+                           sku={label.productSku || label.productId}
+                           battery={label.battery}
+                           stock={label.stock}
+                           isPromo={!!label.discountPercent}
+                        />
+                     ) : (
+                        <div className="absolute inset-[10px] bg-[#fdfdfd] border border-slate-100 rounded-none shadow-inner flex flex-col p-4 items-center justify-center gap-3">
+                           <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Awaiting Content</p>
+                           <Button 
+                              onClick={(e) => {
+                                 e.stopPropagation();
+                                 onClose();
+                                 onAssign(label.id, label.branchId || '');
+                              }}
+                              className="h-8 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[9px] font-black uppercase tracking-widest px-4 shadow-lg shadow-indigo-500/20"
+                           >
+                              Link Product
+                           </Button>
                         </div>
-
-                        {label.productId ? (
-                           <div className="flex-1 flex flex-col justify-center mt-2">
-                              <h4 className="text-xl font-black text-slate-900 tracking-tighter leading-[0.9] uppercase line-clamp-2">{label.productName}</h4>
-                              <div className="flex items-baseline justify-between mt-auto">
-                                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{label.productSku || 'PR-00016'}</p>
-                                 <p className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
-                                    ${(label.finalPrice || label.currentPrice || 0).toFixed(2)}
-                                 </p>
-                              </div>
-                           </div>
-                        ) : (
-                           <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-none mt-2 gap-3">
-                              <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Awaiting Content</p>
-                              <Button 
-                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    onClose();
-                                    onAssign(label.id, label.branchId || '');
-                                 }}
-                                 className="h-8 rounded-none bg-[#5750F1] hover:bg-[#4A44D1] text-[9px] font-black uppercase tracking-widest px-4 shadow-lg shadow-indigo-500/20"
-                              >
-                                 Link Product
-                              </Button>
-                           </div>
-                        )}
-                     </div>
+                     )}
                   </motion.div>
                </div>
 

@@ -128,10 +128,7 @@ export const BarcodeScannerModal = ({ isOpen, onClose, onScan }: BarcodeScannerM
                   <p className="text-[#5750F1] text-[10px] font-black uppercase tracking-[0.2em] mt-1">{t('align_barcode_hint')}</p>
                 </div>
               </div>
-              <button 
-                onClick={onClose}
-                className="h-10 w-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all"
-              >
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>

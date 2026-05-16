@@ -16,7 +16,7 @@ export default function StaffPage() {
     if (!hasHydrated || redirecting.current) return;
     if (!user) {
       redirecting.current = true;
-      router.push('/login');
+      router.replace('/login');
     }
   }, [user, hasHydrated, router]);
   

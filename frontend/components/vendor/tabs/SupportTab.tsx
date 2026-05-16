@@ -25,7 +25,7 @@ export const SupportTab = () => {
                   <card.icon className="h-7 w-7" />
                </div>
                <h3 className="text-lg font-bold text-[#111928] dark:text-white mb-1">{card.title}</h3>
-               <p className="text-sm text-[#637381] mb-8">{card.sub}</p>
+               <p className="text-sm text-[#637381] dark:text-slate-400 mb-8">{card.sub}</p>
                <Button variant="outline" className="w-full h-11 rounded-xl border-slate-100 dark:border-slate-800 font-bold group">
                   {card.action}
                   <ChevronRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -46,12 +46,12 @@ export const SupportTab = () => {
                { label: 'Cloud Storage', status: t('online_status'), time: 'Sync Active' },
             ].map((item, i) => (
                <div key={i} className="space-y-2">
-                  <p className="text-[10px] font-black text-[#637381] uppercase tracking-widest">{item.label}</p>
+                  <p className="text-[10px] font-black text-[#637381] dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
                   <div className="flex items-center gap-2">
                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                      <span className="text-sm font-black text-[#111928] dark:text-white">{item.status}</span>
                   </div>
-                  <p className="text-[10px] font-medium text-slate-400">{item.time}</p>
+                  <p className="text-[10px] font-medium text-[#637381] dark:text-slate-400">{item.time}</p>
                </div>
             ))}
          </div>

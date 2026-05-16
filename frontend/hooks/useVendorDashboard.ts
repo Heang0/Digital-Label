@@ -50,14 +50,14 @@ export function useVendorDashboard() {
   // States
   const [selectedTab, setSelectedTab] = useState<
     'dashboard' | 'products' | 'categories' | 'staff' | 'labels' | 'promotions' | 'sales' | 'reports' | 'settings' | 'support' | 'branches' | 'issues' | 'activity' | 'inventory' | 'analytics' | 'audit' | 'pos' | 'label-ui' | 'sync' | 'rbac'
-  >('dashboard');
+  >(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('vendor_selected_tab') as any) || 'dashboard';
+    }
+    return 'dashboard';
+  });
 
   // Persist selected tab across refreshes
-  useEffect(() => {
-    const savedTab = localStorage.getItem('vendor_selected_tab');
-    if (savedTab) setSelectedTab(savedTab as any);
-  }, []);
-
   useEffect(() => {
     localStorage.setItem('vendor_selected_tab', selectedTab);
   }, [selectedTab]);
@@ -388,12 +388,10 @@ export function useVendorDashboard() {
 
   useEffect(() => {
     if (!hasHydrated) return;
-    if (!currentUser) {
-      router.push('/login');
-    } else if (currentUser.role === 'admin') {
-      router.push('/admin');
-    } else if (currentUser.companyId) {
+    if (currentUser?.companyId) {
       loadVendorData();
+    } else if (!currentUser) {
+      setLoading(false);
     }
   }, [currentUser, hasHydrated]);
 
@@ -845,7 +843,7 @@ export function useVendorDashboard() {
               stock: parseInt(product.stock) || 0,
               minStock: parseInt(product.minstock) || 10,
               description: product.description || '',
-              imageUrl: '',
+              productCode: product.productcode || product.barcode || product.sku || '',
               status: 'active',
               companyId: currentUser.companyId,
               createdBy: currentUser.id,

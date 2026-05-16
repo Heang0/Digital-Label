@@ -131,7 +131,7 @@ export default function CategoryModal({
                 <p className="text-[10px] font-bold text-[#637381] uppercase tracking-widest mt-0.5">{t('inventory_classification')}</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-white/60 hover:text-slate-900 dark:hover:text-white transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>

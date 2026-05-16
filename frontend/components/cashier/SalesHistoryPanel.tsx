@@ -14,6 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type Branch = { id: string; name: string };
 
@@ -30,6 +31,7 @@ export default function SalesHistoryPanel(props: {
   isVendor?: boolean;
 }) {
   const { companyId, branches, initialBranchId, canClear, isVendor = true } = props;
+  const { t } = useLanguage();
 
   const [branchId, setBranchId] = useState<string>(initialBranchId || (branches[0]?.id ?? ''));
   const [mode, setMode] = useState<'today' | 'all' | 'date'>('today');
@@ -91,7 +93,7 @@ export default function SalesHistoryPanel(props: {
 
   const clearSales = async () => {
     if (!canClear) return;
-    if (!confirm('Clear sales history for the selected filter? This cannot be undone.')) return;
+    if (!confirm(t('clear_sales_confirm') || 'Clear sales history for the selected filter? This cannot be undone.')) return;
 
     try {
       setLoading(true);
@@ -118,7 +120,7 @@ export default function SalesHistoryPanel(props: {
       await fetchSales();
     } catch (e) {
       console.error('Error clearing vendor sales:', e);
-      alert('Failed to clear sales history.');
+      alert(t('clear_sales_failed') || 'Failed to clear sales history.');
     } finally {
       setLoading(false);
     }
@@ -127,49 +129,52 @@ export default function SalesHistoryPanel(props: {
   const branchName = branches.find((b) => b.id === branchId)?.name;
 
   return (
-    <div className="bg-white rounded-2xl border shadow-sm">
-      <div className="p-5 border-b">
+    <div className="bg-white dark:bg-[#1C2434] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="p-5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Sales history</h3>
-            <p className="text-sm text-gray-600">View sales by day and branch. Only vendor/manager can clear.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('sales_history')}</h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400">{t('sales_history_desc')}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchSales} disabled={loading}>Refresh</Button>
+            <Button variant="outline" className="dark:border-slate-800 dark:hover:bg-slate-800" onClick={fetchSales} disabled={loading}>{t('refresh')}</Button>
             {canClear && (
-              <Button variant="outline" onClick={clearSales} disabled={loading}>Clear</Button>
+              <Button variant="outline" className="dark:border-slate-800 dark:hover:bg-slate-800" onClick={clearSales} disabled={loading}>{t('clear')}</Button>
             )}
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="sm:col-span-1">
-            <label className="text-xs font-medium text-gray-600">Branch</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-slate-400">{t('branch')}</label>
             <select
-              className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white ${!isVendor ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`mt-1 w-full border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm bg-white dark:bg-[#111928] text-gray-900 dark:text-white ${!isVendor ? 'opacity-50 cursor-not-allowed' : ''}`}
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
               disabled={!isVendor}
             >
               {!isVendor ? (
-                <option value={branchId}>{branches.find(b => b.id === branchId)?.name || 'My Branch'}</option>
+                <option value={branchId}>{branches.find(b => b.id === branchId)?.name || t('my_branch') || 'My Branch'}</option>
               ) : (
-                branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))
+                <>
+                  <option value="">{t('all_branches') || 'All Branches'}</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </>
               )}
             </select>
-            {branchName && <p className="mt-1 text-xs text-gray-500 truncate">{branchName}</p>}
+            {branchName && <p className="mt-1 text-xs text-gray-500 dark:text-slate-500 truncate">{branchName}</p>}
           </div>
 
           <div className="sm:col-span-2">
-            <label className="text-xs font-medium text-gray-600">Range</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-slate-400">{t('range')}</label>
             <div className="mt-1 flex flex-wrap gap-2">
-              <Button variant={mode === 'today' ? 'default' : 'outline'} onClick={() => setMode('today')} type="button">Today</Button>
-              <Button variant={mode === 'all' ? 'default' : 'outline'} onClick={() => setMode('all')} type="button">All</Button>
-              <Button variant={mode === 'date' ? 'default' : 'outline'} onClick={() => setMode('date')} type="button">Pick date</Button>
+              <Button variant={mode === 'today' ? 'default' : 'outline'} className={mode !== 'today' ? 'dark:border-slate-800 dark:hover:bg-slate-800' : ''} onClick={() => setMode('today')} type="button">{t('today')}</Button>
+              <Button variant={mode === 'all' ? 'default' : 'outline'} className={mode !== 'all' ? 'dark:border-slate-800 dark:hover:bg-slate-800' : ''} onClick={() => setMode('all')} type="button">{t('all')}</Button>
+              <Button variant={mode === 'date' ? 'default' : 'outline'} className={mode !== 'date' ? 'dark:border-slate-800 dark:hover:bg-slate-800' : ''} onClick={() => setMode('date')} type="button">{t('pick_date')}</Button>
               {mode === 'date' && (
-                <Input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="w-auto" />
+                <Input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="w-auto dark:bg-[#111928] dark:border-slate-800 dark:text-white" />
               )}
             </div>
           </div>
@@ -179,35 +184,35 @@ export default function SalesHistoryPanel(props: {
       <div className="p-5 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-600">
-              <th className="py-2 pr-3">Receipt</th>
-              <th className="py-2 pr-3">Date</th>
-              <th className="py-2 pr-3">Staff</th>
-              <th className="py-2 pr-3">Total</th>
-              <th className="py-2">Items</th>
+            <tr className="text-left text-gray-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <th className="py-4 pr-3">{t('receipt')}</th>
+              <th className="py-4 pr-3">{t('date')}</th>
+              <th className="py-4 pr-3">{t('staff')}</th>
+              <th className="py-4 pr-3">{t('total')}</th>
+              <th className="py-4">{t('items')}</th>
             </tr>
           </thead>
           <tbody>
             {sales.map((s) => {
               const dt = s.createdAt?.toDate ? s.createdAt.toDate() : null;
               return (
-                <tr key={s.id} className="border-t">
-                  <td className="py-2 pr-3 font-medium text-gray-900">{s.receiptNo || s.id}</td>
-                  <td className="py-2 pr-3 text-gray-700">{dt ? dt.toLocaleString() : '-'}</td>
-                  <td className="py-2 pr-3 text-gray-700">{s.staffName || s.staffEmail || '-'}</td>
-                  <td className="py-2 pr-3 font-semibold text-gray-900">{fmtMoney(Number(s.total || 0))}</td>
-                  <td className="py-2 text-gray-700">{Array.isArray(s.items) ? s.items.reduce((n: number, i: any) => n + Number(i.qty || 0), 0) : '-'}</td>
+                <tr key={s.id} className="border-t border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                  <td className="py-4 pr-3 font-medium text-gray-900 dark:text-white">{s.receiptNo || s.id}</td>
+                  <td className="py-4 pr-3 text-gray-700 dark:text-slate-300">{dt ? dt.toLocaleString() : '-'}</td>
+                  <td className="py-4 pr-3 text-gray-700 dark:text-slate-300">{s.staffName || s.staffEmail || '-'}</td>
+                  <td className="py-4 pr-3 font-semibold text-gray-900 dark:text-white">{fmtMoney(Number(s.total || 0))}</td>
+                  <td className="py-4 text-gray-700 dark:text-slate-300">{Array.isArray(s.items) ? s.items.reduce((n: number, i: any) => n + Number(i.qty || 0), 0) : '-'}</td>
                 </tr>
               );
             })}
             {!loading && sales.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-10 text-center text-gray-500">No sales found.</td>
+                <td colSpan={5} className="py-10 text-center text-gray-500 dark:text-slate-500">{t('no_sales_found')}</td>
               </tr>
             )}
           </tbody>
         </table>
-        {loading && <div className="py-6 text-sm text-gray-500">Loading…</div>}
+        {loading && <div className="py-6 text-sm text-gray-500 dark:text-slate-500">{t('loading')}</div>}
       </div>
     </div>
   );

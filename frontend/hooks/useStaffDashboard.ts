@@ -124,14 +124,14 @@ export function useStaffDashboard() {
   const { user: currentUser, setUser, clearUser, hasHydrated } = useUserStore();
   
   // States
-  const [selectedTab, setSelectedTab] = useState<string>('dashboard');
+  const [selectedTab, setSelectedTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('staff_selected_tab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
   
   // Persist selected tab across refreshes
-  useEffect(() => {
-    const savedTab = localStorage.getItem('staff_selected_tab');
-    if (savedTab) setSelectedTab(savedTab);
-  }, []);
-
   useEffect(() => {
     localStorage.setItem('staff_selected_tab', selectedTab);
   }, [selectedTab]);

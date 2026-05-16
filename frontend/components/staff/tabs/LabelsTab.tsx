@@ -193,7 +193,7 @@ export const StaffLabelsTab = ({
               <div className={`pt-4 border-t ${label.finalPrice && label.currentPrice && label.finalPrice < label.currentPrice ? 'border-rose-100 dark:border-rose-900/30' : 'border-slate-50 dark:border-slate-800/50'} flex items-center justify-between gap-4`}>
                 <div className="flex items-center gap-1.5 min-w-0">
                    <Box className="h-3 w-3 text-slate-400 shrink-0" />
-                   <span className="text-[9px] font-black text-[#637381] dark:text-slate-500 uppercase truncate">{label.location || 'Unplaced'}</span>
+                   <span className="text-[9px] font-black text-[#637381] dark:text-slate-500 uppercase truncate">{label.location || t('unplaced')}</span>
                 </div>
                 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -234,9 +234,9 @@ export const StaffLabelsTab = ({
                   )}
                   {!label.productId && (
                     <button 
-                      onClick={(e) => { e.stopPropagation(); openLabelConfirm('Delete Tag', `Permanently remove hardware node ${label.labelId} from the system?`, () => handleDeleteLabel(label.id)); }}
+                      onClick={(e) => { e.stopPropagation(); openLabelConfirm(t('delete_tag'), `${t('delete_tag_confirm')} ${label.labelId} ${t('delete_tag_confirm2')}`, () => handleDeleteLabel(label.id)); }}
                       className="h-8 w-8 flex items-center justify-center bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 dark:border-rose-800"
-                      title="Remove Tag"
+                      title={t('delete_tag')}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -255,8 +255,8 @@ export const StaffLabelsTab = ({
       {filteredLabels.length === 0 && (
         <div className="py-20 bg-white dark:bg-[#1C2434] border-2 border-dashed border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center">
            <AlertCircle className="h-12 w-12 text-slate-100 dark:text-slate-800 mb-4" />
-           <p className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">No labels detected</p>
-           <p className="text-xs font-medium text-slate-400 mt-1">Try adjusting your search or filters.</p>
+           <p className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('no_nodes_detected')}</p>
+           <p className="text-xs font-medium text-slate-400 mt-1">{t('adjust_filters_hint')}</p>
         </div>
       )}
 

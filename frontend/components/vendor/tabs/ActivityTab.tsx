@@ -138,7 +138,7 @@ export const ActivityTab = ({ currentUser, branches, onTabChange }: ActivityTabP
            <div className="lg:col-span-4 flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4">
               <Filter className="h-4 w-4 text-slate-400" />
               <select 
-                className="flex-1 bg-transparent h-12 text-xs font-black uppercase tracking-widest outline-none border-none cursor-pointer"
+                className="bg-transparent border-none text-xs font-bold text-[#111928] dark:text-white outline-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
               >

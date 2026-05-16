@@ -33,6 +33,7 @@ import { PromotionManagementModal } from '@/components/vendor/PromotionManagemen
 import { useVendorDashboard } from '@/hooks/useVendorDashboard';
 import { StaffIssuesTab } from '@/components/staff/tabs/IssuesTab';
 import { ActivityTab } from '@/components/vendor/tabs/ActivityTab';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export function ManagerStaffPage() {
   const {
@@ -120,13 +121,14 @@ export function ManagerStaffPage() {
     (!l.location || l.location.toLowerCase().includes('unset'))
   ).length;
 
+  const { t } = useLanguage();
   if (loading && !company) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-[#1C2434]">
         <div className="h-16 w-16 bg-[#5750F1] flex items-center justify-center animate-pulse mb-6">
           <RefreshCw className="h-8 w-8 text-white animate-spin" />
         </div>
-        <p className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.3em] animate-pulse">Loading Branch Data...</p>
+        <p className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.3em] animate-pulse">{t('loading_branch_data')}</p>
       </div>
     );
   }
@@ -176,7 +178,7 @@ export function ManagerStaffPage() {
         <DashboardHeader
           onMenuOpen={() => setMobileNavOpen(true)}
           onRefresh={loadVendorData}
-          title={selectedTab}
+          title={t(selectedTab) || selectedTab}
           isRefreshing={isRefreshing || loading}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -425,10 +427,10 @@ export function ManagerStaffPage() {
         label={selectedLabel}
         onClose={() => setSelectedLabel(null)}
         onSync={(id) => {
-          openLabelNotice('Syncing', `Requesting real-time update for tag ${id.slice(0, 8)}...`, 'info');
+          openLabelNotice(t('syncing'), `${t('requesting_update')} ${id.slice(0, 8)}...`, 'info');
           setTimeout(() => {
             setSelectedLabel(null);
-            openLabelNotice('Sync Complete', 'Hardware display updated successfully.', 'success');
+            openLabelNotice(t('sync_complete'), t('display_updated'), 'success');
           }, 1500);
         }}
         onUpdateLocation={updateLabelLocation}

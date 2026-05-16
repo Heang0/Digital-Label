@@ -110,11 +110,8 @@ export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
             </div>
 
             {/* Close Button */}
-            <button 
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-[#111928] dark:hover:text-white transition-colors"
-            >
-              <X className="h-4 w-4" />
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-none text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+              <X className="h-5 w-5" />
             </button>
           </motion.div>
         </div>

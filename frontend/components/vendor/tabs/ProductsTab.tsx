@@ -126,7 +126,7 @@ export const ProductsTab = ({
              <div className="flex items-center gap-4">
                 <span className="text-xs font-bold text-[#637381] uppercase tracking-widest">{t('branch')}</span>
                 <select 
-                   className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer"
+                   className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                    value={selectedBranchId}
                    onChange={(e) => setSelectedBranchId(e.target.value)}
                 >
@@ -139,7 +139,7 @@ export const ProductsTab = ({
            <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-[#637381] uppercase tracking-widest">{t('category')}</span>
               <select 
-                className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer"
+                className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                 value={selectedFilterCategory}
                 onChange={(e) => setSelectedFilterCategory(e.target.value)}
               >

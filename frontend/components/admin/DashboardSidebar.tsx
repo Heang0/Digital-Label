@@ -133,7 +133,7 @@ export const DashboardSidebar = ({
     
     if (isAdvancedStaff) {
       const branchItems = [
-        { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+        { id: 'dashboard', label: t('branch_overview'), icon: LayoutGridIcon },
         { id: 'products', label: t('product_mgmt'), icon: Package },
       ];
       if (currentUser?.permissions?.canCreateProducts || isManager) {
@@ -145,7 +145,7 @@ export const DashboardSidebar = ({
       if (currentUser?.permissions?.canManageStaff || isManager) {
         teamItems.push({ id: 'staff', label: t('staff_mgmt'), icon: Users });
       }
-      teamItems.push({ id: 'issues', label: t('incident_control'), icon: AlertCircle });
+      teamItems.push({ id: 'issues', label: t('reported_issues'), icon: AlertCircle });
       
       if (currentUser?.permissions?.canCreatePromotions || isManager) {
         teamItems.push({ id: 'promotions', label: t('promo_scheduler'), icon: Percent });
@@ -176,9 +176,9 @@ export const DashboardSidebar = ({
 
     // Regular staff (Cashier, Stock, IT, etc.)
     const operationsItems = [
-      { id: 'dashboard', label: t('overview'), icon: LayoutGridIcon },
+      { id: 'dashboard', label: t('branch_overview'), icon: LayoutGridIcon },
       { id: 'pos', label: t('pos_checkout') || 'POS Checkout', icon: ShoppingCart },
-      { id: 'inventory', label: t('inventory_mgmt'), icon: Package },
+      { id: 'inventory', label: t('stock_directory'), icon: Package },
     ];
     
     if (currentUser?.permissions?.canCreateProducts) {
@@ -203,6 +203,12 @@ export const DashboardSidebar = ({
         label: t('incident_control'),
         items: [
           { id: 'issues', label: t('incident_control'), icon: AlertCircle },
+        ]
+      },
+      {
+        label: t('general'),
+        items: [
+          { id: 'settings', label: t('settings'), icon: Settings },
         ]
       }
     ];

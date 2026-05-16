@@ -123,10 +123,10 @@ export const LabelsTab = ({
             <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 pl-4 shadow-sm min-w-[200px]">
                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 dark:border-slate-800 pr-3">{t('fleet')}</span>
                <select 
-                  className="flex-1 bg-transparent text-xs font-black outline-none border-none pr-6 py-1 cursor-pointer appearance-none"
-                  value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
-               >
+                   className="bg-transparent border-none text-sm font-bold text-[#111928] dark:text-white outline-none cursor-pointer [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
+                   value={selectedBranchId}
+                   onChange={(e) => setSelectedBranchId(e.target.value)}
+                >
                   <option value="all">{t('global_network')}</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                </select>
@@ -245,7 +245,7 @@ export const LabelsTab = ({
                  onClick={() => setShowManualProvision(false)}
                  aria-label={t('cancel')}
                  title={t('cancel')}
-                 className="h-9 w-9 shrink-0 flex items-center justify-center rounded-none text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                 className="h-9 w-9 shrink-0 flex items-center justify-center rounded-none text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                >
                  <X className="h-4 w-4" />
                </button>

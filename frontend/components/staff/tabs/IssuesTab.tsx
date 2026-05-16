@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IssueReport } from '@/hooks/useStaffDashboard';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface StaffIssuesTabProps {
   issues: IssueReport[];
@@ -36,6 +37,8 @@ export const StaffIssuesTab = ({
   const [noteForm, setNoteForm] = useState<{id: string, text: string} | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  const { t } = useLanguage();
+
   const filteredIssues = issues.filter(i => 
     i.labelId.toLowerCase().includes(searchTerm.toLowerCase()) ||
     i.issue.toLowerCase().includes(searchTerm.toLowerCase())
@@ -48,10 +51,10 @@ export const StaffIssuesTab = ({
         <div>
            <div className="flex items-center gap-2 mb-1">
               <AlertCircle className="h-4 w-4 text-rose-500" />
-              <span className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">Maintenance Log</span>
+              <span className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">{t('maintenance_log')}</span>
            </div>
-           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Reported Issues</h2>
-           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">Track and manage hardware & inventory discrepancies.</p>
+           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('reported_issues')}</h2>
+           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">{t('reported_issues_desc')}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -67,7 +70,7 @@ export const StaffIssuesTab = ({
             className="h-12 px-6 rounded-none bg-rose-500 hover:bg-rose-600 text-white border-none text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-rose-500/20"
           >
             <Plus className="h-4 w-4" />
-            Flag New Issue
+            {t('flag_new_issue')}
           </Button>
         </div>
       </div>
@@ -78,16 +81,16 @@ export const StaffIssuesTab = ({
            <div className="relative group flex-1 max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-300 group-focus-within:text-[#5750F1]" />
               <Input 
-                placeholder="Search issues by ID or content..."
+                placeholder={t('search_issues_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 h-10 border-none bg-transparent text-[10px] font-bold uppercase tracking-widest focus-visible:ring-0"
               />
            </div>
            <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>Total: {issues.length}</span>
+              <span>{t('total')}: {issues.length}</span>
               <span className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-              <span className="text-rose-500">Open: {issues.filter(i => i.status === 'open').length}</span>
+              <span className="text-rose-500">{t('open')}: {issues.filter(i => i.status === 'open').length}</span>
            </div>
         </div>
 
@@ -116,7 +119,7 @@ export const StaffIssuesTab = ({
                            issue.status === 'in-progress' ? 'bg-amber-500 text-white' :
                            'bg-emerald-500 text-white'
                          }`}>
-                           {issue.status}
+                           {t(issue.status as any) || issue.status}
                          </span>
                       </div>
                       <p className="text-sm font-bold text-slate-600 dark:text-slate-300 leading-relaxed mb-2">{issue.issue}</p>
@@ -127,7 +130,7 @@ export const StaffIssuesTab = ({
                          </div>
                          <div className="flex items-center gap-1.5">
                             <Tag className="h-3 w-3" />
-                            {issue.priority} priority
+                            {t(`priority_${issue.priority}` as any) || issue.priority}
                          </div>
                       </div>
                    </div>
@@ -140,7 +143,7 @@ export const StaffIssuesTab = ({
                         onClick={() => setNoteForm(noteForm?.id === issue.id ? null : { id: issue.id, text: '' })}
                         className="h-10 px-4 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-900"
                       >
-                         Add Note
+                         {t('add_note')}
                       </Button>
                       {issue.status !== 'resolved' && (
                         <Button 
@@ -153,7 +156,7 @@ export const StaffIssuesTab = ({
                           }}
                           className="h-10 px-4 rounded-none bg-emerald-500 hover:bg-emerald-600 text-white border-none text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
                         >
-                           {updatingId === issue.id ? 'Updating...' : 'Mark Working'}
+                           {updatingId === issue.id ? t('update') : t('mark_working') || 'Mark Working'}
                         </Button>
                       )}
                    </div>

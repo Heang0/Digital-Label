@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BranchProduct, DigitalLabel, IssueReport } from '@/hooks/useStaffDashboard';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface StaffDashboardTabProps {
   branchProducts: BranchProduct[];
@@ -31,6 +32,8 @@ export const StaffDashboardTab = ({
   onTabChange,
   onRefresh
 }: StaffDashboardTabProps) => {
+  const { t } = useLanguage();
+
   const lowStock = branchProducts.filter(p => p.status === 'low-stock' || p.status === 'out-of-stock');
   const errorLabels = labels.filter(l => l.status === 'error' || l.status === 'low-battery');
   const openIssues = issues.filter(i => i.status === 'open');
@@ -42,10 +45,10 @@ export const StaffDashboardTab = ({
         <div>
            <div className="flex items-center gap-2 mb-1">
               <Activity className="h-4 w-4 text-[#5750F1]" />
-              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">Operational Pulse</span>
+              <span className="text-[10px] font-black text-[#5750F1] uppercase tracking-[0.2em]">{t('operational_pulse')}</span>
            </div>
-           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">Branch Overview</h2>
-           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">Real-time status of your store inventory and hardware.</p>
+           <h2 className="text-2xl font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('branch_overview')}</h2>
+           <p className="text-xs font-medium text-[#637381] dark:text-slate-400">{t('branch_overview_desc')}</p>
         </div>
 
         <Button 
@@ -54,17 +57,17 @@ export const StaffDashboardTab = ({
           className="h-12 px-8 rounded-none border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest gap-2 bg-white dark:bg-slate-900"
         >
           <RefreshCw className="h-4 w-4" />
-          Sync Data
+          {t('sync_data')}
         </Button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Stock Items', value: branchProducts.length, icon: Package, color: 'indigo' },
-          { label: 'Active Labels', value: labels.length, icon: Tag, color: 'emerald' },
-          { label: 'Low Stock', value: lowStock.length, icon: TrendingUp, color: 'amber' },
-          { label: 'Hardware Alerts', value: errorLabels.length, icon: AlertCircle, color: 'rose' },
+          { label: t('stock_items'), value: branchProducts.length, icon: Package, color: 'indigo' },
+          { label: t('active_labels'), value: labels.length, icon: Tag, color: 'emerald' },
+          { label: t('low_stock'), value: lowStock.length, icon: TrendingUp, color: 'amber' },
+          { label: t('hardware_alerts'), value: errorLabels.length, icon: AlertCircle, color: 'rose' },
         ].map((stat, idx) => (
           <motion.div 
             key={stat.label}
@@ -94,13 +97,13 @@ export const StaffDashboardTab = ({
               <div className="h-8 w-8 bg-rose-500/10 flex items-center justify-center">
                  <AlertCircle className="h-4 w-4 text-rose-500" />
               </div>
-              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Priority Alerts</h3>
+              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('priority_alerts')}</h3>
             </div>
             <button 
               onClick={() => onTabChange('labels')}
               className="text-[10px] font-black text-[#5750F1] uppercase tracking-widest hover:underline flex items-center gap-2"
             >
-              Fix Hardware <ArrowRight className="h-3 w-3" />
+              {t('fix_hardware')} <ArrowRight className="h-3 w-3" />
             </button>
           </div>
           <div className="flex-1 p-6 space-y-4">
@@ -112,18 +115,18 @@ export const StaffDashboardTab = ({
                   </div>
                   <div>
                     <p className="text-xs font-black text-[#111928] dark:text-white uppercase tracking-tight">{label.labelId}</p>
-                    <p className="text-[10px] font-medium text-slate-400 tracking-wide">{label.productName || 'Unassigned'}</p>
+                    <p className="text-[10px] font-medium text-slate-400 tracking-wide">{label.productName || t('unassigned') || 'Unassigned'}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{label.status.replace('-', ' ')}</span>
+                  <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{t(label.status.replace('-', '_') as any) || label.status.replace('-', ' ')}</span>
                   <p className="text-[10px] font-medium text-slate-400 mt-1">{label.battery}% Battery</p>
                 </div>
               </div>
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-12">
                 <CheckCircle className="h-12 w-12 text-emerald-100 mb-4" />
-                <p className="text-xs font-bold text-slate-400">All hardware tags operating normally</p>
+                <p className="text-xs font-bold text-slate-400">{t('all_hardware_nominal')}</p>
               </div>
             )}
           </div>
@@ -136,38 +139,38 @@ export const StaffDashboardTab = ({
               <div className="h-8 w-8 bg-amber-500/10 flex items-center justify-center">
                  <Package className="h-4 w-4 text-amber-500" />
               </div>
-              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">Replenishment Required</h3>
+              <h3 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('replenishment_required')}</h3>
             </div>
             <button 
               onClick={() => onTabChange('inventory')}
               className="text-[10px] font-black text-[#5750F1] uppercase tracking-widest hover:underline flex items-center gap-2"
             >
-              Update Stock <ArrowRight className="h-3 w-3" />
+              {t('update_stock')} <ArrowRight className="h-3 w-3" />
             </button>
           </div>
           <div className="flex-1 p-6 space-y-4">
             {lowStock.length > 0 ? lowStock.slice(0, 4).map(bp => (
               <div key={bp.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center">
+                  <div className="h-10 w-10 bg-white dark:bg-slate-800 border border-slate-100 dark:bg-slate-700 flex items-center justify-center">
                     <TrendingUp className="h-4 w-4 text-amber-500" />
                   </div>
                   <div>
                     <p className="text-xs font-black text-[#111928] dark:text-white uppercase tracking-tight">{bp.productDetails?.name}</p>
-                    <p className="text-[10px] font-medium text-slate-400 tracking-wide">Min Stock: {bp.minStock}</p>
+                    <p className="text-[10px] font-medium text-slate-400 tracking-wide">{t('min_level')}: {bp.minStock}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <span className={`text-[10px] font-black ${bp.stock === 0 ? 'text-rose-500' : 'text-amber-500'} uppercase tracking-widest`}>
-                    {bp.stock} Units Left
+                    {bp.stock} {t('units_left')}
                   </span>
-                  <p className="text-[10px] font-medium text-slate-400 mt-1">Refill Recommended</p>
+                  <p className="text-[10px] font-medium text-slate-400 mt-1">{t('refill_recommended')}</p>
                 </div>
               </div>
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-12">
                 <CheckCircle className="h-12 w-12 text-emerald-100 mb-4" />
-                <p className="text-xs font-bold text-slate-400">Inventory levels are healthy</p>
+                <p className="text-xs font-bold text-slate-400">{t('inventory_healthy') || 'Inventory levels are healthy'}</p>
               </div>
             )}
           </div>

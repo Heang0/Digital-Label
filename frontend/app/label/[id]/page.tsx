@@ -114,9 +114,13 @@ const getEan13Checksum = (digits12: string) => {
 };
 
 const normalizeEan13 = (value: string) => {
+  if (!value) return null;
   const digits = value.replace(/\D/g, '');
+  // EAN-13
   if (digits.length === 12) return `${digits}${getEan13Checksum(digits)}`;
   if (digits.length === 13) return digits;
+  // EAN-8
+  if (digits.length === 7 || digits.length === 8) return digits.padStart(8, '0');
   return null;
 };
 
@@ -168,17 +172,40 @@ const BarcodeSvg = ({ value, className = '' }: { value: string; className?: stri
 
   if (ean) {
     const modules = buildEan13Modules(ean);
+    const firstDigit = ean[0];
+    const restOfEan = ean.slice(1);
+    
     return (
       <div className={`flex items-center justify-center bg-white ${className}`}>
-        <svg viewBox="0 0 113 68" className="h-full w-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" role="img" aria-label={`EAN-13 barcode ${ean}`}>
-          <rect width="113" height="68" fill="white" />
+        <svg viewBox="0 0 115 80" className="h-full w-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" role="img" aria-label={`EAN-13 barcode ${ean}`}>
+          <rect width="115" height="80" fill="white" />
+          
+          {/* First Digit (Outside Guard) */}
+          <text x="6" y="72" fontSize="10" fontFamily="monospace" fontWeight="900" fill="black">
+            {firstDigit}
+          </text>
+
           {modules.split('').map((bit, index) => {
             if (bit !== '1') return null;
             const isGuard = index < 3 || (index >= 45 && index < 50) || index >= 92;
-            return <rect key={index} x={index + 11} y="4" width="1" height={isGuard ? 50 : 44} fill="black" />;
+            return (
+              <rect 
+                key={index} 
+                x={index + 14} 
+                y="5" 
+                width="1" 
+                height={isGuard ? 60 : 54} 
+                fill="black" 
+              />
+            );
           })}
-          <text x="56.5" y="63" textAnchor="middle" fontSize="9" fontFamily="monospace" fontWeight="700" fill="black">
-            {ean}
+
+          {/* Rest of digits */}
+          <text x="33" y="72" fontSize="10" fontFamily="monospace" fontWeight="900" fill="black">
+            {restOfEan.slice(0, 6)}
+          </text>
+          <text x="78" y="72" fontSize="10" fontFamily="monospace" fontWeight="900" fill="black">
+            {restOfEan.slice(6)}
           </text>
         </svg>
       </div>
@@ -188,12 +215,12 @@ const BarcodeSvg = ({ value, className = '' }: { value: string; className?: stri
   const code39 = buildCode39Bars(value);
   return (
     <div className={`flex items-center justify-center bg-white ${className}`}>
-      <svg viewBox={`0 0 ${code39.width + 20} 68`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" role="img" aria-label={`Code 39 barcode ${code39.text}`}>
-        <rect width={code39.width + 20} height="68" fill="white" />
+      <svg viewBox={`0 0 ${code39.width + 40} 80`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" role="img" aria-label={`Code 39 barcode ${code39.text}`}>
+        <rect width={code39.width + 40} height="80" fill="white" />
         {code39.bars.map((bar, index) => (
-          <rect key={index} x={bar.x + 10} y="4" width={bar.width} height="44" fill="black" />
+          <rect key={index} x={bar.x + 20} y="5" width={bar.width} height="50" fill="black" />
         ))}
-        <text x={(code39.width + 20) / 2} y="63" textAnchor="middle" fontSize="8" fontFamily="monospace" fontWeight="700" fill="black">
+        <text x={(code39.width + 40) / 2} y="72" textAnchor="middle" fontSize="10" fontFamily="monospace" fontWeight="900" fill="black">
           {code39.text}
         </text>
       </svg>
@@ -217,14 +244,15 @@ export default function LabelPreviewPage() {
         const data = snap.data();
         const labelData = { id: snap.id, ...data } as DigitalLabel;
 
-        if (labelData.productId && (!labelData.productCode || !labelData.productSku || !labelData.productName)) {
+        if (labelData.productId) {
           try {
             const productSnap = await getDoc(doc(db, 'products', labelData.productId));
             if (productSnap.exists()) {
               const product = productSnap.data() as any;
-              labelData.productCode = labelData.productCode || product.productCode || '';
-              labelData.productSku = labelData.productSku || product.sku || '';
-              labelData.productName = labelData.productName || product.name || '';
+              // Always prefer the latest product data for the preview
+              labelData.productCode = product.productCode || labelData.productCode || '';
+              labelData.productSku = product.sku || labelData.productSku || '';
+              labelData.productName = product.name || labelData.productName || '';
             }
           } catch (e) {}
         }
@@ -304,7 +332,30 @@ export default function LabelPreviewPage() {
   const finalPrice = Number(label.finalPrice || originalPrice || 0);
   const wholePart = Math.floor(finalPrice);
   const centsPart = finalPrice.toFixed(2).split('.')[1];
-  const barcodeValue = label.productCode || '';
+  
+  // Logic to determine the best barcode value to display
+  // 1. Try productCode if it looks like a real barcode (not our internal PR- prefix)
+  // 2. Try productSku if it looks like a real barcode
+  // 3. Fallback to productCode, then productSku
+  const getBestBarcode = () => {
+    const code = label.productCode || '';
+    const sku = label.productSku || '';
+    
+    const isInternal = (val: string) => val.startsWith('PR-') || val.startsWith('DL-');
+    const isEan = (val: string) => {
+      const d = val.replace(/\D/g, '');
+      return d.length === 8 || d.length === 12 || d.length === 13;
+    };
+
+    if (code && !isInternal(code)) return code;
+    if (sku && !isInternal(sku)) return sku;
+    if (isEan(code)) return code;
+    if (isEan(sku)) return sku;
+    
+    return code || sku || '';
+  };
+
+  const barcodeValue = getBestBarcode();
   const labelLocation = label.location || label.branchName || 'Unplaced';
 
   return (

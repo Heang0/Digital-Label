@@ -104,7 +104,7 @@ export const BranchManagementModal = ({
                   </p>
                 </div>
               </div>
-              <button onClick={onClose} className="text-slate-400 hover:text-rose-500 transition-colors">
+              <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -175,7 +175,7 @@ export const BranchManagementModal = ({
                     <select 
                       value={formData.timezone}
                       onChange={(e) => setFormData({...formData, timezone: e.target.value})}
-                      className="pl-10 w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold appearance-none outline-none focus:border-[#5750F1] transition-colors"
+                      className="pl-10 w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold appearance-none outline-none focus:border-[#5750F1] transition-colors text-[#111928] dark:text-white"
                     >
                       <option value="Asia/Phnom_Penh">Asia/Phnom_Penh (ICT)</option>
                       <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
@@ -189,7 +189,7 @@ export const BranchManagementModal = ({
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-                    className="w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold px-4 outline-none"
+                    className="w-full h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-none text-xs font-bold px-4 outline-none text-[#111928] dark:text-white [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                   >
                     <option value="active">{t('status_active')}</option>
                     <option value="maintenance">{t('status_maintenance')}</option>
@@ -202,8 +202,8 @@ export const BranchManagementModal = ({
                 <Button 
                   type="button" 
                   onClick={onClose}
-                  variant="ghost" 
-                  className="flex-1 h-11 rounded-lg text-sm font-bold"
+                  variant="outline" 
+                  className="flex-1 h-11 rounded-lg text-sm font-bold text-slate-700 dark:text-white border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   {t('cancel')}
                 </Button>

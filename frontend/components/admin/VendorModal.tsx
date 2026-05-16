@@ -71,9 +71,9 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
               <h3 className="text-lg font-bold text-[#111928] dark:text-white">
                 {editingUser ? 'Edit Vendor Information' : 'Add New Vendor'}
               </h3>
-              <button onClick={onClose} className="p-2 text-[#637381] hover:text-[#111928] dark:hover:text-white transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+                <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#5750F1] transition-all">
+                  <X className="h-5 w-5" />
+                </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-7 space-y-6">
@@ -148,9 +148,9 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                     className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer"
                   >
-                    <option value="active">Active</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="pending">Pending</option>
+                    <option value="active" className="dark:bg-slate-800">Active</option>
+                    <option value="suspended" className="dark:bg-slate-800">Suspended</option>
+                    <option value="pending" className="dark:bg-slate-800">Pending</option>
                   </select>
                 </div>
               </div>

@@ -51,9 +51,14 @@ export const PromotionManagementModal = ({
                     </h3>
                     <p className="text-[10px] md:text-xs font-medium text-[#637381] mt-1">{t('configure_campaign')}</p>
                  </div>
-                 <Button variant="ghost" size="sm" onClick={handleClose} className="h-10 w-10 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <X className="h-5 w-5" />
-                 </Button>
+                 <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleClose}
+                className="h-10 w-10 p-0 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-white/60 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </Button>
               </div>
 
               <form onSubmit={editingPromotion ? updatePromotion : createPromotion} className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
@@ -68,7 +73,7 @@ export const PromotionManagementModal = ({
                     </div>
                     <div className="space-y-2">
                        <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('discount_type')}</label>
-                       <select className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white" value={promotionForm.type} onChange={(e) => setPromotionForm({...promotionForm, type: e.target.value as any})}>
+                       <select className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white" value={promotionForm.type} onChange={(e) => setPromotionForm({...promotionForm, type: e.target.value as any})}>
                           <option value="percentage">{t('percentage')}</option>
                           <option value="fixed">{t('fixed_amount')}</option>
                        </select>
@@ -147,7 +152,7 @@ export const PromotionManagementModal = ({
                  </div>
 
                  <div className="flex justify-end gap-3 mt-10">
-                    <Button type="button" variant="ghost" onClick={handleClose} className="h-11 px-6 font-bold">{t('cancel')}</Button>
+                    <Button type="button" variant="ghost" onClick={handleClose} className="h-11 px-6 font-bold dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800">{t('cancel')}</Button>
                     <Button type="submit" className="h-11 px-8 rounded-lg bg-[#5750F1] hover:bg-[#4A44D1] font-bold shadow-lg shadow-[#5750F1]/20">
                        {editingPromotion ? t('update') : t('create_campaign')}
                     </Button>

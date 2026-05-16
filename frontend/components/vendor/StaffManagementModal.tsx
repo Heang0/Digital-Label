@@ -96,16 +96,14 @@ export const StaffManagementModal = ({
                 <h3 className="text-lg md:text-xl font-black text-[#111928] dark:text-white uppercase tracking-tight">
                   {isCreate ? t('add_team_member') : t('edit_staff_member')}
                 </h3>
-                <p className="text-[10px] font-bold text-[#637381] mt-1 uppercase tracking-widest">{t('role_preset')} — {t('access_permissions')}.</p>
+                <p className="text-[10px] font-bold text-[#637381] dark:text-slate-400 mt-1 uppercase tracking-widest">{t('role_preset')} — {t('access_permissions')}.</p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleClose}
-                className="h-10 w-10 p-0 hover:bg-slate-100 dark:hover:bg-slate-800"
+              <button 
+                onClick={handleClose} 
+                className="h-10 w-10 p-0 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-white/60 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
-              </Button>
+              </button>
             </div>
 
             <form onSubmit={isCreate ? createStaff : updateStaff} className="p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-8">
@@ -137,7 +135,7 @@ export const StaffManagementModal = ({
                     <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('assign_branch')}</label>
                     <select
                       required
-                      className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
+                      className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                       value={currentForm.branchId}
                       onChange={(e) => setCurrentForm({...currentForm, branchId: e.target.value})}
                     >
@@ -171,7 +169,7 @@ export const StaffManagementModal = ({
                   <div className="space-y-2">
                     <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-[0.15em]">{t('status')}</label>
                     <select
-                      className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white"
+                      className="w-full h-12 px-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold outline-none focus:ring-2 focus:ring-[#5750F1]/20 transition-all text-[#111928] dark:text-white [&>option]:bg-white [&>option]:text-[#111928] dark:[&>option]:bg-[#1C2434] dark:[&>option]:text-white"
                       value={editStaffForm.status}
                       onChange={(e) => setEditStaffForm({...editStaffForm, status: e.target.value as any})}
                     >
@@ -187,7 +185,7 @@ export const StaffManagementModal = ({
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <Shield className="h-4 w-4 text-[#5750F1]" />
                   <h4 className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-tight">{t('select_role')}</h4>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-auto">{t('permissions_auto_apply')}</span>
+                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-auto">{t('permissions_auto_apply')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -218,7 +216,7 @@ export const StaffManagementModal = ({
                             <RoleIcon className="h-5 w-5 text-white" />
                           </div>
                           <p className="text-xs font-black text-[#111928] dark:text-white uppercase tracking-tight mb-1">{t(preset.label)}</p>
-                          <p className="text-[9px] font-medium text-slate-400 leading-relaxed line-clamp-2">{t(preset.description)}</p>
+                          <p className="text-[9px] font-medium text-slate-400 dark:text-slate-500 leading-relaxed line-clamp-2">{t(preset.description)}</p>
                         </button>
                       );
                     })}
@@ -260,7 +258,7 @@ export const StaffManagementModal = ({
                   type="button" 
                   variant="ghost" 
                   onClick={handleClose}
-                  className="h-11 px-6 font-bold text-sm rounded-lg"
+                  className="h-11 px-6 font-bold text-sm rounded-lg dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   {t('cancel')}
                 </Button>
