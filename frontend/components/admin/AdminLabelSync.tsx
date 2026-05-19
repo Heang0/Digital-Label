@@ -13,7 +13,7 @@ import {
 import { LabelSyncRecord } from '@/types';
 import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { SearchInput } from './SearchInput';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -38,11 +38,11 @@ export const AdminLabelSync = ({ records, searchTerm, onSearchChange, refresh }:
   const handleRetry = async (record: LabelSyncRecord) => {
     setRetrying(record.id);
     try {
-      await updateDoc(doc(db, 'label_syncs', record.id), {
+      await setDoc(doc(db, 'label_syncs', record.id.toString()), {
         status: 'pending',
         retryCount: (record.retryCount || 0) + 1,
         lastAttempt: Timestamp.now()
-      });
+      }, { merge: true });
       // In a real app, this would trigger a backend process.
       // For now we just simulate success after a delay.
       setTimeout(() => {

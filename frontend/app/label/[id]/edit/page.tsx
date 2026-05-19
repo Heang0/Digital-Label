@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, limit } from 'firebase/firestore';
+
 import { DigitalLabel } from '@/types/vendor';
 import { Loader2, Save, ArrowLeft, Package, DollarSign, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,49 +18,101 @@ export default function LabelEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  const [resolvedDocId, setResolvedDocId] = useState<string | null>(null);
+  
   // Form State
   const [formData, setFormData] = useState({
     productName: '',
     productSku: '',
-    currentPrice: 0,
-    discountPercent: 0,
+    currentPrice: '' as string | number,
+    discountPercent: '' as string | number,
     location: ''
   });
 
   useEffect(() => {
     if (!id) return;
-    const unsub = onSnapshot(doc(db, 'labels', id as string), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as DigitalLabel;
-        setLabel({ id: snap.id, ...data });
-        setFormData({
-          productName: data.productName || '',
-          productSku: data.productSku || '',
-          currentPrice: data.currentPrice || 0,
-          discountPercent: data.discountPercent || 0,
-          location: data.location || ''
-        });
-      }
+    
+    let unsubLabel = () => {};
+
+    const handleLabelSnap = (snap: any) => {
+      const data = snap.data() as DigitalLabel;
+      setLabel({ id: snap.id, ...data });
+      setResolvedDocId(snap.id);
+      setFormData({
+        productName: data.productName || '',
+        productSku: data.productSku || '',
+        currentPrice: data.currentPrice != null ? String(data.currentPrice) : '',
+        discountPercent: data.discountPercent != null ? String(data.discountPercent) : '',
+        location: data.location || ''
+      });
       setLoading(false);
+    };
+
+    // First try subscribing to doc directly (using Firestore document ID)
+    const docRef = doc(db, 'labels', id as string);
+    const primaryUnsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        handleLabelSnap(snap);
+      } else {
+        // Fallback 1: Query by labelId (e.g. "TAG-001")
+        primaryUnsub(); // clean up
+        const qId = query(collection(db, 'labels'), where('labelId', '==', id as string), limit(1));
+        const unsubFallbackId = onSnapshot(qId, (qSnap) => {
+          if (!qSnap.empty) {
+            handleLabelSnap(qSnap.docs[0]);
+          } else {
+            // Fallback 2: Query by labelCode or stringified ID "1", "2"
+            unsubFallbackId(); // clean up
+            const qCode = query(collection(db, 'labels'), where('labelCode', '==', id as string), limit(1));
+            const unsubFallbackCode = onSnapshot(qCode, (qCodeSnap) => {
+              if (!qCodeSnap.empty) {
+                handleLabelSnap(qCodeSnap.docs[0]);
+              } else {
+                // Fallback 3: Query by id property being string
+                unsubFallbackCode(); // clean up
+                const qInt = query(collection(db, 'labels'), where('id', '==', id as string), limit(1));
+                const unsubFallbackInt = onSnapshot(qInt, (qIntSnap) => {
+                  if (!qIntSnap.empty) {
+                    handleLabelSnap(qIntSnap.docs[0]);
+                  } else {
+                    setLabel(null);
+                    setLoading(false);
+                  }
+                });
+                unsubLabel = unsubFallbackInt;
+              }
+            });
+            unsubLabel = unsubFallbackCode;
+          }
+        });
+        unsubLabel = unsubFallbackId;
+      }
     });
-    return () => unsub();
+    unsubLabel = primaryUnsub;
+
+    return () => unsubLabel();
   }, [id]);
 
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = async () => {
-    if (!id || !label) return;
+    const targetId = resolvedDocId || label?.id || (id as string);
+    if (!targetId) return;
     setSaving(true);
     try {
-      const finalPrice = formData.discountPercent 
-        ? Math.round(formData.currentPrice * (1 - formData.discountPercent / 100) * 100) / 100
-        : formData.currentPrice;
+      const parsedCurrentPrice = parseFloat(String(formData.currentPrice)) || 0;
+      const parsedDiscountPercent = parseFloat(String(formData.discountPercent)) || 0;
+      const finalPrice = parsedDiscountPercent 
+        ? Math.round(parsedCurrentPrice * (1 - parsedDiscountPercent / 100) * 100) / 100
+        : parsedCurrentPrice;
 
-      await updateDoc(doc(db, 'labels', id as string), {
+      await setDoc(doc(db, 'labels', targetId.toString()), {
         ...formData,
+        currentPrice: parsedCurrentPrice,
+        discountPercent: parsedDiscountPercent,
         finalPrice,
         updatedAt: new Date()
-      });
+      }, { merge: true });
       
       setShowSuccess(true);
     } catch (error) {
@@ -160,8 +213,9 @@ export default function LabelEditPage() {
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                 <Input 
                   type="number"
+                  step="0.01"
                   value={formData.currentPrice}
-                  onChange={(e) => setFormData({...formData, currentPrice: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setFormData({...formData, currentPrice: e.target.value})}
                   className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
                 />
               </div>
@@ -172,8 +226,10 @@ export default function LabelEditPage() {
                 <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                 <Input 
                   type="number"
+                  min="0"
+                  max="100"
                   value={formData.discountPercent}
-                  onChange={(e) => setFormData({...formData, discountPercent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0))})}
+                  onChange={(e) => setFormData({...formData, discountPercent: e.target.value})}
                   className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
                 />
               </div>
@@ -183,9 +239,9 @@ export default function LabelEditPage() {
           <div className="p-4 bg-slate-50 dark:bg-slate-900 border-l-4 border-[#5750F1]">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Calculated Shelf Price</p>
             <p className="text-2xl font-black text-[#111928] dark:text-white">
-              ${(formData.discountPercent 
-                ? formData.currentPrice * (1 - formData.discountPercent / 100)
-                : formData.currentPrice).toFixed(2)}
+              ${((parseFloat(String(formData.discountPercent)) || 0)
+                ? (parseFloat(String(formData.currentPrice)) || 0) * (1 - (parseFloat(String(formData.discountPercent)) || 0) / 100)
+                : (parseFloat(String(formData.currentPrice)) || 0)).toFixed(2)}
             </p>
           </div>
         </div>

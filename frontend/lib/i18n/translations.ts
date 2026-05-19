@@ -313,7 +313,7 @@ export const translations = {
     company_info: "Company Info",
     subscription: "Subscription",
     metrics: "Metrics",
-    onboard_company: "Onboard Company",
+    onboard_company: "Onboard New Company",
 
     // Notifications
     new_count: "{count} New",
@@ -539,8 +539,27 @@ export const translations = {
     reporting_suite: "Reporting Suite",
     change_password: "Change Password",
     download_template: "Download Import Template",
+    edit_company_profile: "Edit Company Profile",
+
+    add_new_vendor: "Add New Vendor",
+    edit_vendor_info: "Edit Vendor Information",
+    personal_info: "Personal Information",
+    your_photo: "Your Photo",
+    update_photo: "Update Photo",
+    security_account: "Security & Account",
+    two_factor: "Two-Factor Authentication",
+    enable_2fa: "Enable 2FA",
+    secure_2fa_desc: "Secure your account with 2FA codes",
+    last_changed_pw: "Last changed 3 months ago",
+    confirm_password: "Confirm Password",
+    update_password_desc: "Please confirm your current password to continue.",
+
+
+
+
 
     // Product Modal
+
     new_product_title: "New Product",
     edit_product_title: "Edit Product",
     master_inventory: "Master Inventory Repository",
@@ -756,8 +775,38 @@ export const translations = {
     subscription: "ការជាវ",
     metrics: "រង្វាស់",
     onboard_company: "បញ្ចូលក្រុមហ៊ុនថ្មី",
+    edit_company_profile: "កែសម្រួលប្រវត្តិរូបក្រុមហ៊ុន",
+    add_new_vendor: "បន្ថែមអាជីវករថ្មី",
+    edit_vendor_info: "កែសម្រួលព័ត៌មានអាជីវករ",
+    personal_info: "ព័ត៌មានផ្ទាល់ខ្លួន",
+    your_photo: "រូបថតរបស់អ្នក",
+    update_photo: "កែសម្រួលរូបថត",
+    security_account: "សុវត្ថិភាព និងគណនី",
+    two_factor: "ការផ្ទៀងផ្ទាត់ពីរជំហាន (2FA)",
+    enable_2fa: "បើកដំណើរការ 2FA",
+    secure_2fa_desc: "ការពារគណនីរបស់អ្នកជាមួយលេខកូដ 2FA",
+    last_changed_pw: "បានផ្លាស់ប្តូរចុងក្រោយកាលពី 3 ខែមុន",
+    current_password: "ពាក្យសម្ងាត់បច្ចុប្បន្ន",
+    new_password: "ពាក្យសម្ងាត់ថ្មី",
+    confirm_password: "បញ្ជាក់ពាក្យសម្ងាត់",
+    update_password_desc: "សូមបញ្ជាក់ពាក្យសម្ងាត់បច្ចុប្បន្នរបស់អ្នកដើម្បីបន្ត។",
+    profile_management: "ការគ្រប់គ្រងប្រវត្តិរូប",
+    account_workspace_desc: "ទិដ្ឋភាពទូទៅនៃអត្តសញ្ញាណក្រុមហ៊ុន និងការកំណត់ប្រតិបត្តិការរបស់អ្នក។",
+    legal_entity: "អង្គភាពស្របច្បាប់",
+
+    store_name: "ឈ្មោះហាង",
+    vendor_name: "ឈ្មោះអាជីវករ",
+    tax_identification: "លេខអត្តសញ្ញាណកម្មសារពើពន្ធ",
+    hq_address: "អាសយដ្ឋានទីស្នាក់ការកណ្តាល",
+    contact_line: "ខ្សែទូរស័ព្ទទំនាក់ទំនង",
+    registered_email: "អ៊ីមែលដែលបានចុះឈ្មោះ",
+    corporate_credentials: "លិខិតសម្គាល់សាជីវកម្ម",
+    cancel: "បោះបង់",
+
+
 
     // Notifications
+
     new_count: "{count} ថ្មី",
 
     // Financials
@@ -788,19 +837,11 @@ export const translations = {
     incorrect_current_password: "ពាក្យសម្ងាត់បច្ចុប្បន្នមិនត្រឹមត្រូវ",
     password_updated: "ពាក្យសម្ងាត់ត្រូវបានធ្វើបច្ចុប្បន្នភាព",
     security_nominal: "សុចរិតភាពប្រព័ន្ធត្រូវបានផ្ទៀងផ្ទាត់",
-    current_password: "ពាក្យសម្ងាត់បច្ចុប្បន្ន",
-    new_password: "ពាក្យសម្ងាត់ថ្មី",
     confirm_new_password: "បញ្ជាក់ពាក្យសម្ងាត់ថ្មី",
+
     update_password: "ធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
-    corporate_credentials: "ព័ត៌មានអត្តសញ្ញាណក្រុមហ៊ុន",
-    legal_entity: "អង្គភាពស្របច្បាប់",
-    tax_identification: "លេខអត្តសញ្ញាណកម្មសារពើពន្ធ",
-    hq_address: "អាសយដ្ឋានទីស្នាក់ការកណ្តាល",
-    contact_line: "ខ្សែទូរស័ព្ទទំនាក់ទំនង",
-    registered_email: "អ៊ីមែលដែលបានចុះឈ្មោះ",
-    profile_management: "ការគ្រប់គ្រងប្រវត្តិរូប",
-    account_workspace_desc: "ទិដ្ឋភាពទូទៅនៃអត្តសញ្ញាណក្រុមហ៊ុន និងការកំណត់ប្រតិបត្តិការរបស់អ្នក។",
     vendor_dashboard: "ទិដ្ឋភាពទូទៅនៃអាជីវករ",
+
     staff_mgmt: "ការគ្រប់គ្រងបុគ្គលិក",
     rbac: "តួនាទី និងការអនុញ្ញាត",
     category_mgmt: "ការគ្រប់គ្រងប្រភេទ",
@@ -1092,8 +1133,8 @@ export const translations = {
     category_desc_placeholder: "ការពិពណ៌នាប្រភេទ (ស្រេចចិត្ត)",
     identity_color: "ពណ៌សម្គាល់",
     delete: "លុប",
-    cancel: "បោះបង់",
     update: "ធ្វើបច្ចុប្បន្នភាព",
+
     create: "បង្កើត",
 
 

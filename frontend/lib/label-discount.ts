@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, setDoc } from "firebase/firestore";
 
 type ApplyDiscountArgs = {
   /** Firestore document id (labels/{labelId}) */
@@ -33,7 +33,7 @@ export async function applyDiscountToLabel(args: ApplyDiscountArgs) {
   if (!Number.isFinite(basePrice) || basePrice <= 0) throw new Error("Invalid basePrice");
   if (!Number.isFinite(percent) || percent <= 0 || percent > 100) throw new Error("Invalid percent");
 
-  const labelRef = doc(db, "labels", labelId);
+  const labelRef = doc(db, "labels", labelId.toString());
 
   // optional safety check
   const snap = await getDoc(labelRef);
@@ -45,7 +45,7 @@ export async function applyDiscountToLabel(args: ApplyDiscountArgs) {
       ? Timestamp.fromDate(new Date(Date.now() + durationMinutes * 60 * 1000))
       : null;
 
-  await updateDoc(labelRef, {
+  await setDoc(labelRef, {
     basePrice,
     currentPrice: basePrice,
     finalPrice: discountPrice,
@@ -56,7 +56,7 @@ export async function applyDiscountToLabel(args: ApplyDiscountArgs) {
 
     lastSync: Timestamp.now(),
     status: "syncing",
-  });
+  }, { merge: true });
 }
 
 /**
@@ -68,12 +68,12 @@ export async function clearDiscountFromLabel(args: ClearDiscountArgs) {
   if (!labelId) throw new Error("Missing labelId");
   if (!Number.isFinite(basePrice) || basePrice <= 0) throw new Error("Invalid basePrice");
 
-  const labelRef = doc(db, "labels", labelId);
+  const labelRef = doc(db, "labels", labelId.toString());
 
   const snap = await getDoc(labelRef);
   if (!snap.exists()) throw new Error("Label not found");
 
-  await updateDoc(labelRef, {
+  await setDoc(labelRef, {
     basePrice,
     currentPrice: basePrice,
     finalPrice: basePrice,
@@ -84,5 +84,5 @@ export async function clearDiscountFromLabel(args: ClearDiscountArgs) {
 
     lastSync: Timestamp.now(),
     status: "syncing",
-  });
+  }, { merge: true });
 }

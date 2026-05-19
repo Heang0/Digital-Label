@@ -11,7 +11,9 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   photoURL?: string;
+  photo_url?: string;
   companyId?: string;
+  companyLogo?: string;
   branchId?: string;
   phone?: string;
   position?: string;
@@ -47,6 +49,9 @@ export interface StaffMember {
   permissions: StaffPermissions;
   lastLogin?: Timestamp | Date;
   createdAt: Timestamp | Date;
+  photoURL?: string;
+  photo_url?: string;
+  photo?: string;
 }
 
 export interface Company {
@@ -56,6 +61,8 @@ export interface Company {
   phone: string;
   address: string;
   code?: string;
+  logo_url?: string;
+  logoUrl?: string;
   subscription: 'basic' | 'pro' | 'enterprise';
   status: CompanyStatus;
   ownerId: string;

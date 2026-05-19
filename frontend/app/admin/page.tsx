@@ -2,233 +2,218 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUserStore } from '@/lib/user-store';
-import { auth, db, logOut } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  doc as fsDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc,
-  Timestamp
-} from 'firebase/firestore';
-import { useAdminData } from '@/hooks/useAdminData';
+  RefreshCw
+} from 'lucide-react';
+
+// Admin Components
 import { DashboardSidebar } from '@/components/admin/DashboardSidebar';
 import { DashboardHeader } from '@/components/admin/DashboardHeader';
-
 import { AdminOverview } from '@/components/admin/AdminOverview';
-import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminCompanies } from '@/components/admin/AdminCompanies';
-import { AdminSettings } from '@/components/admin/AdminSettings';
-import { VendorModal } from '@/components/admin/VendorModal';
-import { CompanyModal } from '@/components/admin/CompanyModal';
+import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
-import { AdminFinancials } from '@/components/admin/AdminFinancials';
-import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { AdminLabelSync } from '@/components/admin/AdminLabelSync';
 import { AdminLabelUI } from '@/components/admin/AdminLabelUI';
-import { logAction } from '@/lib/audit';
-import { User, Company } from '@/types';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw } from 'lucide-react';
+import { AdminSettings } from '@/components/admin/AdminSettings';
+import { AdminAudit } from '@/components/admin/AdminAudit';
+import { AdminSync } from '@/components/admin/AdminSync';
+import { CompanyModal } from '@/components/admin/CompanyModal';
+import { VendorModal } from '@/components/admin/VendorModal';
 
-export default function AdminDashboard() {
-  const router = useRouter();
-  const { user: currentUser, clearUser, hasHydrated } = useUserStore();
-  const { users, companies, auditLogs, syncRecords, loading, systemMetrics, refreshData } = useAdminData(currentUser);
+// Hooks & Lib
+import { laravelApi } from '@/lib/api';
+import { useUserStore } from '@/lib/user-store';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'companies' | 'analytics' | 'settings' | 'revenue' | 'audit' | 'sync' | 'label-ui'>('overview');
-  
+export default function SuperAdminDashboard() {
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'companies' | 'users' | 'analytics' | 'settings' | 'label-ui' | 'audit' | 'sync'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('admin_selected_tab') as any) || 'overview';
+    }
+    return 'overview';
+  });
+
   // Persist selected tab across refreshes
-  useEffect(() => {
-    const savedTab = localStorage.getItem('admin_selected_tab');
-    if (savedTab) setSelectedTab(savedTab as any);
-  }, []);
-
   useEffect(() => {
     localStorage.setItem('admin_selected_tab', selectedTab);
   }, [selectedTab]);
 
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Modal State
-  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [editingVendor, setEditingVendor] = useState<User | null>(null);
-  
-  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  // Modal States
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [showVendorModal, setShowVendorModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  const [dashboardData, setDashboardData] = useState<{
+    metrics: any;
+    companies: any[];
+    users: any[];
+    recentLogs: any[];
+  } | null>(null);
+
+  const { user: currentUser, accessToken, clearUser, hasHydrated } = useUserStore();
+  const { t } = useLanguage();
+  const router = useRouter();
 
   // Redirect if not admin
   const redirecting = useRef(false);
   useEffect(() => {
     if (!hasHydrated || redirecting.current) return;
     
-    if (!currentUser) {
+    if (!currentUser || !accessToken) {
       redirecting.current = true;
       router.replace('/login');
     } else if (currentUser.role !== 'admin') {
       redirecting.current = true;
-      if (currentUser.role === 'vendor') router.replace('/vendor');
-      else if (currentUser.role === 'staff') router.replace('/staff');
-      else router.replace('/login');
+      router.replace('/login');
     }
-  }, [currentUser, hasHydrated, router]);
+  }, [currentUser, accessToken, hasHydrated, router]);
 
-  // Handle password reset event from AdminUsers component
+  const loadAdminData = async (silent = false) => {
+    if (!accessToken) return;
+    
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+    
+    try {
+      const data = await laravelApi.getAdminDashboard(accessToken);
+      
+      // Map Laravel data to component expectations if necessary
+      const mappedCompanies = data.companies.map((c: any) => ({
+        ...c,
+        id: c.id.toString(),
+        branchesCount: c.branches_count,
+        labelsCount: c.labels_count,
+        productsCount: c.products_count,
+        categoriesCount: c.categories_count,
+        staffCount: c.staff_count
+      }));
+
+      const mappedUsers = data.users.map((u: any) => ({
+        ...u,
+        id: u.id.toString(),
+        companyId: u.company?.name || 'N/A',
+        companyLogo: u.company?.logo_url || u.company?.logoUrl || null
+      }));
+
+      setDashboardData({
+        metrics: data.metrics,
+        companies: mappedCompanies,
+        users: mappedUsers,
+        recentLogs: data.recentLogs || []
+      });
+    } catch (err) {
+      console.error('Failed to fetch admin dashboard', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // 1. Fully-functional CRUD Handlers for Company Deletion and Suspension
+  const handleDeleteCompany = async (id: string) => {
+    if (!accessToken) return;
+    if (!confirm('Are you absolutely sure you want to delete this company? This action cannot be undone.')) return;
+    try {
+      setLoading(true);
+      await laravelApi.deleteCompany(id, accessToken);
+      await loadAdminData(true);
+    } catch (err) {
+      console.error('Failed to delete company', err);
+      alert('Failed to delete company. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuspendCompany = async (id: string, currentStatus: string) => {
+    if (!accessToken) return;
+    const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+    const actionText = currentStatus === 'suspended' ? 'activate' : 'suspend';
+    if (!confirm(`Are you sure you want to ${actionText} this company?`)) return;
+    try {
+      setLoading(true);
+      await laravelApi.updateCompanyStatus(id, newStatus, accessToken);
+      await loadAdminData(true);
+    } catch (err) {
+      console.error('Failed to change company status', err);
+      alert('Failed to update company status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Fully-functional CRUD Handlers for User/Vendor Deletion and Moderation
+  const handleDeleteUser = async (id: string) => {
+    if (!accessToken) return;
+    if (id === currentUser?.id?.toString()) {
+      alert('For security compliance, you cannot delete your own logged-in admin account.');
+      return;
+    }
+    if (!confirm('Are you absolutely sure you want to delete this user? This action cannot be undone.')) return;
+    try {
+      setLoading(true);
+      await laravelApi.deleteUser(id, accessToken);
+      await loadAdminData(true);
+    } catch (err) {
+      console.error('Failed to delete user', err);
+      alert('Failed to delete user.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserStatusChange = async (id: string, newStatus: string) => {
+    if (!accessToken) return;
+    try {
+      setLoading(true);
+      await laravelApi.updateUserStatus(id, newStatus, accessToken);
+      await loadAdminData(true);
+    } catch (err) {
+      console.error('Failed to update user status', err);
+      alert('Failed to update user status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserRoleChange = async (id: string, newRole: string) => {
+    if (!accessToken) return;
+    try {
+      setLoading(true);
+      await laravelApi.updateUserRole(id, newRole, accessToken);
+      await loadAdminData(true);
+    } catch (err) {
+      console.error('Failed to update user role', err);
+      alert('Failed to update user role.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const handleReset = async (e: any) => {
-      const email = e.detail;
-      if (!email) return;
-      try {
-        await sendPasswordResetEmail(auth, email);
-        alert(`A secure password reset link has been sent to ${email}`);
-      } catch (error: any) {
-        alert(`Failed to send reset link: ${error.message}`);
-      }
-    };
-    window.addEventListener('reset-vendor-password', handleReset);
-    return () => window.removeEventListener('reset-vendor-password', handleReset);
-  }, []);
+    if (hasHydrated && accessToken && currentUser?.role === 'admin') {
+      loadAdminData();
+    }
+  }, [accessToken, hasHydrated, currentUser]);
 
   const handleLogout = async () => {
-    await logOut();
     clearUser();
     router.push('/login');
   };
 
-  const handleOpenVendorModal = (vendor: User | null = null) => {
-    setEditingVendor(vendor);
-    setIsVendorModalOpen(true);
-  };
-
-  const handleSaveVendor = async (data: any) => {
-    try {
-      const url = editingVendor 
-        ? `http://localhost:5000/api/users/vendors/${editingVendor.id}`
-        : 'http://localhost:5000/api/users/vendors';
-      
-      const method = editingVendor ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save vendor');
-      }
-
-      refreshData();
-      alert(`Vendor ${editingVendor ? 'updated' : 'created'} successfully!`);
-      
-      logAction(
-        currentUser.id,
-        currentUser.name,
-        editingVendor ? 'UPDATE_VENDOR' : 'CREATE_VENDOR',
-        `${editingVendor ? 'Updated' : 'Created'} vendor ${data.email}`,
-        editingVendor?.id || 'new',
-        'user'
-      );
-    } catch (error: any) {
-      alert(error.message);
-      throw error;
-    }
-  };
-
-  const handleOpenCompanyModal = (company: Company | null = null) => {
-    setEditingCompany(company);
-    setIsCompanyModalOpen(true);
-  };
-
-  const handleSaveCompany = async (data: any) => {
-    try {
-      const url = editingCompany 
-        ? `http://localhost:5000/api/companies/${editingCompany.id}`
-        : 'http://localhost:5000/api/companies';
-      
-      const method = editingCompany ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error('Failed to save company');
-
-      refreshData();
-      alert(`Company ${editingCompany ? 'updated' : 'onboarded'} successfully!`);
-    } catch (error: any) {
-      alert(error.message);
-      throw error;
-    }
-  };
-
-  const handleSuspendUser = async (id: string, currentStatus: any) => {
-    try {
-      const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
-      await updateDoc(fsDoc(db, 'users', id), { status: newStatus });
-      refreshData();
-    } catch (error) {
-      console.error('Error suspending user:', error);
-    }
-  };
-
-  const handleSuspendCompany = async (id: string, currentStatus: any) => {
-    try {
-      const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
-      await updateDoc(fsDoc(db, 'companies', id), { status: newStatus });
-      refreshData();
-    } catch (error) {
-      console.error('Error suspending company:', error);
-    }
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      await deleteDoc(fsDoc(db, 'users', id));
-      logAction(currentUser.id, currentUser.name, 'DELETE_USER', `Deleted user ${id}`, id, 'user');
-      refreshData();
-    }
-  };
-
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      await updateDoc(fsDoc(db, 'users', id), { status: newStatus });
-      logAction(currentUser.id, currentUser.name, 'UPDATE_STATUS', `Changed user ${id} status to ${newStatus}`, id, 'user');
-      refreshData();
-    } catch (error) {
-      console.error('Error changing status:', error);
-    }
-  };
-
-  const handleRoleChange = async (id: string, newRole: string) => {
-    try {
-      await updateDoc(fsDoc(db, 'users', id), { role: newRole });
-      logAction(currentUser.id, currentUser.name, 'UPDATE_ROLE', `Changed user ${id} role to ${newRole}`, id, 'user');
-      refreshData();
-    } catch (error) {
-      console.error('Error changing role:', error);
-    }
-  };
-
-  const handleDeleteCompany = async (id: string) => {
-    if (confirm('Are you sure you want to delete this company?')) {
-      await deleteDoc(fsDoc(db, 'companies', id));
-      refreshData();
-    }
-  };
-
-  if (!hasHydrated) return null;
+  if (!hasHydrated || !currentUser) return null;
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#111928] overflow-hidden transition-colors duration-300">
-      {/* Subtle Loading Line (Elite Style) */}
-      {(loading || !currentUser) && (
+      {/* Loading Bar */}
+      {(loading || isRefreshing) && (
         <div className="fixed top-0 left-0 right-0 z-[1000] h-0.5 bg-transparent overflow-hidden">
           <motion.div 
             initial={{ x: '-100%' }}
@@ -238,59 +223,29 @@ export default function AdminDashboard() {
           />
         </div>
       )}
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-[100] lg:hidden">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
-            />
-            <motion.div 
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute left-0 top-0 h-full w-80 bg-white dark:bg-[#1C2434] shadow-2xl"
-            >
-              <DashboardSidebar 
-                currentUser={currentUser as any}
-                selectedTab={selectedTab}
-                setSelectedTab={setSelectedTab}
-                onLogout={handleLogout}
-                onClose={() => setMobileMenuOpen(false)}
-              />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      {/* Static Sidebar (Desktop) */}
+      {/* Desktop Sidebar */}
       <div className="hidden lg:block w-64 flex-shrink-0">
-        <DashboardSidebar 
+        <DashboardSidebar
           currentUser={currentUser as any}
           selectedTab={selectedTab}
-          setSelectedTab={setSelectedTab}
+          setSelectedTab={setSelectedTab as any}
           onLogout={handleLogout}
         />
       </div>
 
-      {/* Main Dashboard Workspace */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader 
-          onMenuOpen={() => setMobileMenuOpen(true)} 
-          onRefresh={refreshData}
-          title={selectedTab}
-          isRefreshing={loading}
+        <DashboardHeader
+          onMenuOpen={() => setMobileNavOpen(true)}
+          onRefresh={() => loadAdminData(true)}
+          title={t(selectedTab) || selectedTab}
+          isRefreshing={isRefreshing || loading}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          onTabChange={setSelectedTab}
+          onTabChange={setSelectedTab as any}
         />
 
-        <main className="flex-1 overflow-y-auto py-6 lg:py-10 px-4 lg:px-10 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-[#111928] p-4 lg:p-8 custom-scrollbar">
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedTab}
@@ -299,85 +254,132 @@ export default function AdminDashboard() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {selectedTab === 'overview' && (
-                <AdminOverview 
-                  metrics={systemMetrics} 
-                  onTabChange={setSelectedTab}
-                />
-              )}
-              {selectedTab === 'users' && (
-                <AdminUsers 
-                  users={users} 
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  onEdit={(u) => handleOpenVendorModal(u)}
-                  onDelete={handleDeleteUser}
-                  onSuspend={handleSuspendUser}
-                  onStatusChange={handleStatusChange}
-                  onRoleChange={handleRoleChange}
-                  onCreate={() => handleOpenVendorModal(null)}
-                />
-              )}
-              {selectedTab === 'companies' && (
-                <AdminCompanies 
-                  companies={companies} 
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  onEdit={(c) => handleOpenCompanyModal(c)}
-                  onDelete={handleDeleteCompany}
-                  onSuspend={handleSuspendCompany}
-                />
-              )}
-              {selectedTab === 'settings' && <AdminSettings />}
-              {selectedTab === 'analytics' && (
-                <AdminAnalytics 
-                  metrics={systemMetrics} 
-                  companies={companies} 
-                />
-              )}
-              {selectedTab === 'revenue' && <AdminFinancials />}
-              {selectedTab === 'audit' && (
-                <AdminAuditLog 
-                  logs={auditLogs} 
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                />
-              )}
-              {selectedTab === 'sync' && (
+              {!dashboardData && loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <RefreshCw className="h-8 w-8 animate-spin text-[#5750F1]" />
+                </div>
+              ) : (
                 <>
-                  <AdminLabelSync 
-                    records={syncRecords} 
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    refresh={refreshData} 
-                  />
-                  {loading && (
-                    <div className="fixed bottom-8 right-8 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#1C2434] shadow-2xl rounded-full text-[10px] font-black text-[#5750F1] uppercase tracking-widest border border-slate-100 dark:border-slate-800 animate-pulse">
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      SYNCING
-                    </div>
+                  {selectedTab === 'overview' && dashboardData && (
+                    <AdminOverview 
+                      metrics={dashboardData.metrics} 
+                      onTabChange={setSelectedTab as any} 
+                    />
+                  )}
+
+                  {selectedTab === 'companies' && dashboardData && (
+                    <AdminCompanies
+                      companies={dashboardData.companies}
+                      searchTerm={searchTerm}
+                      onSearchChange={setSearchTerm}
+                      onEdit={(c) => {
+                        setSelectedCompany(c);
+                        setShowCompanyModal(true);
+                      }}
+                      onDelete={handleDeleteCompany}
+                      onSuspend={handleSuspendCompany}
+                    />
+                  )}
+
+                  {selectedTab === 'users' && dashboardData && (
+                    <AdminUsers
+                      users={dashboardData.users}
+                      searchTerm={searchTerm}
+                      onSearchChange={setSearchTerm}
+                      onEdit={(u) => {
+                        setSelectedUser(u);
+                        setShowVendorModal(true);
+                      }}
+                      onDelete={handleDeleteUser}
+                      onSuspend={(id, s) => handleUserStatusChange(id, s === 'suspended' ? 'active' : 'suspended')}
+                      onStatusChange={handleUserStatusChange}
+                      onRoleChange={(id, r) => {
+                        const nextRole = r === 'admin' ? 'vendor' : 'admin';
+                        handleUserRoleChange(id, nextRole);
+                      }}
+                      onCreate={() => {
+                        setSelectedUser(null);
+                        setShowVendorModal(true);
+                      }}
+                    />
+                  )}
+
+                  {selectedTab === 'analytics' && dashboardData && (
+                    <AdminAnalytics 
+                      metrics={dashboardData.metrics} 
+                      companies={dashboardData.companies} 
+                    />
+                  )}
+
+                  {selectedTab === 'label-ui' && (
+                    <AdminLabelUI />
+                  )}
+
+                  {selectedTab === 'audit' && (
+                    <AdminAudit />
+                  )}
+
+                  {selectedTab === 'sync' && (
+                    <AdminSync />
+                  )}
+
+                  {selectedTab === 'settings' && (
+                    <AdminSettings />
                   )}
                 </>
               )}
-              {selectedTab === 'label-ui' && <AdminLabelUI />}
             </motion.div>
           </AnimatePresence>
-
         </main>
       </div>
 
-      <VendorModal 
-        isOpen={isVendorModalOpen}
-        onClose={() => setIsVendorModalOpen(false)}
-        onSave={handleSaveVendor}
-        editingUser={editingVendor}
+      {/* Admin Modals */}
+      <CompanyModal
+        isOpen={showCompanyModal}
+        onClose={() => {
+          setShowCompanyModal(false);
+          setSelectedCompany(null);
+        }}
+        editingCompany={selectedCompany}
+        onSave={async (data) => {
+          if (!accessToken) return;
+          try {
+            const payload = {
+              ...data,
+              id: selectedCompany?.id ? parseInt(selectedCompany.id) : null
+            };
+            await laravelApi.saveCompany(payload, accessToken);
+            await loadAdminData(true);
+          } catch (err: any) {
+            console.error('Failed to save company', err);
+            alert(err.message || 'Failed to save company. Please verify company details.');
+            throw err;
+          }
+        }}
       />
 
-      <CompanyModal
-        isOpen={isCompanyModalOpen}
-        onClose={() => setIsCompanyModalOpen(false)}
-        onSave={handleSaveCompany}
-        editingCompany={editingCompany}
+      <VendorModal
+        isOpen={showVendorModal}
+        onClose={() => {
+          setShowVendorModal(false);
+          setSelectedUser(null);
+        }}
+        editingUser={selectedUser}
+        onSave={async (data) => {
+          if (!accessToken) return;
+          try {
+            const payload = {
+              ...data,
+              id: selectedUser?.id ? parseInt(selectedUser.id) : null
+            };
+            await laravelApi.saveUser(payload, accessToken);
+            await loadAdminData(true);
+          } catch (err: any) {
+            console.error('Failed to save vendor', err);
+            alert(err.message || 'Failed to save vendor user. Please make sure the company code exists.');
+            throw err;
+          }
+        }}
       />
     </div>
   );

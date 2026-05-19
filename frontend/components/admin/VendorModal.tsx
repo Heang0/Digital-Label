@@ -5,6 +5,7 @@ import { X, User, Mail, Lock, Building2, ShieldCheck, Loader2, Save } from 'luci
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User as UserType } from '@/types';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface VendorModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface VendorModalProps {
 }
 
 export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModalProps) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -69,7 +71,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
           >
             <div className="flex items-center justify-between px-7 py-5 border-b border-[#E2E8F0] dark:border-slate-700">
               <h3 className="text-lg font-bold text-[#111928] dark:text-white">
-                {editingUser ? 'Edit Vendor Information' : 'Add New Vendor'}
+                {editingUser ? t('edit_vendor_info') : t('add_new_vendor')}
               </h3>
                 <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#5750F1] transition-all">
                   <X className="h-5 w-5" />
@@ -79,7 +81,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
             <form onSubmit={handleSubmit} className="p-7 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Full Name</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('full_name') || 'Full Name'}</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                     <input 
@@ -93,7 +95,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Email Address</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('email_addr') || 'Email Address'}</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                     <input 
@@ -111,7 +113,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
 
               {!editingUser && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Account Password</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('password') || 'Password'}</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                     <input 
@@ -128,7 +130,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Company Code</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('tag_id_code') || 'Company Code'}</label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                     <input 
@@ -142,15 +144,15 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Status</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('status') || 'Status'}</label>
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                     className="w-full h-12 px-4 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-[#111928] dark:text-white focus:border-[#5750F1] outline-none appearance-none cursor-pointer"
                   >
-                    <option value="active" className="dark:bg-slate-800">Active</option>
-                    <option value="suspended" className="dark:bg-slate-800">Suspended</option>
-                    <option value="pending" className="dark:bg-slate-800">Pending</option>
+                    <option value="active" className="dark:bg-slate-800">{t('active') || 'Active'}</option>
+                    <option value="suspended" className="dark:bg-slate-800">{t('suspended') || 'Suspended'}</option>
+                    <option value="pending" className="dark:bg-slate-800">{t('pending') || 'Pending'}</option>
                   </select>
                 </div>
               </div>
@@ -161,7 +163,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
                   onClick={onClose}
                   className="h-11 px-8 rounded-lg border border-[#E2E8F0] dark:border-slate-700 text-sm font-bold text-[#111928] dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
-                  Cancel
+                  {t('cancel') || 'Cancel'}
                 </button>
                 <Button 
                   type="submit"
@@ -169,7 +171,7 @@ export const VendorModal = ({ isOpen, onClose, onSave, editingUser }: VendorModa
                   className="h-11 px-10 rounded-lg bg-[#5750F1] hover:bg-[#4a42e0] text-white font-bold text-sm shadow-md shadow-[#5750F1]/10 transition-all gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {editingUser ? 'Save Changes' : 'Create Vendor'}
+                  {editingUser ? t('save_changes') : t('add_new_vendor')}
                 </Button>
               </div>
             </form>

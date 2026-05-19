@@ -7,6 +7,8 @@ import { X, Package, DollarSign, Hash, Edit, Plus, Image, ScanLine } from 'lucid
 import { BarcodeScannerModal } from '@/components/ui/BarcodeScannerModal';
 import { useNotify } from '@/components/ui/notification';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { compressImage } from '@/lib/image-compress';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Product {
   id: string;
@@ -45,55 +47,69 @@ export default function ProductModal({
     sku: '',
     productCode: '',
     category: 'General',
-    basePrice: 0,
-    cost: 0,
+    basePrice: '' as string | number,
+    cost: '' as string | number,
     imageUrl: '',
-    stock: 0,
-    minStock: 10,
+    stock: '' as string | number,
+    minStock: '' as string | number,
   });
   const [loading, setLoading] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name,
-        description: product.description,
-        sku: product.sku,
-        productCode: product.productCode || '',
-        category: product.category,
-        basePrice: product.basePrice,
-        cost: product.cost || 0,
-        imageUrl: product.imageUrl || '',
-        stock: product.stock ?? 0,
-        minStock: product.minStock ?? 10,
-      });
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        sku: '',
-        productCode: '',
-        category: categories.length > 0 ? categories[0].name : 'General',
-        basePrice: 0,
-        cost: 0,
-        imageUrl: '',
-        stock: 0,
-        minStock: 10,
-      });
+    if (isOpen) {
+      if (product) {
+        setFormData({
+          name: product.name || '',
+          description: product.description || '',
+          sku: product.sku || '',
+          productCode: product.productCode || '',
+          category: product.category || 'General',
+          basePrice: product.basePrice != null ? String(product.basePrice) : '',
+          cost: product.cost != null ? String(product.cost) : '',
+          imageUrl: product.imageUrl || '',
+          stock: product.stock != null ? String(product.stock) : '',
+          minStock: product.minStock != null ? String(product.minStock) : '10',
+        });
+      } else {
+        setFormData({
+          name: '',
+          description: '',
+          sku: '',
+          productCode: '',
+          category: categories.length > 0 ? categories[0].name : 'General',
+          basePrice: '',
+          cost: '',
+          imageUrl: '',
+          stock: '',
+          minStock: '10',
+        });
+      }
     }
-  }, [product, categories]);
+  }, [isOpen, product?.id, categories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || formData.basePrice <= 0) {
+    const parsedBasePrice = parseFloat(String(formData.basePrice)) || 0;
+    if (!formData.name.trim() || parsedBasePrice <= 0) {
       notify.warning(t('missing_fields') || 'Missing fields', t('missing_fields') || 'Please fill in all required fields.');
       return;
     }
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        name: formData.name,
+        description: formData.description,
+        sku: formData.sku,
+        productCode: formData.productCode,
+        category: formData.category,
+        basePrice: parsedBasePrice,
+        cost: parseFloat(String(formData.cost)) || 0,
+        imageUrl: formData.imageUrl,
+        stock: parseInt(String(formData.stock), 10) || 0,
+        minStock: parseInt(String(formData.minStock), 10) || 0,
+      });
       onClose();
     } catch (error) {
       console.error('Error saving product:', error);
@@ -223,8 +239,8 @@ export default function ProductModal({
                   type="number"
                   step="0.01"
                   min="0.01"
-                  value={formData.basePrice === 0 ? '' : formData.basePrice}
-                  onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
+                  value={formData.basePrice}
+                  onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
                   className="pl-10 h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all font-bold"
                   placeholder="0.00"
                   required
@@ -244,8 +260,8 @@ export default function ProductModal({
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.cost === 0 ? '' : formData.cost}
-                  onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                   className="pl-10 h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
                   placeholder="0.00"
                   disabled={loading}
@@ -261,8 +277,8 @@ export default function ProductModal({
               <Input
                 type="number"
                 min="0"
-                value={formData.stock === 0 ? '' : formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                 disabled={loading}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
                 placeholder="0"
@@ -277,8 +293,8 @@ export default function ProductModal({
               <Input
                 type="number"
                 min="0"
-                value={formData.minStock === 0 ? '' : formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
+                value={formData.minStock}
+                onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                 disabled={loading}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:ring-[#5750F1] transition-all"
                 placeholder="0"
@@ -328,10 +344,13 @@ export default function ProductModal({
                           
                           setLoading(true);
                           try {
-                            const body = new FormData();
-                            body.append('image', file);
+                            // Compress the product image on the client side to save storage, bandwidth, and upload super fast!
+                            const compressedFile = await compressImage(file, 800, 800, 0.75);
                             
-                            const res = await fetch('http://localhost:5000/api/upload/product', {
+                            const body = new FormData();
+                            body.append('image', compressedFile);
+                            
+                            const res = await fetch(`${API_BASE_URL}/upload/product`, {
                               method: 'POST',
                               body
                             });

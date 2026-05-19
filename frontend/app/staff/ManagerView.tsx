@@ -91,6 +91,7 @@ export function ManagerStaffPage() {
     handleDeleteStaff,
     handleDeleteCategory,
     handleProfileUpload,
+    handleLogoUpload,
     updateProfile,
     handleUnlinkProductFromLabel,
     handleDeleteLabel,
@@ -320,6 +321,7 @@ export function ManagerStaffPage() {
                   currentUser={currentUser}
                   company={company}
                   handleProfileUpload={handleProfileUpload}
+                  handleLogoUpload={handleLogoUpload}
                   updateProfile={updateProfile}
                 />
               )}

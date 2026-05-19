@@ -150,8 +150,19 @@ export const AdminUsers = ({
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold border border-slate-100 dark:border-slate-700">
-                          {user.name.charAt(0)}
+                        <div className="h-10 w-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold border border-slate-100 dark:border-slate-700 flex-shrink-0">
+                          {(user.photoURL || user.photo_url) ? (
+                            <img 
+                              src={user.photoURL || user.photo_url} 
+                              alt={user.name} 
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            user.name.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-[#111928] dark:text-white leading-tight mb-1">{user.name}</p>
@@ -221,13 +232,15 @@ export const AdminUsers = ({
                         >
                           <Key className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => onDelete(user.id)}
-                          className="p-2 rounded-lg text-[#637381] dark:text-slate-400 hover:text-[#FB5050] hover:bg-[#FB5050]/5 transition-all"
-                          title="Delete Vendor"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {user.role !== 'admin' && (
+                          <button
+                            onClick={() => onDelete(user.id)}
+                            className="p-2 rounded-lg text-[#637381] dark:text-slate-400 hover:text-[#FB5050] hover:bg-[#FB5050]/5 transition-all"
+                            title="Delete Vendor"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </motion.tr>

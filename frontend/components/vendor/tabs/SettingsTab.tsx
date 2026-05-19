@@ -28,7 +28,7 @@ interface SettingsTabProps {
   company: Company | null;
   handleProfileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  updateProfile: (data: { name: string; phone?: string; taxId?: string; address?: string }) => Promise<void>;
+  updateProfile: (data: { name: string; companyName?: string; phone?: string; taxId?: string; address?: string }) => Promise<void>;
 }
 
 export const SettingsTab = ({
@@ -42,6 +42,7 @@ export const SettingsTab = ({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profileData, setProfileData] = useState({
     name: currentUser?.name || '',
+    companyName: company?.name || '',
     phone: company?.phone || '',
     taxId: company?.taxId || '',
     address: company?.address || '',
@@ -52,6 +53,7 @@ export const SettingsTab = ({
     if (currentUser || company) {
       setProfileData({
         name: currentUser?.name || '',
+        companyName: company?.name || '',
         phone: company?.phone || '',
         taxId: company?.taxId || '',
         address: company?.address || '',
@@ -60,7 +62,8 @@ export const SettingsTab = ({
   }, [currentUser, company]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const isStaff = currentUser?.role === 'staff' || currentUser?.position === 'Manager';
+  const isVendor = currentUser?.role === 'vendor';
+  const isStaff = currentUser?.role !== 'vendor' && currentUser?.role !== 'admin';
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -100,7 +103,7 @@ export const SettingsTab = ({
            {t('save_changes')}
         </Button>
       </div>
-
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
            <div className="bg-white dark:bg-[#1C2434] p-8 border border-slate-200 dark:border-slate-800 text-center relative overflow-hidden">
@@ -156,7 +159,7 @@ export const SettingsTab = ({
          </div>
 
          <div className="lg:col-span-2 space-y-6">
-            {!isStaff && (
+            {isVendor && (
               <div className="bg-white dark:bg-[#1C2434] p-8 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-8 border-b border-slate-100 dark:border-slate-800 pb-4">
                   <Store className="h-4 w-4 text-[#5750F1]" />
@@ -165,8 +168,8 @@ export const SettingsTab = ({
                 
                 <div className="flex flex-col md:flex-row items-center gap-8">
                   <div className="h-24 w-24 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                    {company?.logoUrl ? (
-                      <img src={company.logoUrl} className="h-full w-full object-contain p-2" alt="Store Logo" />
+                    {(company?.logoUrl || currentUser?.companyLogo) ? (
+                      <img src={company?.logoUrl || currentUser?.companyLogo} className="h-full w-full object-contain p-2" alt="Store Logo" />
                     ) : (
                       <div className="flex flex-col items-center gap-1 opacity-20">
                         <LayoutGrid className="h-6 w-6" />
@@ -206,8 +209,11 @@ export const SettingsTab = ({
                 {isStaff ? t('personal_information') : t('corporate_credentials')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {/* For staff, only render personal name. For vendors, render both personal name and company details */}
                  <div className="space-y-2">
-                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('legal_entity')}</label>
+                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">
+                      {isStaff ? t('personal_information') : t('vendor_name')}
+                    </label>
                     <div className="relative">
                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                        <Input 
@@ -217,40 +223,64 @@ export const SettingsTab = ({
                        />
                     </div>
                  </div>
-                 <div className="space-y-2">
-                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('tax_identification')}</label>
-                    <div className="relative">
-                       <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                       <Input 
-                        value={profileData.taxId}
-                        onChange={(e) => setProfileData({...profileData, taxId: e.target.value})}
-                        placeholder="VAT-XXX-XXX-XXX"
-                        className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
-                       />
-                    </div>
-                 </div>
-                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('hq_address')}</label>
-                    <div className="relative">
-                       <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                       <Input 
-                        value={profileData.address}
-                        onChange={(e) => setProfileData({...profileData, address: e.target.value})}
-                        className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
-                       />
-                    </div>
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('contact_line')}</label>
-                    <div className="relative">
-                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                       <Input 
-                        value={profileData.phone}
-                        onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                        className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
-                       />
-                    </div>
-                 </div>
+
+                 {!isStaff && (
+                   <div className="space-y-2">
+                      <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('store_name')}</label>
+                      <div className="relative">
+                         <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                         <Input 
+                          value={profileData.companyName}
+                          onChange={(e) => setProfileData({...profileData, companyName: e.target.value})}
+                          className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
+                         />
+                      </div>
+                   </div>
+                 )}
+
+                 {!isStaff && (
+                   <div className="space-y-2">
+                      <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('tax_identification')}</label>
+                      <div className="relative">
+                         <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                         <Input 
+                          value={profileData.taxId}
+                          onChange={(e) => setProfileData({...profileData, taxId: e.target.value})}
+                          placeholder="VAT-XXX-XXX-XXX"
+                          className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
+                         />
+                      </div>
+                   </div>
+                 )}
+
+                 {!isStaff && (
+                   <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('hq_address')}</label>
+                      <div className="relative">
+                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                         <Input 
+                          value={profileData.address}
+                          onChange={(e) => setProfileData({...profileData, address: e.target.value})}
+                          className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
+                         />
+                      </div>
+                   </div>
+                 )}
+
+                 {!isStaff && (
+                   <div className="space-y-2">
+                      <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('contact_line')}</label>
+                      <div className="relative">
+                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                         <Input 
+                          value={profileData.phone}
+                          onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                          className="pl-11 h-12 rounded-none bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs" 
+                         />
+                      </div>
+                   </div>
+                 )}
+
                  <div className="space-y-2">
                     <label className="text-sm font-black text-[#111928] dark:text-white uppercase tracking-widest">{t('registered_email')}</label>
                     <div className="relative">
@@ -259,7 +289,7 @@ export const SettingsTab = ({
                     </div>
                  </div>
               </div>
-           </div>
+            </div>
         </div>
       </div>
     </div>

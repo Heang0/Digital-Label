@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 export interface Category {
   id: string;
@@ -40,10 +40,10 @@ export async function createCategory(companyId: string, categoryData: Omit<Categ
 
 // Delete a category
 export async function deleteCategory(categoryId: string) {
-  await deleteDoc(doc(db, 'categories', categoryId));
+  await deleteDoc(doc(db, 'categories', categoryId.toString()));
 }
 
 // Update a category
 export async function updateCategory(categoryId: string, updates: Partial<Category>) {
-  await updateDoc(doc(db, 'categories', categoryId), updates);
+  await setDoc(doc(db, 'categories', categoryId.toString()), updates, { merge: true });
 }

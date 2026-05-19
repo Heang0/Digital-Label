@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Bell, X, Check, Info, AlertTriangle, Zap, MessageSquare, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, deleteDoc, setDoc, where } from 'firebase/firestore';
 import { useUserStore } from '@/lib/user-store';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -78,7 +78,7 @@ export const NotificationDropdown = ({ onTabChange }: NotificationDropdownProps)
     try {
       const unread = notifications.filter(n => !n.read);
       await Promise.all(unread.map(n => 
-        updateDoc(doc(db, 'notifications', n.id), { read: true })
+        setDoc(doc(db, 'notifications', n.id.toString()), { read: true }, { merge: true })
       ));
     } catch (error) {
       console.error('Failed to mark all read:', error);
@@ -97,7 +97,7 @@ export const NotificationDropdown = ({ onTabChange }: NotificationDropdownProps)
     // 1. Mark as read
     if (!n.read) {
       try {
-        await updateDoc(doc(db, 'notifications', n.id), { read: true });
+        await setDoc(doc(db, 'notifications', n.id.toString()), { read: true }, { merge: true });
       } catch (err) {
         console.error('Failed to mark read:', err);
       }

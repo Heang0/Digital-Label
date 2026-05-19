@@ -83,6 +83,9 @@ export interface StaffMember {
   permissions: StaffPermissions;
   lastLogin?: Timestamp | Date;
   createdAt: Timestamp | Date;
+  photoURL?: string;
+  photo_url?: string;
+  photo?: string;
 }
 
 export interface DigitalLabel {

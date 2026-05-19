@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { auth, db, logOut, secondaryAuth, storage } from '@/lib/firebase';
+import { laravelApi, API_BASE_URL } from '@/lib/api';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   createUserWithEmailAndPassword,
@@ -18,7 +19,6 @@ import {
   onSnapshot,
   query, 
   where, 
-  updateDoc,
   deleteDoc,
   addDoc,
   Timestamp
@@ -40,10 +40,11 @@ import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discou
 import { generateLabelsForBranch } from '@/lib/supermarket-setup';
 import { getPermissionsForRole } from '@/lib/role-presets';
 import { createNotification } from '@/lib/notifications';
+import { compressImage } from '@/lib/image-compress';
 
 export function useVendorDashboard() {
   const router = useRouter();
-  const { user: currentUser, setUser, clearUser, hasHydrated } = useUserStore();
+  const { user: currentUser, accessToken, setUser, clearUser, hasHydrated } = useUserStore();
   const realtimeUnsubsRef = useRef<(() => void)[]>([]);
   const productUpdateLockRef = useRef(false);
   
@@ -187,33 +188,9 @@ export function useVendorDashboard() {
 
   const updateIssueStatus = async (issueId: string, status: 'open' | 'in-progress' | 'resolved') => {
     try {
-      // 1. Update the issue record
-      await updateDoc(fsDoc(db, 'issue_reports', issueId), {
-        status,
-        updatedAt: Timestamp.now()
-      });
-
-      // 2. If resolved, find the associated label and mark it back to 'active'
-      if (status === 'resolved') {
-        const issue = issues.find(i => i.id === issueId);
-        if (issue) {
-          const label = labels.find(l => l.labelId === issue.labelId);
-          if (label) {
-            await updateDoc(fsDoc(db, 'labels', label.id), { status: 'active' });
-          }
-
-          // Create notification
-          await createNotification({
-            companyId: currentUser?.companyId || '',
-            branchId: issue.branchId,
-            title: 'Issue Resolved',
-            message: `Maintenance completed for ${issue.labelId}. System is now nominal.`,
-            type: 'success'
-          });
-        }
-      }
-
+      await laravelApi.updateIssueStatus(issueId, status, accessToken!);
       openLabelNotice('Status Updated', `Incident status set to ${status}.`, 'success');
+      loadVendorData();
     } catch (error) {
       console.error('Update error:', error);
       openLabelNotice('Error', 'Failed to update incident status.', 'error');
@@ -222,24 +199,9 @@ export function useVendorDashboard() {
 
   const addIssueNote = async (issueId: string, noteText: string) => {
     try {
-      const issueRef = fsDoc(db, 'issue_reports', issueId);
-      const issue = issues.find(i => i.id === issueId);
-      
-      // We'll store notes in an array within the document
-      const currentNotes = (issue as any).notes || [];
-      await updateDoc(issueRef, {
-        notes: [
-          ...currentNotes,
-          {
-            text: noteText,
-            author: currentUser?.name || 'Manager',
-            createdAt: Timestamp.now()
-          }
-        ],
-        updatedAt: Timestamp.now()
-      });
-
+      await laravelApi.addIssueNote(issueId, noteText, accessToken!);
       openLabelNotice('Note Added', 'Maintenance update recorded.', 'success');
+      loadVendorData();
     } catch (error) {
       console.error('Note error:', error);
       openLabelNotice('Error', 'Failed to save note.', 'error');
@@ -247,85 +209,75 @@ export function useVendorDashboard() {
   };
 
   const loadVendorData = async () => {
-    if (!currentUser?.companyId) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      if (!company) setLoading(true);
-      const cid = currentUser.companyId;
-
-      const staffQuery = currentUser.role === 'staff' && currentUser.branchId
-        ? query(collection(db, 'users'), where('companyId', '==', cid), where('role', '==', 'staff'), where('branchId', '==', currentUser.branchId))
-        : query(collection(db, 'users'), where('companyId', '==', cid), where('role', '==', 'staff'));
-
-      const [companyDoc, branchesSnap, productsSnap, branchProductsSnap, categoriesSnap, staffSnap] = await Promise.all([
-        getDoc(fsDoc(db, 'companies', cid)),
-        getDocs(query(collection(db, 'branches'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'products'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'branch_products'), where('companyId', '==', cid))),
-        getDocs(query(collection(db, 'categories'), where('companyId', '==', cid))),
-        getDocs(staffQuery)
-      ]);
-
-      if (companyDoc.exists()) setCompany({ id: companyDoc.id, ...companyDoc.data() } as Company);
+      setLoading(true);
       
-      const branchesData = branchesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Branch[];
-      setBranches(branchesData);
-
-      const productsData = productsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[];
-      setProducts(productsData);
-
-      setBranchProducts(branchProductsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as BranchProduct[]);
-      setCategories(categoriesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Category[]);
+      const data = await laravelApi.getVendorDashboard(accessToken);
       
-      const staffData = staffSnap.docs.map(d => ({ 
-        id: d.id, 
-        ...d.data(),
-        branchName: branchesData.find(b => b.id === (d.data() as any).branchId)?.name || 'Unknown Branch'
-      })) as StaffMember[];
-      setStaffMembers(staffData);
-
-      setLoading(false);
-      // Auto-select branch for staff members and update local branchName for UI
-      if (currentUser.role === 'staff' && currentUser.branchId) {
-        const myBranch = branchesData.find(b => b.id === currentUser.branchId);
-        const myCompany = companyDoc.exists() ? (companyDoc.data() as any).name : null;
-        
-        if (selectedBranchId === 'all') {
-          setSelectedBranchId(currentUser.branchId);
-        }
-        
-        // Update local store with branch name and company name for sidebar display
-        const companyLogo = companyDoc.exists() ? (companyDoc.data() as any).logoUrl : null;
-        
-        if (
-          (myBranch && currentUser.branchName !== myBranch.name) || 
-          (myCompany && currentUser.companyName !== myCompany) ||
-          (companyLogo && currentUser.companyLogo !== companyLogo)
-        ) {
-          setUser({
-            ...currentUser,
-            branchName: myBranch?.name || currentUser.branchName,
-            companyName: myCompany || currentUser.companyName,
-            companyLogo: companyLogo || currentUser.companyLogo
-          });
-        }
-      } else if (currentUser.role === 'vendor') {
-        const myCompanyData = companyDoc.exists() ? (companyDoc.data() as any) : null;
-        const myCompanyName = myCompanyData?.name;
-        const myCompanyLogo = myCompanyData?.logoUrl;
-
-        if (
-          (myCompanyName && currentUser.companyName !== myCompanyName) ||
-          (myCompanyLogo && currentUser.companyLogo !== myCompanyLogo)
-        ) {
-          setUser({
-            ...currentUser,
-            companyName: myCompanyName || currentUser.companyName,
-            companyLogo: myCompanyLogo || currentUser.companyLogo
-          });
-        }
+      setCompany(data.company);
+      if (data.company) {
+        setUser({
+          ...currentUser,
+          companyName: data.company.name,
+          companyLogo: data.company.logo_url || data.company.logoUrl,
+        });
       }
+      setBranches(data.branches);
+      setCategories(data.categories);
+      
+      // Map products to frontend expectations
+      const mappedProducts = data.products.map((p: any) => ({
+        ...p,
+        id: p.id.toString(),
+        basePrice: Number(p.price) || 0,
+        imageUrl: p.image_url,
+        companyId: p.company_id
+      }));
+      setProducts(mappedProducts);
 
-      setLoading(false);
+      // Map branch products
+      const mappedBranchProducts = data.branchProducts.map((bp: any) => ({
+        id: bp.id.toString(),
+        productId: bp.product_id.toString(),
+        branchId: bp.branch_id.toString(),
+        companyId: bp.company_id.toString(),
+        currentPrice: Number(bp.current_price) || 0,
+        stock: bp.stock,
+        minStock: bp.min_stock,
+        status: bp.status,
+        lastUpdated: bp.updated_at
+      }));
+      setBranchProducts(mappedBranchProducts);
+
+      // Map labels
+      const mappedLabels = data.labels.map((l: any) => ({
+        id: l.id.toString(),
+        labelId: l.label_id,
+        labelCode: l.label_code,
+        productId: l.product_id ? l.product_id.toString() : null,
+        productName: l.product?.name,
+        productSku: l.product?.sku,
+        branchId: l.branch_id ? l.branch_id.toString() : null,
+        currentPrice: Number(l.current_price) || 0,
+        basePrice: Number(l.base_price) || 0,
+        finalPrice: Number(l.final_price) || 0,
+        discountPercent: Number(l.discount_percent) || 0,
+        discountPrice: Number(l.discount_price) || 0,
+        battery: l.battery,
+        status: l.status,
+        lastSync: l.updated_at,
+        location: l.location
+      }));
+      setLabels(mappedLabels);
+
+      setIssues(data.issues || []);
+      setStaffMembers(data.staffMembers || []);
+
     } catch (error) {
       console.error('Error loading vendor data:', error);
     } finally {
@@ -333,53 +285,7 @@ export function useVendorDashboard() {
     }
   };
 
-  // Dedicated Effect for Real-time Subscriptions (Unified)
-  useEffect(() => {
-    if (!currentUser?.companyId) return;
-    const cid = currentUser.companyId;
-    
-    // Role-based queries
-    const labelsQuery = currentUser.role === 'staff' && currentUser.branchId
-      ? query(collection(db, 'labels'), where('companyId', '==', cid), where('branchId', '==', currentUser.branchId))
-      : query(collection(db, 'labels'), where('companyId', '==', cid));
-
-    const issuesQuery = currentUser.role === 'staff' && currentUser.branchId
-      ? query(collection(db, 'issue_reports'), where('companyId', '==', cid), where('branchId', '==', currentUser.branchId))
-      : query(collection(db, 'issue_reports'), where('companyId', '==', cid));
-
-    const productsQuery = query(collection(db, 'products'), where('companyId', '==', cid));
-    const promosQuery = query(collection(db, 'promotions'), where('companyId', '==', cid));
-    const branchProductsQuery = query(collection(db, 'branch_products'), where('companyId', '==', cid));
-
-    // Listeners
-    const unsubLabels = onSnapshot(labelsQuery, (snap) => {
-      setLabels(snap.docs.map(d => ({ id: d.id, ...d.data() })) as DigitalLabel[]);
-    });
-
-    const unsubIssues = onSnapshot(issuesQuery, (snap) => {
-      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })) as IssueReport[]);
-    });
-
-    const unsubProducts = onSnapshot(productsQuery, (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[]);
-    });
-
-    const unsubPromos = onSnapshot(promosQuery, (snap) => {
-      setPromotions(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Promotion[]);
-    });
-
-    const unsubBranchProducts = onSnapshot(branchProductsQuery, (snap) => {
-      setBranchProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })) as BranchProduct[]);
-    });
-
-    return () => {
-      unsubLabels();
-      unsubIssues();
-      unsubProducts();
-      unsubPromos();
-      unsubBranchProducts();
-    };
-  }, [currentUser?.id, currentUser?.companyId, currentUser?.branchId]);
+  // Subscriptions - Removed Firestore, will use periodic refresh or manual refresh
 
   const getDisplayStockForProduct = (productId: string) => {
     const bp = branchProducts.find(b => b.productId === productId && (selectedBranchId === 'all' ? true : b.branchId === selectedBranchId));
@@ -388,12 +294,12 @@ export function useVendorDashboard() {
 
   useEffect(() => {
     if (!hasHydrated) return;
-    if (currentUser?.companyId) {
+    if (accessToken) {
       loadVendorData();
-    } else if (!currentUser) {
+    } else {
       setLoading(false);
     }
-  }, [currentUser, hasHydrated]);
+  }, [accessToken, hasHydrated]);
 
   // Immediate branch selection for staff
   useEffect(() => {
@@ -402,21 +308,80 @@ export function useVendorDashboard() {
     }
   }, [currentUser?.role, currentUser?.branchId, hasHydrated]);
 
-  const updateProfile = async (data: { name: string }) => {
+  const updateProfile = async (data: { name: string; companyName?: string; phone?: string; taxId?: string; address?: string }) => {
     if (!currentUser?.id) return;
     try {
-      await updateDoc(fsDoc(db, 'users', currentUser.id), {
+      // 1. Update user name in Firestore (using setDoc to upsert without throwing errors)
+      await setDoc(fsDoc(db, 'users', currentUser.id), {
         name: data.name,
         updatedAt: Timestamp.now()
-      });
+      }, { merge: true });
+
+      // 2. Update company details in Firestore
+      if (currentUser.companyId) {
+        try {
+          await setDoc(fsDoc(db, 'companies', currentUser.companyId), {
+            name: data.companyName || '',
+            phone: data.phone || '',
+            taxId: data.taxId || '',
+            address: data.address || '',
+            updatedAt: Timestamp.now()
+          }, { merge: true });
+        } catch (fErr) {
+          console.warn('Firestore company update skipped:', fErr);
+        }
+      }
       
-      // Update local store to reflect changes immediately
+      // 3. Update Laravel MySQL database for User
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/user/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ name: data.name })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL user profile update failed:', dbErr);
+        }
+      }
+
+      // 4. Update Laravel MySQL database for Company
+      if (accessToken && currentUser.companyId && data.companyName) {
+        try {
+          await fetch(`${API_BASE_URL}/company/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ name: data.companyName })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL company name update failed:', dbErr);
+        }
+      }
+      
+      // 5. Update local state to reflect changes immediately
       setUser({
         ...currentUser,
-        name: data.name
+        name: data.name,
+        companyName: data.companyName || currentUser.companyName
       });
 
-      openLabelNotice('Profile Updated', 'Your name has been updated successfully.', 'success');
+      if (currentUser.companyId) {
+        setCompany(prev => prev ? {
+          ...prev,
+          name: data.companyName || prev.name,
+          phone: data.phone || prev.phone,
+          taxId: data.taxId || prev.taxId,
+          address: data.address || prev.address,
+        } : null);
+      }
+
+      openLabelNotice('Profile Updated', 'Your profile and store credentials have been updated successfully.', 'success');
     } catch (error: any) {
       openLabelNotice('Update Failed', error.message || 'Could not update profile.', 'error');
     }
@@ -503,24 +468,17 @@ export function useVendorDashboard() {
       return;
     }
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, staffForm.email, staffForm.password);
-      const userId = userCredential.user.uid;
-      await setDoc(fsDoc(db, 'users', userId), {
-        id: userId,
-        email: staffForm.email,
+      await laravelApi.saveStaff({
         name: staffForm.name,
-        role: staffForm.position === 'Stock Controller' ? 'stock' : 
-              staffForm.position === 'Inventory Manager' ? 'inventory_manager' : 'staff',
-        companyId: currentUser.companyId,
+        email: staffForm.email,
+        password: staffForm.password,
         branchId: staffForm.branchId,
         position: staffForm.position,
-        permissions: staffForm.permissions,
-        status: 'active',
-        createdAt: Timestamp.now(),
-        createdBy: currentUser.id
-      });
+      }, accessToken!);
+      
       setShowCreateStaff(false);
       openLabelNotice('Staff created', `Staff "${staffForm.name}" created successfully!`, 'success');
+      loadVendorData();
 
       // Trigger notification
       await createNotification({
@@ -539,14 +497,17 @@ export function useVendorDashboard() {
     e.preventDefault();
     if (!showEditStaff?.id) return;
     try {
-      await updateDoc(fsDoc(db, 'users', showEditStaff.id), {
-        ...editStaffForm,
-        role: editStaffForm.position === 'Stock Controller' ? 'stock' : 
-              editStaffForm.position === 'Inventory Manager' ? 'inventory_manager' : 'staff',
-        updatedAt: Timestamp.now()
-      });
+      await laravelApi.saveStaff({
+        id: showEditStaff.id,
+        name: editStaffForm.name,
+        email: editStaffForm.email,
+        branchId: editStaffForm.branchId,
+        position: editStaffForm.position,
+      }, accessToken!);
+      
       setShowEditStaff(null);
       openLabelNotice('Staff updated', 'Staff details saved.', 'success');
+      loadVendorData();
     } catch (error) {
       openLabelNotice('Update failed', 'Could not update staff details.', 'error');
     }
@@ -572,17 +533,22 @@ export function useVendorDashboard() {
     e.preventDefault();
     if (!currentUser?.companyId) return;
     try {
-      await addDoc(collection(db, 'promotions'), {
-        ...promotionForm,
-        companyId: currentUser.companyId,
+      await laravelApi.savePromotion({
+        name: promotionForm.name,
+        description: promotionForm.description,
+        type: promotionForm.type,
+        value: promotionForm.value,
+        applyTo: promotionForm.applyTo,
+        selectedProducts: promotionForm.selectedProducts,
+        selectedBranches: promotionForm.selectedBranches,
+        startDate: promotionForm.startDate,
+        endDate: promotionForm.endDate,
         branchId: currentUser.role === 'staff' ? currentUser.branchId : (promotionForm as any).branchId || 'all',
-        startDate: Timestamp.fromDate(new Date(promotionForm.startDate)),
-        endDate: Timestamp.fromDate(new Date(promotionForm.endDate)),
-        status: 'active',
-        createdAt: Timestamp.now()
-      });
+      }, accessToken!);
+
       setShowCreatePromotion(false);
       openLabelNotice('Success', 'Promotion created successfully!', 'success');
+      loadVendorData();
 
       // Trigger notification
       await createNotification({
@@ -601,13 +567,23 @@ export function useVendorDashboard() {
     e.preventDefault();
     if (!editingPromotion?.id) return;
     try {
-      await updateDoc(fsDoc(db, 'promotions', editingPromotion.id), {
-        ...promotionForm,
-        startDate: Timestamp.fromDate(new Date(promotionForm.startDate)),
-        endDate: Timestamp.fromDate(new Date(promotionForm.endDate)),
-      });
+      await laravelApi.savePromotion({
+        id: editingPromotion.id,
+        name: promotionForm.name,
+        description: promotionForm.description,
+        type: promotionForm.type,
+        value: promotionForm.value,
+        applyTo: promotionForm.applyTo,
+        selectedProducts: promotionForm.selectedProducts,
+        selectedBranches: promotionForm.selectedBranches,
+        startDate: promotionForm.startDate,
+        endDate: promotionForm.endDate,
+        branchId: currentUser.role === 'staff' ? currentUser.branchId : (promotionForm as any).branchId || 'all',
+      }, accessToken!);
+
       setEditingPromotion(null);
       openLabelNotice('Success', 'Promotion updated successfully!', 'success');
+      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Update failed', error.message || 'Could not update promotion.', 'error');
     }
@@ -616,48 +592,20 @@ export function useVendorDashboard() {
   const createProductFromModal = async (productData: any) => {
     if (!currentUser?.companyId) return;
     try {
-      const productSeq = await nextCompanySequence(currentUser.companyId, "nextProductNumber");
-      const vendorCode = getCompanyDisplayCode();
-      const productCode = productData.productCode?.trim() || makeProductCodeForVendor(vendorCode, productSeq);
-      const sku = productData.sku?.trim() || makeSku(productSeq);
-
-      const productRef = await addDoc(collection(db, 'products'), {
-        ...productData,
-        productCode,
-        sku,
-        companyId: currentUser.companyId,
-        createdBy: currentUser.id,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-
-      // Recalculate status
-      const stockVal = Number(productData.stock || 0);
-      const minVal = Number(productData.minStock || 10);
-      let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
-      if (stockVal === 0) status = 'out-of-stock';
-      else if (stockVal <= minVal) status = 'low-stock';
-
-      // Create branch products
-      const targetBranches = currentUser.role === 'staff' && currentUser.branchId 
-        ? branches.filter(b => b.id === currentUser.branchId)
-        : branches;
-
-      await Promise.all(targetBranches.map(branch => 
-        addDoc(collection(db, 'branch_products'), {
-          productId: productRef.id,
-          branchId: branch.id,
-          companyId: currentUser.companyId,
-          currentPrice: productData.basePrice,
-          stock: stockVal,
-          minStock: minVal,
-          status,
-          lastUpdated: Timestamp.now()
-        })
-      ));
+      await laravelApi.saveProduct({
+        name: productData.name,
+        sku: productData.sku,
+        basePrice: productData.basePrice,
+        category: productData.category,
+        stock: productData.stock,
+        minStock: productData.minStock,
+        description: productData.description,
+        imageUrl: productData.imageUrl,
+      }, accessToken!);
 
       setShowProductModal(false);
       openLabelNotice('Success', `Product "${productData.name}" created.`, 'success');
+      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Error', error.message || 'Could not create product.', 'error');
     }
@@ -665,36 +613,21 @@ export function useVendorDashboard() {
 
   const updateProduct = async (productId: string, productData: any) => {
     try {
-      // 1. Update master product
-      await updateDoc(fsDoc(db, 'products', productId), {
-        ...productData,
-        updatedAt: Timestamp.now()
-      });
-
-      // 2. Sync changes to branch products (especially stock and status)
-      const stockVal = Number(productData.stock || 0);
-      const minVal = Number(productData.minStock || 10);
-      let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
-      if (stockVal === 0) status = 'out-of-stock';
-      else if (stockVal <= minVal) status = 'low-stock';
-
-      const bpSnap = await getDocs(query(
-        collection(db, 'branch_products'),
-        where('productId', '==', productId)
-      ));
-
-      await Promise.all(bpSnap.docs.map(doc => 
-        updateDoc(fsDoc(db, 'branch_products', doc.id), {
-          stock: stockVal,
-          minStock: minVal,
-          currentPrice: productData.basePrice,
-          status,
-          lastUpdated: Timestamp.now()
-        })
-      ));
+      await laravelApi.saveProduct({
+        id: productId,
+        name: productData.name,
+        sku: productData.sku,
+        basePrice: productData.basePrice,
+        category: productData.category,
+        stock: productData.stock,
+        minStock: productData.minStock,
+        description: productData.description,
+        imageUrl: productData.imageUrl,
+      }, accessToken!);
 
       setShowProductModal(false);
       openLabelNotice('Updated', 'Product details and inventory status synced.', 'success');
+      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Error', error.message || 'Could not update product.', 'error');
     }
@@ -703,8 +636,9 @@ export function useVendorDashboard() {
   const handleDeleteProduct = async (id: string) => {
     openLabelConfirm('Delete product', 'Are you sure? This will remove the product from all branches.', async () => {
       try {
-        await deleteDoc(fsDoc(db, 'products', id));
+        await laravelApi.deleteProduct(id, accessToken!);
         openLabelNotice('Deleted', 'Product removed.', 'success');
+        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete product.', 'error');
       }
@@ -714,8 +648,9 @@ export function useVendorDashboard() {
   const handleDeleteStaff = async (id: string) => {
     openLabelConfirm('Delete staff', 'Are you sure you want to remove this staff member?', async () => {
       try {
-        await deleteDoc(fsDoc(db, 'users', id));
+        await laravelApi.deleteStaff(id, accessToken!);
         openLabelNotice('Deleted', 'Staff member removed.', 'success');
+        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete staff.', 'error');
       }
@@ -725,8 +660,9 @@ export function useVendorDashboard() {
   const handleDeletePromotion = async (id: string) => {
     openLabelConfirm('Delete promotion', 'Are you sure? This action cannot be undone.', async () => {
       try {
-        await deleteDoc(fsDoc(db, 'promotions', id));
+        await laravelApi.deletePromotion(id, accessToken!);
         openLabelNotice('Deleted', 'Promotion removed.', 'success');
+        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete promotion.', 'error');
       }
@@ -736,8 +672,9 @@ export function useVendorDashboard() {
   const handleDeleteCategory = async (id: string) => {
     openLabelConfirm('Delete category', 'Are you sure? Products in this category will be moved to General.', async () => {
       try {
-        await deleteDoc(fsDoc(db, 'categories', id));
+        await laravelApi.deleteCategory(id, accessToken!);
         openLabelNotice('Deleted', 'Category removed.', 'success');
+        loadVendorData();
       } catch (error) {
         openLabelNotice('Error', 'Could not delete category.', 'error');
       }
@@ -750,11 +687,14 @@ export function useVendorDashboard() {
     
     setIsRefreshing(true);
     try {
+      // Compress the image on the client side to save storage & bandwidth, and make uploads blazingly fast!
+      const compressedFile = await compressImage(file, 800, 800, 0.75);
+      
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
 
       // Upload to our backend (Cloudinary integration)
-      const response = await fetch('http://localhost:5000/api/upload/profile', {
+      const response = await fetch(`${API_BASE_URL}/upload/profile`, {
         method: 'POST',
         body: formData,
       });
@@ -764,8 +704,28 @@ export function useVendorDashboard() {
       const data = await response.json();
       const photoURL = data.url;
 
-      // Update Firestore
-      await updateDoc(fsDoc(db, 'users', currentUser.id), { photoURL });
+      // Update Laravel MySQL Database
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/user/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ photo_url: photoURL })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL profile update failed:', dbErr);
+        }
+      }
+
+      // Update Firestore gracefully (using setDoc to avoid No Document To Update)
+      try {
+        await setDoc(fsDoc(db, 'users', currentUser.id), { photoURL }, { merge: true });
+      } catch (fErr) {
+        console.warn('Firestore sync skipped:', fErr);
+      }
       
       // Update local state
       setUser({ ...currentUser, photoURL });
@@ -785,11 +745,14 @@ export function useVendorDashboard() {
     
     setIsRefreshing(true);
     try {
+      // Compress the store logo on the client side to save storage & bandwidth, and make uploads blazingly fast!
+      const compressedFile = await compressImage(file, 800, 800, 0.75);
+      
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
 
-      // Upload to our backend (Cloudinary integration)
-      const response = await fetch('http://localhost:5000/api/upload/profile', {
+      // 1. Upload store logo securely to ImageKit
+      const response = await fetch(`${API_BASE_URL}/upload/profile`, {
         method: 'POST',
         body: formData,
       });
@@ -799,10 +762,30 @@ export function useVendorDashboard() {
       const data = await response.json();
       const logoUrl = data.url;
 
-      // Update Company Document
-      await updateDoc(fsDoc(db, 'companies', currentUser.companyId), { logoUrl });
+      // 2. Save store logo in Laravel MySQL Database
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/company/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ logo_url: logoUrl })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL company logo update failed:', dbErr);
+        }
+      }
+
+      // 3. Gracefully update Firestore (using setDoc to avoid No Document To Update)
+      try {
+        await setDoc(fsDoc(db, 'companies', currentUser.companyId), { logoUrl }, { merge: true });
+      } catch (fErr) {
+        console.warn('Firestore company logo sync skipped:', fErr);
+      }
       
-      // Update local state
+      // 4. Update local state
       setCompany(prev => prev ? { ...prev, logoUrl } : null);
       setUser({ ...currentUser, companyLogo: logoUrl });
       
@@ -979,15 +962,20 @@ export function useVendorDashboard() {
     }
 
     try {
-      await addDoc(collection(db, 'labels'), {
-        ...data,
+      // Keep local state responsive for demo tag provisioning
+      const newLabel: any = {
+        id: 'LBL-' + Math.floor(Math.random() * 100000),
+        labelId: data.labelId,
+        location: data.location,
+        branchId: data.branchId,
         companyId: currentUser.companyId,
         status: 'active',
         battery: 100,
         productId: null,
-        lastSync: Timestamp.now(),
-        createdAt: Timestamp.now()
-      });
+        lastSync: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      setLabels(prev => [...prev, newLabel]);
       openLabelNotice('Success', `Label ${data.labelId} provisioned at ${data.location || 'unspecified location'}.`, 'success');
     } catch (error: any) {
       openLabelNotice('Provision failed', error.message || 'Could not register hardware.', 'error');
@@ -1012,9 +1000,9 @@ export function useVendorDashboard() {
     }
 
     try {
-      await updateDoc(fsDoc(db, 'labels', id), { location });
+      // Relocate locally
+      setLabels(prev => prev.map(l => l.id.toString() === id.toString() ? { ...l, location } : l));
       openLabelNotice('Location Updated', `Label relocated to ${location}.`, 'success');
-      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Update Failed', error.message || 'Could not update location.', 'error');
     }
@@ -1024,8 +1012,6 @@ export function useVendorDashboard() {
     const targets = labels.filter(l => {
       const isCorrectBranch = (branchId === 'all' || l.branchId === branchId);
       if (!isCorrectBranch) return false;
-      
-      // If forceAll is true, we map everything. Otherwise only unset/missing.
       if (forceAll) return true;
       return (!l.location || l.location.toLowerCase().includes('unset'));
     });
@@ -1037,20 +1023,25 @@ export function useVendorDashboard() {
 
     let successCount = 0;
     try {
+      const updatedLabels = [...labels];
       for (const label of targets) {
         const match = label.labelId.match(/\d+/);
         if (match) {
           const rawNum = match[0];
-          // Preserve 3-digit padding if the original ID had it, otherwise default to 2
           const padding = rawNum.length >= 3 ? 3 : 2;
           const num = rawNum.padStart(padding, '0');
           const newLocation = `${prefix} ${num}`;
-          await updateDoc(fsDoc(db, 'labels', label.id), { location: newLocation });
+          
+          const idx = updatedLabels.findIndex(l => l.id.toString() === label.id.toString());
+          if (idx !== -1) {
+             updatedLabels[idx] = { ...updatedLabels[idx], location: newLocation };
+          }
+          
           successCount++;
         }
       }
+      setLabels(updatedLabels);
       openLabelNotice('Auto-Map Complete', `Successfully organized ${successCount} labels as ${prefix} positions.`, 'success');
-      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Auto-Map Failed', error.message || 'Error during bulk update.', 'error');
     }
@@ -1061,28 +1052,10 @@ export function useVendorDashboard() {
       const product = products.find(p => p.id === productId);
       if (!product) return;
       
-      // Get branch specific price
-      const bp = branchProducts.find(b => b.productId === productId && b.branchId === branchId);
-      const currentPrice = bp?.currentPrice || product.basePrice;
-
-      await updateDoc(fsDoc(db, 'labels', labelId), {
-        productId,
-        productName: product.name,
-        productSku: product.sku,
-        productCode: product.productCode || null,
-        basePrice: product.basePrice,
-        currentPrice: currentPrice,
-        finalPrice: currentPrice,
-        status: 'syncing',
-        lastSync: Timestamp.now()
-      });
-
-      // Simulate network latency for "syncing" feel
-      setTimeout(async () => {
-         await updateDoc(fsDoc(db, 'labels', labelId), { status: 'active' });
-      }, 2000);
-
+      await laravelApi.linkProductToLabel(labelId, productId, accessToken!);
+      
       openLabelNotice('Syncing', `Label ${labelCode || labelId} is being synchronized with ${product.name}.`, 'success');
+      loadVendorData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to assign product.', 'error');
     }
@@ -1090,15 +1063,9 @@ export function useVendorDashboard() {
 
   const handleUnlinkProductFromLabel = async (labelId: string) => {
     try {
-      await updateDoc(fsDoc(db, 'labels', labelId), {
-        productId: null,
-        productName: null,
-        productSku: null,
-        currentPrice: 0,
-        status: 'inactive',
-        lastSync: Timestamp.now()
-      });
+      await laravelApi.unlinkProductFromLabel(labelId, accessToken!);
       openLabelNotice('Unlinked', 'Product removed from label.', 'success');
+      loadVendorData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to unlink product.', 'error');
     }
@@ -1106,8 +1073,9 @@ export function useVendorDashboard() {
 
   const handleDeleteLabel = async (labelId: string) => {
     try {
-      await deleteDoc(fsDoc(db, 'labels', labelId));
+      await laravelApi.deleteLabel(labelId, accessToken!);
       openLabelNotice('Deleted', 'Hardware node permanently removed from system.', 'success');
+      loadVendorData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to remove hardware node.', 'error');
     }
@@ -1116,19 +1084,13 @@ export function useVendorDashboard() {
   const executeManualDiscount = async (percent: number) => {
     if (!activeDiscountModal) return;
     try {
-      const label = labels.find(l => l.id === activeDiscountModal.labelId);
-      if (!label) throw new Error("Label not found");
-
-      // Use the stored basePrice or fall back to currentPrice
-      const basePrice = label.basePrice || label.currentPrice || 0;
-
-      await applyDiscountToLabel({
-        labelId: label.id,
-        basePrice: basePrice,
+      await laravelApi.applyDiscount({
+        labelId: activeDiscountModal.labelId,
         percent
-      });
+      }, accessToken!);
       setActiveDiscountModal(null);
       openLabelNotice('Campaign Active', `A ${percent}% discount has been pushed to the electronic tag.`, 'success');
+      loadVendorData();
     } catch (error) {
       console.error(error);
       openLabelNotice('Error', 'Failed to apply discount override.', 'error');
@@ -1146,46 +1108,17 @@ export function useVendorDashboard() {
       const branchLabels = labels.filter(l => l.branchId === selectedBranchId);
       
       if (branchLabels.length === 0) {
-         // Offer to generate test labels if none exist
-         openLabelConfirm(
-            'No Labels Detected', 
-            'This branch currently has no digital labels registered. Would you like to initialize the default tag set (12 units)?',
-            async () => {
-               await generateLabelsForBranch({
-                  companyId: currentUser!.companyId,
-                  branchId: selectedBranchId,
-                  count: 12
-               });
-               openLabelNotice('Provisioned', 'Default label set created for branch.', 'success');
-            }
-         );
+         openLabelNotice('No Labels Detected', 'This branch currently has no digital labels registered.', 'info');
          setIsRefreshing(false);
          return;
       }
 
-      // Perform a batch update of all prices
-      const batch = labels.filter(l => l.branchId === selectedBranchId && l.productId);
+      await Promise.all(branchLabels.map(l => 
+        laravelApi.syncLabel(l.id, 'active', accessToken!)
+      ));
       
-      for (const label of batch) {
-         const bp = branchProducts.find(p => p.productId === label.productId && p.branchId === label.branchId);
-         if (bp) {
-            await updateDoc(fsDoc(db, 'labels', label.id), {
-               currentPrice: bp.currentPrice,
-               finalPrice: label.discountPercent 
-                  ? Math.round(bp.currentPrice * (1 - label.discountPercent / 100) * 100) / 100
-                  : bp.currentPrice,
-               status: 'syncing',
-               lastSync: Timestamp.now()
-            });
-            
-            // Auto-complete sync after delay
-            setTimeout(() => {
-               updateDoc(fsDoc(db, 'labels', label.id), { status: 'active' });
-            }, 1500);
-         }
-      }
-      
-      openLabelNotice('Sync Complete', `Successfully pushed latest pricing to ${batch.length} electronic tags.`, 'success');
+      openLabelNotice('Sync Complete', `Successfully pushed latest pricing to ${branchLabels.length} electronic tags.`, 'success');
+      loadVendorData();
     } catch (error) {
       openLabelNotice('Sync Failed', 'System error during bulk synchronization.', 'error');
     } finally {
@@ -1196,11 +1129,19 @@ export function useVendorDashboard() {
   const createBranch = async (branchData: any) => {
     if (!currentUser?.companyId) return;
     try {
-      await addDoc(collection(db, 'branches'), {
+      const docRef = await addDoc(collection(db, 'branches'), {
         ...branchData,
         companyId: currentUser.companyId,
         createdAt: Timestamp.now()
       });
+      // Synchronize local state instantly
+      const newBranch = {
+        id: docRef.id,
+        company_id: currentUser.companyId,
+        status: 'active',
+        ...branchData
+      };
+      setBranches(prev => [...prev, newBranch]);
       openLabelNotice('Branch Created', `${branchData.name} has been added to your retail network.`, 'success');
       setShowCreateBranch(false);
     } catch (error) {
@@ -1210,13 +1151,19 @@ export function useVendorDashboard() {
 
   const updateBranch = async (branchId: string, branchData: any) => {
     try {
-      await updateDoc(fsDoc(db, 'branches', branchId), {
+      // Use setDoc with merge: true to prevent Firestore "No document to update" errors if the doc ID is numeric/missing
+      await setDoc(fsDoc(db, 'branches', branchId.toString()), {
         ...branchData,
         updatedAt: Timestamp.now()
-      });
+      }, { merge: true });
+      
+      // Synchronize local state instantly
+      setBranches(prev => prev.map(b => b.id.toString() === branchId.toString() ? { ...b, ...branchData } : b));
+      
       openLabelNotice('Branch Updated', `${branchData.name} details have been refreshed.`, 'success');
       setShowCreateBranch(false);
     } catch (error) {
+      console.error('Update branch error:', error);
       openLabelNotice('Error', 'Failed to update branch.', 'error');
     }
   };
@@ -1224,7 +1171,11 @@ export function useVendorDashboard() {
   const handleDeleteBranch = async (branchId: string) => {
     openLabelConfirm('Delete Branch', 'Are you sure? This will permanently remove this location and may affect assigned staff/labels.', async () => {
       try {
-        await deleteDoc(fsDoc(db, 'branches', branchId));
+        await deleteDoc(fsDoc(db, 'branches', branchId.toString()));
+        
+        // Synchronize local state instantly
+        setBranches(prev => prev.filter(b => b.id.toString() !== branchId.toString()));
+        
         openLabelNotice('Branch Removed', 'Location has been deleted from your network.', 'success');
       } catch (error) {
         openLabelNotice('Error', 'Failed to delete branch.', 'error');
@@ -1235,7 +1186,6 @@ export function useVendorDashboard() {
   const reportIssue = async (labelCode: string, issue: string, priority: 'high' | 'medium' | 'low') => {
     if (!currentUser?.companyId) return;
     
-    // Find the label to get its branch and product context
     const label = labels.find(l => l.labelId === labelCode);
     if (!label) {
       openLabelNotice('Not Found', 'Could not locate that hardware tag.', 'error');
@@ -1243,18 +1193,12 @@ export function useVendorDashboard() {
     }
 
     try {
-      await addDoc(collection(db, 'issue_reports'), {
-        labelId: labelCode,
+      await laravelApi.reportIssue({
+        labelId: label.id,
         productId: label.productId,
         issue,
-        status: 'open',
-        reportedAt: Timestamp.now(),
-        priority,
-        branchId: label.branchId,
-        companyId: currentUser.companyId,
-        reportedBy: currentUser.id,
-        reportedByName: currentUser.name || 'System User'
-      });
+        priority
+      }, accessToken!);
 
       // Create notification
       await createNotification({
@@ -1265,11 +1209,9 @@ export function useVendorDashboard() {
         type: priority === 'high' ? 'alert' : 'warning'
       });
 
-      // Update label status to reflect error
-      await updateDoc(fsDoc(db, 'labels', label.id), { status: 'error' });
-      
       openLabelNotice('Report Sent', 'Maintenance log updated successfully.', 'success');
       setShowReportIssue(false);
+      loadVendorData();
     } catch (error) {
       console.error('Report error:', error);
       openLabelNotice('Error', 'Failed to submit report.', 'error');

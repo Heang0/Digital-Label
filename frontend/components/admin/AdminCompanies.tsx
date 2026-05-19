@@ -144,8 +144,20 @@ export const AdminCompanies = ({
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="h-11 w-11 rounded-lg bg-[#5750F1]/5 dark:bg-[#5750F1]/10 flex items-center justify-center text-[#5750F1] border border-[#5750F1]/10 dark:border-[#5750F1]/20 transition-colors group-hover:bg-[#5750F1] group-hover:text-white">
-                          <Building2 className="h-5 w-5" />
+                        <div className="h-11 w-11 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center text-[#5750F1] border border-slate-200 dark:border-slate-700 overflow-hidden transition-all shadow-sm">
+                          {(company.logo_url || company.logoUrl) ? (
+                            <img 
+                              src={company.logo_url || company.logoUrl} 
+                              alt={company.name} 
+                              className="h-full w-full object-contain p-1"
+                              onError={(e) => {
+                                (e.target as any).style.display = 'none';
+                                const fallbackIcon = (e.target as any).nextSibling;
+                                if (fallbackIcon) fallbackIcon.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
+                          <Building2 className={`h-5 w-5 ${company.logo_url || company.logoUrl ? 'hidden' : 'block'}`} />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-[#111928] dark:text-white leading-tight mb-1">{company.name}</p>

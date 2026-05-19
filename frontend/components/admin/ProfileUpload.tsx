@@ -3,13 +3,12 @@
 import { useState, useRef } from 'react';
 import { Camera, Loader2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '@/lib/api';
 
 export const ProfileUpload = () => {
-  const { user, setUser } = useUserStore();
+  const { user, setUser, accessToken } = useUserStore();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,8 +75,8 @@ export const ProfileUpload = () => {
       const formData = new FormData();
       formData.append('image', compressedBlob, 'profile.webp');
 
-      // Upload to our backend
-      const response = await fetch('http://localhost:5000/api/upload/profile', {
+      // 1. Upload to ImageKit via our Laravel backend
+      const response = await fetch(`${API_BASE_URL}/upload/profile`, {
         method: 'POST',
         body: formData,
       });
@@ -87,12 +86,23 @@ export const ProfileUpload = () => {
       const data = await response.json();
       const photoURL = data.url;
 
-      // Update Firestore
-      await updateDoc(doc(db, 'users', user.id), {
-        photoURL: photoURL
-      });
+      // 2. Save in Laravel MySQL Database
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/user/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ photo_url: photoURL })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL profile update failed:', dbErr);
+        }
+      }
 
-      // Update local store
+      // 3. Update local store
       setUser({ ...user, photoURL });
       
       setPreview(null);

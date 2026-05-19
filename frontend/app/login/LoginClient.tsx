@@ -15,6 +15,7 @@ import {
   deleteCurrentUser,
 } from '@/lib/firebase';
 import { useUserStore } from '@/lib/user-store';
+import { laravelApi } from '@/lib/api';
 import { ROLE_PRESETS, StaffPosition } from '@/lib/role-presets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +33,7 @@ type DemoAccount = {
 export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useUserStore();
+  const { setUser, setToken } = useUserStore();
   const { t } = useLanguage();
 
   const [email, setEmail] = useState('');
@@ -92,10 +93,10 @@ export default function LoginClient() {
   const demoAccounts: DemoAccount[] = useMemo(
     () => [
       {
-        email: 'demo@digital-label.com',
-        password: 'demopassword123',
+        email: 'test@example.com',
+        password: 'password',
         role: 'vendor',
-        name: 'Vendor Demo',
+        name: 'Laravel Demo (MySQL)',
         icon: <Building2 className="h-4 w-4" />,
       },
       {
@@ -126,47 +127,24 @@ export default function LoginClient() {
     setIsLoading(true);
 
     try {
-      const userCredential = await signIn(email, password);
-
-      // If the user previously tried Google and we have a pending credential, link it now.
-      if (pendingCredential) {
-        await linkPendingCredentialToCurrentUser(pendingCredential);
-        setPendingCredential(null);
-        setPendingEmail('');
-      }
-
-      const userData = await getUserData(userCredential.user.uid);
+      // 🚀 Use Laravel API instead of Firebase
+      const response = await laravelApi.login({ email, password });
+      const userData = response.user;
+      const token = response.access_token;
 
       if (!userData) throw new Error('User data not found in database');
 
-      const isDemoStaff = selectedDemo === 'staff' || userData.email === 'staff.demo@store.com';
-      const normalizedUser = isDemoStaff
-        ? {
-          ...userData,
-          permissions: {
-            canViewProducts: true,
-            canUpdateStock: true,
-            canReportIssues: true,
-            canViewReports: true,
-            canChangePrices: true,
-            canCreateProducts: true,
-            canCreateLabels: true,
-            canCreatePromotions: true,
-            maxPriceChange: 0,
-          },
-        }
-        : userData;
+      // Map Laravel data to our expected format if needed
+      const normalizedUser = {
+        ...userData,
+        id: userData.id.toString(), 
+        role: userData.role || 'vendor',
+        companyId: userData.company_id,
+        branchId: userData.branch_id,
+        photoURL: userData.photo_url
+      };
 
-      // Apply role presets if staff user is missing permissions
-      if (normalizedUser.role === 'staff' && !normalizedUser.permissions && normalizedUser.position) {
-        const positionKey = normalizedUser.position as StaffPosition;
-        // Case insensitive matching for position
-        const presetKey = Object.keys(ROLE_PRESETS).find(k => k.toLowerCase() === (positionKey || '').toLowerCase()) as StaffPosition;
-        if (presetKey && ROLE_PRESETS[presetKey]) {
-          normalizedUser.permissions = ROLE_PRESETS[presetKey].permissions;
-        }
-      }
-
+      setToken(token);
       setUser(normalizedUser);
       
       const nextPath = searchParams.get('next');
@@ -183,15 +161,7 @@ export default function LoginClient() {
       }
     } catch (error: any) {
       setIsLoading(false);
-
-      if (error.code === 'auth/invalid-credential') setError('Invalid email or password. Please try again.');
-      else if (error.code === 'auth/user-not-found') setError('No account found with this email.');
-      else if (error.code === 'auth/wrong-password') setError('Incorrect password. Please try again.');
-      else if (error.code === 'auth/too-many-requests')
-        setError('Too many failed attempts. Please try again later.');
-      else if (error.code === 'auth/configuration-not-found')
-        setError('Firebase not configured. Please contact support.');
-      else setError(error.message || 'Failed to sign in. Please check your credentials.');
+      setError(error.message || 'Failed to sign in. Please check your credentials.');
     }
   };
 

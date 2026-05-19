@@ -9,7 +9,7 @@ import {
   getDoc,
   getDocs,
   query,
-  updateDoc,
+  setDoc,
   where,
   Timestamp,
 } from 'firebase/firestore';
@@ -240,17 +240,17 @@ export default function LabelProductPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      await updateDoc(doc(db, 'products', product.id), {
+      await setDoc(doc(db, 'products', product.id.toString()), {
         name,
         description: formState.description.trim(),
         updatedAt: Timestamp.now(),
-      });
+      }, { merge: true });
 
       if (branchProduct?.id) {
-        await updateDoc(doc(db, 'branch_products', branchProduct.id), {
+        await setDoc(doc(db, 'branch_products', branchProduct.id.toString()), {
           currentPrice: branchPrice,
           lastUpdated: Timestamp.now(),
-        });
+        }, { merge: true });
       } else if (label.branchId && label.companyId) {
         await addDoc(collection(db, 'branch_products'), {
           productId: product.id,
@@ -271,7 +271,7 @@ export default function LabelProductPage() {
           ? Number((branchPrice * (1 - effectiveDiscount / 100)).toFixed(2))
           : branchPrice;
 
-      await updateDoc(doc(db, 'labels', label.id), {
+      await setDoc(doc(db, 'labels', label.id.toString()), {
         productName: name,
         productSku: product.sku ?? null,
         productDescription: formState.description.trim(),
@@ -282,7 +282,7 @@ export default function LabelProductPage() {
         discountPrice: effectiveDiscount != null ? finalPrice : null,
         lastSync: Timestamp.now(),
         status: 'syncing',
-      });
+      }, { merge: true });
 
       setProduct((prev) =>
         prev

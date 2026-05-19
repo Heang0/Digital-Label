@@ -305,12 +305,14 @@ export const DashboardSidebar = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <p className="text-[15px] font-black text-[#111928] dark:text-white tracking-tight leading-none truncate max-w-[180px]">
-                {currentUser?.role === 'staff' 
-                  ? (currentUser?.branchName || 'Kitzu-Tech')
-                  : (currentUser?.companyName || 'Kitzu-Tech')}
+                {currentUser?.companyName || 'Kitzu-Tech'}
               </p>
             </div>
-            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#5750F1] mt-1.5">{t('platform_brand_name')}</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#5750F1] mt-1.5">
+              {currentUser?.role === 'staff' 
+                ? (currentUser?.branchName || 'Main Branch')
+                : t('platform_brand_name')}
+            </p>
           </div>
         </div>
         {onClose && (

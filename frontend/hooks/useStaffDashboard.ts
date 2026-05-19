@@ -4,23 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/user-store';
 import { applyDiscountToLabel, clearDiscountFromLabel } from '@/lib/label-discount';
-import { db, logOut } from '@/lib/firebase';
-import { 
-  doc as fsDoc,
-  getDoc, 
-  getDocs, 
-  collection, 
-  query, 
-  where, 
-  updateDoc,
-  deleteDoc,
-  Timestamp,
-  addDoc,
-  onSnapshot
-} from 'firebase/firestore';
-import { generateLabelsForBranch } from '@/lib/supermarket-setup';
-import { makeProductCodeForVendor, makeSku, nextBranchSequence } from '@/lib/id-generator';
+import { laravelApi, API_BASE_URL } from '@/lib/api';
 import { createNotification } from '@/lib/notifications';
+import { Timestamp, collection, getDocs, query, where, setDoc, addDoc, deleteDoc, doc as fsDoc } from 'firebase/firestore';
+import { logOut, db } from '@/lib/firebase';
+import { compressImage } from '@/lib/image-compress';
+
 
 // INTERFACES
 export interface Branch {
@@ -121,7 +110,7 @@ export interface Category {
 
 export function useStaffDashboard() {
   const router = useRouter();
-  const { user: currentUser, setUser, clearUser, hasHydrated } = useUserStore();
+  const { user: currentUser, accessToken, setUser, clearUser, hasHydrated } = useUserStore();
   
   // States
   const [selectedTab, setSelectedTab] = useState<string>(() => {
@@ -194,18 +183,15 @@ export function useStaffDashboard() {
   useEffect(() => {
     if (!hasHydrated) return;
     
-    if (currentUser?.branchId && currentUser.companyId) {
+    if (accessToken) {
       loadStaffData();
-    } else if (currentUser && !currentUser.branchId) {
-      // User exists but has no branch assigned — stop loading, show empty state
-      setLoading(false);
-    } else if (!currentUser) {
+    } else {
       setLoading(false);
     }
-  }, [currentUser, hasHydrated]);
+  }, [accessToken, hasHydrated]);
 
   const loadStaffData = async () => {
-    if (!currentUser?.branchId || !currentUser.companyId) {
+    if (!accessToken) {
       setLoading(false);
       return;
     }
@@ -213,96 +199,75 @@ export function useStaffDashboard() {
     try {
       setLoading(true);
       
-      // Load branch & company
-      const [compDoc, brDoc] = await Promise.all([
-        getDoc(fsDoc(db, 'companies', currentUser.companyId)),
-        getDoc(fsDoc(db, 'branches', currentUser.branchId))
-      ]);
-
-      if (compDoc.exists()) {
-        const compData = compDoc.data() as any;
-        setCompany({ id: compDoc.id, ...compData } as Company);
-        
-        // Sync to user store for sidebar
-        if (currentUser.companyName !== compData.name || currentUser.companyLogo !== compData.logoUrl) {
-          setUser({
-            ...currentUser,
-            companyName: compData.name,
-            companyLogo: compData.logoUrl
-          });
-        }
+      const data = await laravelApi.getStaffDashboard(accessToken);
+      
+      setCompany(data.company);
+      setBranch(data.branch);
+      
+      const updatedUser = {
+        ...currentUser,
+      } as any;
+      
+      if (data.company) {
+        updatedUser.companyName = data.company.name;
+        updatedUser.companyLogo = data.company.logo_url || data.company.logoUrl;
       }
       
-      if (brDoc.exists()) {
-        const brData = brDoc.data() as any;
-        setBranch({ id: brDoc.id, ...brData } as Branch);
-        
-        // Sync branch name for sidebar
-        if (currentUser.branchName !== brData.name) {
-          setUser({
-            ...currentUser,
-            branchName: brData.name
-          });
-        }
+      if (data.branch) {
+        updatedUser.branchName = data.branch.name;
       }
-
-      // Load products
-      const bpSnap = await getDocs(query(
-        collection(db, 'branch_products'),
-        where('branchId', '==', currentUser.branchId)
-      ));
       
-      const bpData = await Promise.all(bpSnap.docs.map(async (d) => {
-        const data = d.data();
-        const pDoc = await getDoc(fsDoc(db, 'products', data.productId));
-        return {
-          id: d.id,
-          ...data,
-          productDetails: pDoc.exists() ? { id: pDoc.id, ...pDoc.data() } as Product : undefined
-        } as BranchProduct;
+      setUser(updatedUser);
+      
+      // Map Laravel data to frontend expectations
+      const mappedProducts = data.branchProducts.map((bp: any) => ({
+        id: bp.id,
+        productId: bp.product_id,
+        branchId: bp.branch_id,
+        companyId: bp.company_id,
+        currentPrice: bp.current_price,
+        stock: bp.stock,
+        minStock: bp.min_stock,
+        status: bp.status,
+        lastUpdated: bp.updated_at,
+        productDetails: bp.product ? {
+          id: bp.product.id,
+          name: bp.product.name,
+          sku: bp.product.sku,
+          price: bp.product.price,
+          category: bp.product.category,
+          description: bp.product.description,
+          imageUrl: bp.product.image_url,
+          companyId: bp.company_id
+        } : undefined
       }));
-      setBranchProducts(bpData);
+      setBranchProducts(mappedProducts);
 
-      // Load labels
-      const labelsSnap = await getDocs(query(
-        collection(db, 'labels'),
-        where('branchId', '==', currentUser.branchId)
-      ));
-      setLabels(labelsSnap.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-        labelId: d.data().labelId || d.data().labelCode || d.id
-      })) as DigitalLabel[]);
+      const mappedLabels = data.labels.map((l: any) => ({
+        id: l.id,
+        labelId: l.label_id,
+        labelCode: l.label_code,
+        productId: l.product_id,
+        productName: l.product?.name,
+        productSku: l.product?.sku,
+        branchId: l.branch_id,
+        currentPrice: l.current_price,
+        basePrice: l.base_price,
+        finalPrice: l.final_price,
+        discountPercent: l.discount_percent,
+        discountPrice: l.discount_price,
+        battery: l.battery,
+        status: l.status,
+        lastSync: l.updated_at,
+        location: l.location
+      }));
+      setLabels(mappedLabels);
 
-      // Load categories
-      const catSnap = await getDocs(query(
-        collection(db, 'categories'),
-        where('companyId', '==', currentUser.companyId)
-      ));
-      setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Category[]);
+      setCategories(data.categories);
+      setIssues(data.issues || []);
 
-      // Load issues
-      const issuesSnap = await getDocs(query(
-        collection(db, 'issue_reports'),
-        where('branchId', '==', currentUser.branchId)
-      ));
-      setIssues(issuesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as IssueReport[]);
-
-      // Manager-level: load products and staff
-      if (isManager) {
-        const prodSnap = await getDocs(query(
-          collection(db, 'products'),
-          where('companyId', '==', currentUser.companyId)
-        ));
-        setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[]);
-
-        const staffSnap = await getDocs(query(
-          collection(db, 'users'),
-          where('companyId', '==', currentUser.companyId),
-          where('branchId', '==', currentUser.branchId),
-          where('role', '==', 'staff')
-        ));
-        setStaffMembers(staffSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      if (isManager && data.allProducts) {
+        setProducts(data.allProducts);
       }
 
     } catch (error) {
@@ -312,27 +277,7 @@ export function useStaffDashboard() {
     }
   };
 
-  // Subscriptions
-  useEffect(() => {
-    if (!currentUser?.branchId) return;
-    
-    const unsubLabels = onSnapshot(query(collection(db, 'labels'), where('branchId', '==', currentUser.branchId)), (snap) => {
-      setLabels(snap.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-        labelId: d.data().labelId || d.data().labelCode || d.id
-      })) as DigitalLabel[]);
-    });
-
-    const unsubIssues = onSnapshot(query(collection(db, 'issue_reports'), where('branchId', '==', currentUser.branchId)), (snap) => {
-      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })) as IssueReport[]);
-    });
-
-    return () => {
-      unsubLabels();
-      unsubIssues();
-    };
-  }, [currentUser?.branchId]);
+  // Subscriptions - Removed Firestore, will use periodic refresh or manual refresh
 
   const handleLogout = async () => {
     await logOut();
@@ -344,34 +289,15 @@ export function useStaffDashboard() {
   const updateStock = async (productId: string, value: number, mode: 'adjust' | 'set' = 'adjust', silent: boolean = false) => {
     if (!currentUser?.branchId) return;
     try {
-      const bpSnap = await getDocs(query(
-        collection(db, 'branch_products'),
-        where('productId', '==', productId),
-        where('branchId', '==', currentUser.branchId)
-      ));
-      
-      if (bpSnap.empty) return;
-      const bpDoc = bpSnap.docs[0];
-      const data = bpDoc.data();
-      const currentStock = Number(data.stock) || 0;
-      const minStock = Number(data.minStock) || 0;
-      
-      let newStock = mode === 'set' ? Number(value) : currentStock + Number(value);
-      newStock = Math.max(0, newStock);
-
-      // Recalculate status based on new stock
-      let status: 'in-stock' | 'low-stock' | 'out-of-stock' = 'in-stock';
-      if (newStock === 0) status = 'out-of-stock';
-      else if (newStock <= minStock) status = 'low-stock';
-      
-      await updateDoc(fsDoc(db, 'branch_products', bpDoc.id), {
-        stock: newStock,
-        status,
-        lastUpdated: Timestamp.now()
-      });
+      await laravelApi.updateStock({
+        productId,
+        branchId: currentUser.branchId,
+        value,
+        mode
+      }, accessToken!);
       
       if (!silent) {
-        openLabelNotice('Stock Updated', `Inventory is now ${newStock} units (${status.replace('-', ' ')}).`, 'success');
+        openLabelNotice('Stock Updated', `Inventory updated successfully.`, 'success');
       }
       loadStaffData();
     } catch (error) {
@@ -382,30 +308,18 @@ export function useStaffDashboard() {
   const reportIssue = async (labelCode: string, issue: string, priority: 'high' | 'medium' | 'low') => {
     if (!currentUser?.branchId || !currentUser.companyId) return;
     try {
-      const labelSnap = await getDocs(query(
-        collection(db, 'labels'),
-        where('labelId', '==', labelCode),
-        where('branchId', '==', currentUser.branchId)
-      ));
-
-      if (labelSnap.empty) {
+      const label = labels.find(l => l.labelId === labelCode);
+      if (!label) {
         openLabelNotice('Not Found', 'Could not locate that hardware tag in this branch.', 'error');
         return;
       }
 
-      const labelDoc = labelSnap.docs[0];
-      await addDoc(collection(db, 'issue_reports'), {
-        labelId: labelCode,
-        productId: labelDoc.data().productId,
+      await laravelApi.reportIssue({
+        labelId: label.id,
+        productId: label.productId || undefined,
         issue,
-        status: 'open',
-        reportedAt: Timestamp.now(),
-        priority,
-        branchId: currentUser.branchId,
-        companyId: currentUser.companyId,
-        reportedBy: currentUser.id,
-        reportedByName: currentUser.name
-      });
+        priority
+      }, accessToken!);
 
       // Create role-specific notification
       await createNotification({
@@ -416,19 +330,21 @@ export function useStaffDashboard() {
         type: priority === 'high' ? 'alert' : 'warning'
       });
 
-      await updateDoc(fsDoc(db, 'labels', labelDoc.id), { status: 'error' });
       openLabelNotice('Report Sent', 'Maintenance team has been notified.', 'success');
       setShowReportIssue(false);
+      loadStaffData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to submit report.', 'error');
     }
   };
 
   const syncAllLabels = async () => {
+    if (!currentUser?.branchId) return;
     setIsRefreshing(true);
     try {
-      // Simulate sync for UI feedback
-      await new Promise(r => setTimeout(r, 1500));
+      await Promise.all(labels.map(l => 
+        laravelApi.syncLabel(l.id, 'active', accessToken!)
+      ));
       await loadStaffData();
       openLabelNotice('Sync Complete', 'Branch hardware is now up to date.', 'success');
     } catch (error) {
@@ -441,12 +357,11 @@ export function useStaffDashboard() {
   const handleSyncLabel = async (labelId: string) => {
     openLabelNotice('Syncing', 'Requesting real-time update for hardware node...', 'info');
     try {
-      await updateDoc(fsDoc(db, 'labels', labelId), {
-        status: 'syncing',
-        lastSync: Timestamp.now()
-      });
-      setTimeout(() => {
-        updateDoc(fsDoc(db, 'labels', labelId), { status: 'active' });
+      await laravelApi.syncLabel(labelId, 'syncing', accessToken!);
+      loadStaffData();
+      setTimeout(async () => {
+        await laravelApi.syncLabel(labelId, 'active', accessToken!);
+        loadStaffData();
       }, 1500);
     } catch (error) {
       openLabelNotice('Error', 'Sync request failed.', 'error');
@@ -455,19 +370,9 @@ export function useStaffDashboard() {
 
   const handleUnlinkProductFromLabel = async (labelId: string) => {
     try {
-      await updateDoc(fsDoc(db, 'labels', labelId), {
-        productId: null,
-        productName: null,
-        productSku: null,
-        currentPrice: null,
-        basePrice: null,
-        finalPrice: null,
-        discountPercent: null,
-        discountPrice: null,
-        lastSync: Timestamp.now(),
-        status: 'inactive'
-      });
+      await laravelApi.unlinkProductFromLabel(labelId, accessToken!);
       openLabelNotice('Unlinked', 'Tag cleared successfully.', 'success');
+      loadStaffData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to unlink product.', 'error');
     }
@@ -475,8 +380,9 @@ export function useStaffDashboard() {
 
   const handleDeleteLabel = async (labelId: string) => {
     try {
-      await deleteDoc(fsDoc(db, 'labels', labelId));
+      await laravelApi.deleteLabel(labelId, accessToken!);
       openLabelNotice('Removed', 'Hardware node deleted from network.', 'success');
+      loadStaffData();
     } catch (error) {
       openLabelNotice('Error', 'Failed to delete tag.', 'error');
     }
@@ -487,26 +393,11 @@ export function useStaffDashboard() {
     try {
       const { labelId, productId } = activeDiscountModal;
       
-      if (labelId) {
-        // Single label discount
-        const label = labels.find(l => l.id === labelId);
-        if (!label) throw new Error("Label not found");
-        const basePrice = label.basePrice || label.currentPrice || 0;
-        await applyDiscountToLabel({ labelId, basePrice, percent });
-      } else if (productId) {
-        // Product-wide discount for this branch
-        const targetLabels = labels.filter(l => l.productId === productId);
-        if (targetLabels.length === 0) {
-          openLabelNotice('Info', 'No active tags found for this product.', 'info');
-          setActiveDiscountModal(null);
-          return;
-        }
-
-        await Promise.all(targetLabels.map(label => {
-          const basePrice = label.basePrice || label.currentPrice || 0;
-          return applyDiscountToLabel({ labelId: label.id, basePrice, percent });
-        }));
-      }
+      await laravelApi.applyDiscount({
+        labelId: labelId || undefined,
+        productId: productId || undefined,
+        percent
+      }, accessToken!);
 
       setActiveDiscountModal(null);
       openLabelNotice('Campaign Active', `A ${percent}% discount has been pushed to the network.`, 'success');
@@ -523,11 +414,14 @@ export function useStaffDashboard() {
     
     setIsRefreshing(true);
     try {
+      // Compress the profile photo on the client side to save storage, bandwidth, and make uploads blazingly fast!
+      const compressedFile = await compressImage(file, 800, 800, 0.75);
+      
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
 
       // Upload to our backend (ImageKit integration)
-      const response = await fetch('http://localhost:5000/api/upload/profile', {
+      const response = await fetch(`${API_BASE_URL}/upload/profile`, {
         method: 'POST',
         body: formData,
       });
@@ -537,8 +431,28 @@ export function useStaffDashboard() {
       const data = await response.json();
       const photoURL = data.url;
 
-      // Update Firestore
-      await updateDoc(fsDoc(db, 'users', currentUser.id), { photoURL });
+      // Update Laravel MySQL Database
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/user/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ photo_url: photoURL })
+          });
+        } catch (dbErr) {
+          console.warn('MySQL profile update failed:', dbErr);
+        }
+      }
+
+      // Update Firestore gracefully (using setDoc to avoid No Document To Update)
+      try {
+        await setDoc(fsDoc(db, 'users', currentUser.id), { photoURL }, { merge: true });
+      } catch (fErr) {
+        console.warn('Firestore sync skipped:', fErr);
+      }
       
       // Update local state in store
       const { setUser } = useUserStore.getState();
@@ -556,7 +470,7 @@ export function useStaffDashboard() {
   const updateProfile = async (data: { name: string }) => {
     if (!currentUser) return;
     try {
-      await updateDoc(fsDoc(db, 'users', currentUser.id), { name: data.name });
+      await setDoc(fsDoc(db, 'users', currentUser.id), { name: data.name }, { merge: true });
       
       // Update local state in store
       const { setUser } = useUserStore.getState();

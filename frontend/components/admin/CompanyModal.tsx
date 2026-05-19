@@ -5,6 +5,7 @@ import { X, Building2, Mail, Phone, MapPin, Tag, ShieldCheck, Loader2, Save } fr
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Company } from '@/types';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface CompanyModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface CompanyModalProps {
 }
 
 export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: CompanyModalProps) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -73,7 +75,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
           >
             <div className="flex items-center justify-between px-7 py-5 border-b border-[#E2E8F0] dark:border-slate-700">
               <h3 className="text-lg font-bold text-[#111928] dark:text-white">
-                {editingCompany ? 'Edit Company Profile' : 'Onboard New Company'}
+                {editingCompany ? t('edit_company_profile') : t('onboard_company')}
               </h3>
               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#5750F1] transition-all">
                 <X className="h-5 w-5" />
@@ -82,7 +84,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
 
             <form onSubmit={handleSubmit} className="p-7 space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-[#111928] dark:text-white">Company Name</label>
+                <label className="text-sm font-medium text-[#111928] dark:text-white">{t('company_name') || 'Company Name'}</label>
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                   <input 
@@ -98,7 +100,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Internal Code</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('tag_id_code') || 'Internal Code'}</label>
                   <input 
                     required
                     type="text" 
@@ -109,7 +111,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Email Address</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('email_addr') || 'Email Address'}</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                     <input 
@@ -125,7 +127,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-[#111928] dark:text-white">Physical Address</label>
+                <label className="text-sm font-medium text-[#111928] dark:text-white">{t('address') || 'Physical Address'}</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#637381]" />
                   <input 
@@ -141,7 +143,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Subscription Plan</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('subscription') || 'Subscription Plan'}</label>
                   <select 
                     value={formData.subscription}
                     onChange={(e) => setFormData({...formData, subscription: e.target.value as any})}
@@ -153,7 +155,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-[#111928] dark:text-white">Account Status</label>
+                  <label className="text-sm font-medium text-[#111928] dark:text-white">{t('status') || 'Account Status'}</label>
                   <select 
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as any})}
@@ -171,7 +173,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   onClick={onClose}
                   className="h-11 px-8 rounded-lg border border-[#E2E8F0] dark:border-slate-700 text-sm font-bold text-[#111928] dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
-                  Cancel
+                  {t('cancel') || 'Cancel'}
                 </button>
                 <Button 
                   type="submit"
@@ -179,7 +181,7 @@ export const CompanyModal = ({ isOpen, onClose, onSave, editingCompany }: Compan
                   className="h-11 px-10 rounded-lg bg-[#5750F1] hover:bg-[#4a42e0] text-white font-bold text-sm shadow-md shadow-[#5750F1]/10 transition-all gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {editingCompany ? 'Save Changes' : 'Onboard Company'}
+                  {editingCompany ? t('save_changes') : t('onboard_company')}
                 </Button>
               </div>
             </form>

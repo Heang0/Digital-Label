@@ -43,19 +43,28 @@ export const BranchManagementModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (editingBranch) {
-      setFormData({ 
-        name: editingBranch.name, 
-        location: editingBranch.location || '', 
-        address: editingBranch.address, 
-        phone: editingBranch.phone || '',
-        timezone: editingBranch.timezone || 'Asia/Phnom_Penh',
-        status: editingBranch.status || 'active'
-      });
-    } else {
-      setFormData({ name: '', location: '', address: '', phone: '', timezone: 'Asia/Phnom_Penh', status: 'active' });
+    if (isOpen) {
+      if (editingBranch) {
+        setFormData({ 
+          name: editingBranch.name || '', 
+          location: editingBranch.location || '', 
+          address: editingBranch.address || '', 
+          phone: editingBranch.phone || '',
+          timezone: editingBranch.timezone || 'Asia/Phnom_Penh',
+          status: editingBranch.status || 'active'
+        });
+      } else {
+        setFormData({ 
+          name: '', 
+          location: '', 
+          address: '', 
+          phone: '', 
+          timezone: 'Asia/Phnom_Penh', 
+          status: 'active' 
+        });
+      }
     }
-  }, [editingBranch, isOpen]);
+  }, [isOpen, editingBranch?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

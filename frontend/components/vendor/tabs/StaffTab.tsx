@@ -101,8 +101,21 @@ export const StaffTab = ({
               <div className="p-6">
                 {/* Avatar + Info */}
                 <div className="flex items-center gap-4 mb-5">
-                  <div className={`h-12 w-12 ${iconBg} flex items-center justify-center shrink-0`}>
-                    <RoleIcon className="h-6 w-6 text-white" />
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-800 shrink-0">
+                    {(member.photoURL || member.photo_url || member.photo) ? (
+                      <img 
+                        src={member.photoURL || member.photo_url || member.photo} 
+                        alt={member.name} 
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className={`h-full w-full ${iconBg} flex items-center justify-center`}>
+                        <RoleIcon className="h-6 w-6 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-[#111928] dark:text-white truncate uppercase tracking-tight">{member.name}</p>
