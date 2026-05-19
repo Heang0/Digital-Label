@@ -77,27 +77,21 @@ Inside your **Ubuntu terminal**:
 ---
 
 ### Step 5: Mount your Windows Code Folder
-Inside your **Ubuntu terminal**, you need to link your Windows folder. Since she might have cloned the project in a different folder on her laptop, she must change the path accordingly.
+Inside your **Ubuntu terminal**, you need to link your Windows folder. Since your project is located at **`D:\Project\Kitzu-Label`**, the Ubuntu path is **`/mnt/d/Project/Kitzu-Label`**.
 
-#### 💡 How to map any Windows folder in Ubuntu:
-* Drive **`C:\`** is mapped to **`/mnt/c/`**
-* Drive **`D:\`** is mapped to **`/mnt/d/`**
-* Change all backslashes **`\`** to forward slashes **`/`**.
-* *Example:* If her folder is at `C:\Users\laptop\Digital-Label`, her Ubuntu path will be `"/mnt/c/Users/laptop/Digital-Label"`.
+Run these commands in your **Ubuntu terminal**:
 
-Run these commands in the **Ubuntu terminal** (make sure to replace `"/mnt/d/Project/..."` with **her** custom path if it's different!):
-
-#### 1. Link the folder:
+#### 1. Link your folder:
 ```bash
-sudo ln -sf "/mnt/d/Project/All backend Project/Digital-Label" /var/www/digital-label
+sudo ln -sf "/mnt/d/Project/Kitzu-Label" /var/www/digital-label
 ```
 
-#### 2. Apply safe storage permissions:
+#### 2. Apply safe storage and cache permissions:
 ```bash
-sudo chmod -R 777 "/mnt/d/Project/All backend Project/Digital-Label/backend/storage"
+sudo chmod -R 777 "/mnt/d/Project/Kitzu-Label/backend/storage"
 ```
 ```bash
-sudo chmod -R 777 "/mnt/d/Project/All backend Project/Digital-Label/backend/bootstrap/cache"
+sudo chmod -R 777 "/mnt/d/Project/Kitzu-Label/backend/bootstrap/cache"
 ```
 
 ---
