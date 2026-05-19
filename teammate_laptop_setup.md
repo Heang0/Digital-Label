@@ -189,5 +189,31 @@ mysql -u laravel_user -p digital_label < /var/www/digital-label/database_backup.
 
 ---
 
+### 🔄 Daily Workflow: How to Start & Stop the Server
+
+When you finish working on your project, you can turn off Ubuntu to save battery and RAM. When you want to work again, you can easily turn it back on.
+
+#### 🛑 How to STOP the Server (When done working):
+Open any **Windows Command Prompt or PowerShell** and run:
+```cmd
+wsl --shutdown
+```
+*(This completely shuts down the Ubuntu virtual machine and releases all CPU and memory on your laptop).*
+
+#### 🚀 How to START the Server (When you want to work again):
+1. Open your **Ubuntu WSL terminal** (it boots up instantly).
+2. Start the database and web services:
+   ```bash
+   sudo service mysql start
+   sudo service nginx start
+   ```
+3. Open your project in VS Code on Windows and **only run the frontend React server**:
+   ```cmd
+   npm run dev
+   ```
+4. Visit **`http://digital.label`** in your browser!
+
+---
+
 ### 🎉 All Done!
 Open your browser and visit: **`http://digital.label`** to see your live Ubuntu server in action!
