@@ -201,13 +201,15 @@ wsl --shutdown
 *(This completely shuts down the Ubuntu virtual machine and releases all CPU and memory on your laptop).*
 
 #### 🚀 How to START the Server (When you want to work again):
-1. Open your **Ubuntu WSL terminal** (it boots up instantly).
-2. Start the database and web services:
+1. **Open your Ubuntu WSL terminal** (Choose one of these easy ways):
+   * **Option A:** Search for **"Ubuntu"** in your Windows Start Menu and click the orange logo app.
+   * **Option B:** Open any standard Windows CMD, type **`wsl`**, and press **Enter**!
+2. Start the database and web services **inside your Ubuntu terminal**:
    ```bash
    sudo service mysql start
    sudo service nginx start
    ```
-3. Open your project in VS Code on Windows and **only run the frontend React server**:
+3. Open your project in VS Code on Windows and **only run the frontend React server (inside Windows CMD/PowerShell)**:
    ```cmd
    npm run dev
    ```
