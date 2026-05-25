@@ -21,7 +21,20 @@ This creates your project at exactly **`D:\Project\Digital-Label`**, which all N
 > ```
 > That's it! Your local code will be up to date.
 
-### 2. Install Frontend Dependencies
+### 2. Install Node.js on Windows
+Before running `npm`, you need **Node.js** installed on your Windows machine.
+
+1. Go to **[https://nodejs.org](https://nodejs.org)** and download the **LTS** version (the big green button).
+2. Run the installer and click **Next** through all steps (keep all defaults).
+3. **Restart your terminal** after installing.
+4. Verify it worked — open a new CMD window and run:
+   ```cmd
+   node -v
+   npm -v
+   ```
+   You should see version numbers printed (e.g. `v20.x.x`). ✅
+
+### 3. Install Frontend Dependencies
 From your Windows terminal, enter the `frontend` folder and install packages:
 ```cmd
 cd D:\Project\Digital-Label\frontend
