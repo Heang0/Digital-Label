@@ -5,7 +5,7 @@
 
 export const API_BASE_URL = typeof window !== 'undefined'
   ? '/api'
-  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api');
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1/api');
 
 export const laravelApi = {
   /**
@@ -119,7 +119,11 @@ export const laravelApi = {
         },
         body: JSON.stringify(credentials),
       });
-      if (!response.ok) throw new Error('Login failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Laravel Login Error Details:', response.status, errorData);
+        throw new Error(errorData.message || 'Login failed');
+      }
       return await response.json();
     } catch (error) {
       console.error('Laravel Auth Error (login):', error);

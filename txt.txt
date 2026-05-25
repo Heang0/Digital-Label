@@ -21,3 +21,19 @@ npm run dev
 
 kitzuadmin@gmail.com
 kitzuadmin9080@@
+
+
+
+db pw = kitzulabel@@99!
+
+$user = App\Models\User::where('role', 'admin')->first();
+$user->email = 'new-email@gmail.com';
+$user->password = Hash::make('new-password-here');
+$user->save();
+
+
+then run 
+php artisan tinker
+
+
+Type exit and press Enter to leave. Done!

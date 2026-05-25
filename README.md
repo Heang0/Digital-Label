@@ -46,3 +46,9 @@ Run this command in your main folder (D:\Project\All backend Project\Digital-Lab
 
 powershell
 composer create-project laravel/laravel backend
+
+for backend 
+nce it's open as Administrator, just copy and paste:
+
+cmd
+wsl --install -d Ubuntu-24.04

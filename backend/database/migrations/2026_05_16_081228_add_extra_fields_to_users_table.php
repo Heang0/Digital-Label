@@ -17,13 +17,14 @@ return new class extends Migration
             $table->string('branch_id')->nullable();
             $table->string('position')->nullable();
             $table->string('photo_url')->nullable();
+            $table->string('status')->default('active'); // active, suspended, pending
         });
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['role', 'company_id', 'branch_id', 'position', 'photo_url']);
+            $table->dropColumn(['role', 'company_id', 'branch_id', 'position', 'photo_url', 'status']);
         });
     }
 };
