@@ -20,13 +20,16 @@ WORKDIR /app
 # Copy all backend files
 COPY . .
 
-# Install PHP dependencies (no dev)
+# Install PHP dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Set permissions for Laravel storage and cache
 RUN chmod -R 775 storage bootstrap/cache
 
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 EXPOSE 8000
 
-# Start Laravel server on Render's dynamic PORT
-CMD php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+# Run startup script (generates .env from env vars, then starts server)
+CMD ["/app/start.sh"]
