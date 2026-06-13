@@ -53,12 +53,11 @@ echo "✅ .env file generated"
 echo "📦 Running database migrations..."
 php artisan migrate --force
 
-# Cache config for performance
+# Clear config cache so env() works in controllers
 php artisan config:clear
-php artisan config:cache
 php artisan route:cache
 
-echo "✅ Config cached"
+echo "✅ Config cleared and routes cached"
 echo "🌐 Starting server on port ${PORT:-8000}..."
 
 # Start Laravel server
