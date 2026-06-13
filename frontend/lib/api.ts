@@ -70,7 +70,11 @@ export const laravelApi = {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (!response.ok) throw new Error('Failed to fetch dashboard data');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Laravel API Error Details:', response.status, errorData);
+        throw new Error('Failed to fetch dashboard data');
+      }
       return await response.json();
     } catch (error) {
       console.error('Laravel API Error (getVendorDashboard):', error);
