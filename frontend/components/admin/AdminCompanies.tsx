@@ -204,7 +204,7 @@ export const AdminCompanies = ({
                       <div className="flex items-center justify-end gap-2">
                         {company.status === 'pending' && (
                           <button 
-                            onClick={() => onSuspend(company.id, 'active')}
+                            onClick={() => onSuspend(company.id, 'suspended')}
                             title="Approve Company"
                             className="p-2 rounded-lg text-[#10B981] dark:text-[#10B981] hover:bg-[#10B981]/10 transition-all"
                           >
