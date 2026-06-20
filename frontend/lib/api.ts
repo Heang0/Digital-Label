@@ -145,7 +145,10 @@ export const laravelApi = {
         },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Registration failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Registration failed');
+      }
       return await response.json();
     } catch (error) {
       console.error('Laravel Auth Error (register):', error);
@@ -248,7 +251,10 @@ export const laravelApi = {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error('Google authentication failed');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Google authentication failed');
+    }
     return await response.json();
   },
 
