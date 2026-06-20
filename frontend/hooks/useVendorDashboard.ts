@@ -278,6 +278,23 @@ export function useVendorDashboard() {
       setIssues(data.issues || []);
       setStaffMembers(data.staffMembers || []);
 
+      const mappedPromotions = (data.promotions || []).map((p: any) => ({
+        id: p.id.toString(),
+        name: p.name,
+        description: p.description || '',
+        type: p.type,
+        value: Number(p.value),
+        companyId: p.company_id ? p.company_id.toString() : '',
+        applyTo: p.apply_to,
+        productIds: p.selected_products || [],
+        branchIds: p.selected_branches || [],
+        startDate: p.start_date,
+        endDate: p.end_date,
+        status: p.status,
+        createdAt: p.created_at
+      }));
+      setPromotions(mappedPromotions);
+
     } catch (error) {
       console.error('Error loading vendor data:', error);
     } finally {
