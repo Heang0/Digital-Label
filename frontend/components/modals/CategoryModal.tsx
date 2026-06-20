@@ -7,6 +7,7 @@ import { X, Tag, Edit, Trash2, Plus } from 'lucide-react';
 import { laravelApi } from '@/lib/api';
 import { Timestamp } from 'firebase/firestore';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useUserStore } from '@/lib/user-store';
 
 interface Category {
   id: string;
@@ -44,6 +45,7 @@ export default function CategoryModal({
   onCategoryChange 
 }: CategoryModalProps) {
   const { t } = useLanguage();
+  const { accessToken } = useUserStore();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -74,7 +76,7 @@ export default function CategoryModal({
     setLoading(true);
     try {
       const trimmedName = formData.name.trim();
-      const token = localStorage.getItem('auth_token') || '';
+      const token = accessToken || '';
       
       await laravelApi.saveCategory(trimmedName, category?.id || null, token);
 
@@ -93,7 +95,7 @@ export default function CategoryModal({
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('auth_token') || '';
+      const token = accessToken || '';
       await laravelApi.deleteCategory(category.id, token);
       onCategoryChange();
       onClose();
