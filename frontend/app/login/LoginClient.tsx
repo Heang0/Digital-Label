@@ -60,27 +60,36 @@ export default function LoginClient() {
         const cred = await getGoogleRedirectResult();
         if (!cred) return;
 
-        // Block brand new Google accounts: they must register first.
-        if (isNewGoogleUser(cred)) {
-          await deleteCurrentUser();
-          setError('Account not found. Please register first.');
-          setIsLoading(false);
-          return;
-        }
+        // 🚀 Use Laravel API instead of Firebase Firestore
+        const response = await laravelApi.googleLogin({
+          email: cred.user.email || '',
+          name: cred.user.displayName || 'Google User',
+          photo_url: cred.user.photoURL,
+          uid: cred.user.uid,
+        });
 
-        const userData = await getUserData(cred.user.uid);
-        if (!userData) {
-          setError('Account not found. Please register first.');
-          setIsLoading(false);
-          return;
-        }
+        const userData = response.user;
+        const token = response.access_token;
 
-        setUser(userData);
+        if (!userData) throw new Error('User data not found in database');
+
+        const normalizedUser = {
+          ...userData,
+          id: userData.id.toString(), 
+          role: userData.role || 'vendor',
+          companyId: userData.company_id,
+          branchId: userData.branch_id,
+          photoURL: userData.photo_url
+        };
+
+        setToken(token);
+        setUser(normalizedUser);
+
         const nextPath = searchParams.get('next');
         if (nextPath && nextPath.startsWith('/')) router.replace(nextPath);
-        else if (userData.role === 'admin') router.replace('/admin');
-        else if (userData.role === 'vendor') router.replace('/vendor');
-        else if (userData.role === 'staff') router.replace('/staff');
+        else if (normalizedUser.role === 'admin') router.replace('/admin');
+        else if (normalizedUser.role === 'vendor') router.replace('/vendor');
+        else if (normalizedUser.role === 'staff') router.replace('/staff');
         else router.replace('/vendor');
       } catch (e: any) {
         // Ignore when there is no redirect result
@@ -178,24 +187,36 @@ export default function LoginClient() {
         return;
       }
 
-      // Block brand new Google accounts: they must register first.
-      if (isNewGoogleUser(result)) {
-        await deleteCurrentUser();
-        setError('Account not found. Please register first.');
-        setIsLoading(false);
-        return;
-      }
+      // 🚀 Use Laravel API instead of Firebase Firestore
+      const response = await laravelApi.googleLogin({
+        email: result.user.email || '',
+        name: result.user.displayName || 'Google User',
+        photo_url: result.user.photoURL,
+        uid: result.user.uid,
+      });
 
-      // Only allow existing users (must already have a user document)
-      const userData = await getUserData(result.user.uid);
+      const userData = response.user;
+      const token = response.access_token;
+
       if (!userData) throw new Error('User data not found in database');
-      setUser(userData);
+
+      const normalizedUser = {
+        ...userData,
+        id: userData.id.toString(), 
+        role: userData.role || 'vendor',
+        companyId: userData.company_id,
+        branchId: userData.branch_id,
+        photoURL: userData.photo_url
+      };
+
+      setToken(token);
+      setUser(normalizedUser);
 
       const nextPath = searchParams.get('next');
       if (nextPath && nextPath.startsWith('/')) router.replace(nextPath);
-      else if (userData.role === 'admin') router.replace('/admin');
-      else if (userData.role === 'vendor') router.replace('/vendor');
-      else if (userData.role === 'staff') router.replace('/staff');
+      else if (normalizedUser.role === 'admin') router.replace('/admin');
+      else if (normalizedUser.role === 'vendor') router.replace('/vendor');
+      else if (normalizedUser.role === 'staff') router.replace('/staff');
       else router.replace('/vendor');
     } catch (error: any) {
       // Firebase will block creating a second account with the same email.
