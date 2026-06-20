@@ -14,7 +14,8 @@ import {
   Filter,
   Download,
   Package,
-  LayoutGrid
+  LayoutGrid,
+  Check
 } from 'lucide-react';
 import { Company } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -201,6 +202,15 @@ export const AdminCompanies = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {company.status === 'pending' && (
+                          <button 
+                            onClick={() => onSuspend(company.id, 'active')}
+                            title="Approve Company"
+                            className="p-2 rounded-lg text-[#10B981] dark:text-[#10B981] hover:bg-[#10B981]/10 transition-all"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => onEdit(company)}
                           className="p-2 rounded-lg text-[#637381] dark:text-slate-400 hover:text-[#5750F1] hover:bg-[#5750F1]/5 transition-all"
