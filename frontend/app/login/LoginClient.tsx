@@ -77,7 +77,7 @@ export default function LoginClient() {
           ...userData,
           id: userData.id.toString(), 
           role: userData.role || 'vendor',
-          companyId: userData.company_id,
+          companyId: userData.company_id ? userData.company_id.toString() : undefined,
           branchId: userData.branch_id,
           photoURL: userData.photo_url
         };
@@ -148,7 +148,7 @@ export default function LoginClient() {
         ...userData,
         id: userData.id.toString(), 
         role: userData.role || 'vendor',
-        companyId: userData.company_id,
+        companyId: userData.company_id ? userData.company_id.toString() : undefined,
         branchId: userData.branch_id,
         photoURL: userData.photo_url
       };
@@ -204,7 +204,7 @@ export default function LoginClient() {
         ...userData,
         id: userData.id.toString(), 
         role: userData.role || 'vendor',
-        companyId: userData.company_id,
+        companyId: userData.company_id ? userData.company_id.toString() : undefined,
         branchId: userData.branch_id,
         photoURL: userData.photo_url
       };

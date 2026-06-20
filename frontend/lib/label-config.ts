@@ -27,9 +27,10 @@ export const DEFAULT_LABEL_CONFIG: LabelUIConfig = {
   highContrast: true,
 };
 
-export const getLabelConfig = async (companyId: string): Promise<LabelUIConfig> => {
+export const getLabelConfig = async (companyId: string | number): Promise<LabelUIConfig> => {
+  if (!companyId) return DEFAULT_LABEL_CONFIG;
   try {
-    const d = await getDoc(doc(db, 'companies', companyId, 'config', 'label_design'));
+    const d = await getDoc(doc(db, 'companies', companyId.toString(), 'config', 'label_design'));
     if (d.exists()) return d.data() as LabelUIConfig;
     
     // Fallback to global if company-specific doesn't exist
@@ -43,8 +44,9 @@ export const getLabelConfig = async (companyId: string): Promise<LabelUIConfig> 
   }
 };
 
-export const saveLabelConfig = async (companyId: string, config: Partial<LabelUIConfig>) => {
-  return setDoc(doc(db, 'companies', companyId, 'config', 'label_design'), {
+export const saveLabelConfig = async (companyId: string | number, config: Partial<LabelUIConfig>) => {
+  if (!companyId) throw new Error('Company ID is required to save label config');
+  return setDoc(doc(db, 'companies', companyId.toString(), 'config', 'label_design'), {
     ...config,
     updatedAt: Timestamp.now()
   }, { merge: true });
