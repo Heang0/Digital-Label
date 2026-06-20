@@ -228,6 +228,9 @@ export function useVendorDashboard() {
         });
       }
       setBranches(data.branches);
+      if (data.branches && data.branches.length === 1) {
+        setSelectedBranchId(data.branches[0].id.toString());
+      }
       setCategories(data.categories);
       
       // Map products to frontend expectations

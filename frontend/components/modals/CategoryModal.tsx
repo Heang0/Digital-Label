@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Tag, Edit, Trash2, Plus } from 'lucide-react';
-import { createCategory, updateCategory, deleteCategory } from '@/lib/categories';
+import { laravelApi } from '@/lib/api';
 import { Timestamp } from 'firebase/firestore';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -74,18 +74,9 @@ export default function CategoryModal({
     setLoading(true);
     try {
       const trimmedName = formData.name.trim();
-      const trimmedDescription = formData.description.trim();
-      const payload = {
-        name: trimmedName,
-        color: formData.color,
-        ...(trimmedDescription ? { description: trimmedDescription } : {})
-      };
-
-      if (category?.id) {
-        await updateCategory(category.id, payload);
-      } else {
-        await createCategory(companyId, payload);
-      }
+      const token = localStorage.getItem('auth_token') || '';
+      
+      await laravelApi.saveCategory(trimmedName, category?.id || null, token);
 
       onCategoryChange();
       onClose();
@@ -102,7 +93,8 @@ export default function CategoryModal({
 
     setLoading(true);
     try {
-      await deleteCategory(category.id);
+      const token = localStorage.getItem('auth_token') || '';
+      await laravelApi.deleteCategory(category.id, token);
       onCategoryChange();
       onClose();
     } catch (error) {
