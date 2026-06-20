@@ -595,7 +595,7 @@ export function useVendorDashboard() {
       await laravelApi.saveProduct({
         name: productData.name,
         sku: productData.sku,
-        basePrice: productData.basePrice,
+        price: productData.basePrice,
         category: productData.category,
         stock: productData.stock,
         minStock: productData.minStock,
@@ -617,7 +617,7 @@ export function useVendorDashboard() {
         id: productId,
         name: productData.name,
         sku: productData.sku,
-        basePrice: productData.basePrice,
+        price: productData.basePrice,
         category: productData.category,
         stock: productData.stock,
         minStock: productData.minStock,
