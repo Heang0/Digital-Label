@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import {
   Users,
   Mail,
@@ -45,7 +47,7 @@ export const AdminUsers = ({
   onCreate 
 }: UsersProps) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = React.useState<'all' | 'vendor' | 'staff'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'vendor' | 'staff'>('all');
 
   const filtered = users.filter(u =>
     u.role !== 'admin' && // Hide admin from vendor management
