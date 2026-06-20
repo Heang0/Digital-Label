@@ -36,7 +36,7 @@ class SuperAdminController extends Controller
         });
 
         // Optimize queries by selecting ONLY columns required by the UI to reduce memory and payload size
-        $companies = Company::select('id', 'name', 'code', 'logo_url', 'status', 'subscription', 'created_at')
+        $companies = Company::select('id', 'name', 'code', 'logo_url', 'status', 'subscription', 'phone', 'address', 'owner_id', 'created_at')
             ->withCount([
                 'branches',
                 'labels',
@@ -44,8 +44,13 @@ class SuperAdminController extends Controller
                 'categories',
                 'users as staff_count'
             ])
+            ->with('users')
             ->latest()
-            ->get();
+            ->get()->map(function($company) {
+                $company->email = $company->users->first()->email ?? '';
+                unset($company->users); // avoid sending huge user lists
+                return $company;
+            });
 
         $users = User::select('id', 'name', 'email', 'role', 'company_id', 'branch_id', 'position', 'photo_url', 'created_at')
             ->with([
@@ -76,10 +81,15 @@ class SuperAdminController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $companies = Company::select('id', 'name', 'code', 'logo_url', 'status', 'subscription', 'created_at')
+        $companies = Company::select('id', 'name', 'code', 'logo_url', 'status', 'subscription', 'phone', 'address', 'owner_id', 'created_at')
             ->withCount(['branches', 'users'])
+            ->with('users')
             ->latest()
-            ->get();
+            ->get()->map(function($company) {
+                $company->email = $company->users->first()->email ?? '';
+                unset($company->users);
+                return $company;
+            });
 
         return response()->json($companies);
     }
