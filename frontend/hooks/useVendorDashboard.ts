@@ -475,6 +475,8 @@ export function useVendorDashboard() {
   }, [labels, selectedBranchId, searchTerm, isBranchFiltered]);
 
   // Actions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleLogout = async () => {
     await logOut();
     clearUser();
@@ -483,10 +485,13 @@ export function useVendorDashboard() {
 
   const createStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!currentUser?.companyId || !staffForm.branchId) {
       openLabelNotice('Select branch', 'Please select a branch.', 'warning');
       return;
     }
+    
+    setIsSubmitting(true);
     try {
       await laravelApi.saveStaff({
         name: staffForm.name,
@@ -510,6 +515,8 @@ export function useVendorDashboard() {
       });
     } catch (error: any) {
       openLabelNotice('Create failed', error?.message || 'Could not create staff.', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
