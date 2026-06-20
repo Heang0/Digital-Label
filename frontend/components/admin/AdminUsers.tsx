@@ -45,9 +45,13 @@ export const AdminUsers = ({
   onCreate 
 }: UsersProps) => {
   const { t } = useLanguage();
+  const [activeTab, setActiveTab] = React.useState<'all' | 'vendor' | 'staff'>('all');
+
   const filtered = users.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    u.role !== 'admin' && // Hide admin from vendor management
+    (activeTab === 'all' || u.role === activeTab) &&
+    (u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getStatusStyle = (status: string) => {
@@ -123,6 +127,28 @@ export const AdminUsers = ({
             {t('add_vendor')}
           </Button>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-[#E2E8F0] dark:border-slate-800 pb-2">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'all' ? 'bg-[#5750F1]/10 text-[#5750F1]' : 'text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+        >
+          All Users
+        </button>
+        <button
+          onClick={() => setActiveTab('vendor')}
+          className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'vendor' ? 'bg-[#5750F1]/10 text-[#5750F1]' : 'text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+        >
+          Vendors
+        </button>
+        <button
+          onClick={() => setActiveTab('staff')}
+          className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'staff' ? 'bg-[#5750F1]/10 text-[#5750F1]' : 'text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+        >
+          Staff
+        </button>
       </div>
 
       {/* Data Table (NextAdmin High-End Style) */}
