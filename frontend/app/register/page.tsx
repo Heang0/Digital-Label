@@ -22,20 +22,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { signUp, logOut, db } from '@/lib/firebase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { LanguageSelector } from '@/components/admin/LanguageSelector';
-import { 
-  doc, 
-  setDoc, 
-  Timestamp, 
-  query, 
-  collection, 
-  getDocs, 
-  where
-} from 'firebase/firestore';
-import { makeVendorCode, nextGlobalSequence } from '@/lib/id-generator';
-import { createNotification } from '@/lib/notifications';
+import { laravelApi } from '@/lib/api';
 
 type PlanId = 'basic' | 'pro' | 'enterprise';
 
@@ -107,62 +96,16 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const emailQuery = query(
-        collection(db, 'users'),
-        where('email', '==', formData.email.toLowerCase())
-      );
-      const emailSnapshot = await getDocs(emailQuery);
-      
-      if (!emailSnapshot.empty) {
-        setIsLoading(false);
-        alert(`❌ An account with email ${formData.email} already exists!`);
-        return;
-      }
-
-      const companySeq = await nextGlobalSequence('nextCompanyNumber');
-      const vendorCode = makeVendorCode(companySeq);
-
-      const userCredential = await signUp(formData.email, formData.password);
-      const userId = userCredential.user.uid;
-      const companyId = `company_${userId}`;
-
-      await setDoc(doc(db, 'users', userId), {
-        id: userId,
-        email: formData.email,
+      await laravelApi.register({
         name: formData.fullName,
-        role: 'vendor',
-        companyId,
-        status: 'pending',
-        createdAt: Timestamp.now(),
-        phone: formData.phone,
-        createdBy: 'self-register',
-      });
-
-      await setDoc(doc(db, 'companies', companyId), {
-        id: companyId,
-        code: vendorCode,
-        name: formData.companyName,
         email: formData.email,
+        password: formData.password,
+        company_name: formData.companyName,
+        subscription: plan,
         phone: formData.phone,
         address: formData.address,
-        contactPerson: formData.fullName,
-        subscription: plan,
-        status: 'pending',
-        ownerId: userId,
-        ownerName: formData.fullName,
-        createdAt: Timestamp.now(),
-        createdBy: 'self-register',
       });
 
-      await createNotification({
-        companyId: 'admin',
-        branchId: 'all',
-        title: 'New Vendor Registration',
-        message: `${formData.companyName} has registered and is pending approval.`,
-        type: 'info'
-      });
-
-      await logOut();
       setIsLoading(false);
       router.push('/login?info=registered');
     } catch (error: any) {
