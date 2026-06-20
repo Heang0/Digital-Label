@@ -66,6 +66,15 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->firstOrFail();
+
+        if ($user->status === 'pending') {
+            return response()->json(['message' => 'Your account is pending approval from an Administrator.'], 403);
+        }
+
+        if ($user->status === 'suspended') {
+            return response()->json(['message' => 'Your account has been suspended by an Administrator.'], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -99,7 +108,7 @@ class AuthController extends Controller
             $company = \App\Models\Company::create([
                 'name' => $request->name . ' Store',
                 'code' => $vendorCode,
-                'status' => 'active',
+                'status' => 'pending',
                 'subscription' => 'basic',
             ]);
 
@@ -109,12 +118,20 @@ class AuthController extends Controller
                 'password' => Hash::make(\Illuminate\Support\Str::random(24)),
                 'role' => 'vendor',
                 'company_id' => $company->id,
-                'status' => 'active',
+                'status' => 'pending',
                 'photo_url' => $request->photo_url
             ]);
 
             $company->owner_id = $user->id;
             $company->save();
+        }
+
+        if ($user->status === 'pending') {
+            return response()->json(['message' => 'Your account is pending approval from an Administrator.'], 403);
+        }
+
+        if ($user->status === 'suspended') {
+            return response()->json(['message' => 'Your account has been suspended by an Administrator.'], 403);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
