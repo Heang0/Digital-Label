@@ -138,7 +138,15 @@ class SuperAdminController extends Controller
         $company->status = $request->status;
         $company->save();
 
-        return response()->json(['success' => true, 'message' => 'Company status updated successfully', 'company' => $company]);
+        if ($company->owner_id) {
+            $owner = User::find($company->owner_id);
+            if ($owner) {
+                $owner->status = $request->status;
+                $owner->save();
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Company and Owner status updated successfully', 'company' => $company]);
     }
 
     public function deleteUser($id, Request $request)
@@ -180,6 +188,12 @@ class SuperAdminController extends Controller
 
         $targetUser->status = $request->status;
         $targetUser->save();
+
+        if ($targetUser->company_id && $targetUser->id === $targetUser->company->owner_id) {
+            $company = $targetUser->company;
+            $company->status = $request->status;
+            $company->save();
+        }
 
         return response()->json(['success' => true, 'message' => 'User status updated successfully', 'user' => $targetUser]);
     }
