@@ -328,7 +328,7 @@ export const LabelsTab = ({
                 <div className="flex items-center gap-1 opacity-60">
                    <Box className="h-2 w-2" />
                    <span className="text-[8px] font-black uppercase tracking-widest truncate max-w-[80px]">
-                     {branches.find(b => b.id === label.branchId)?.name || 'Unknown Store'}
+                     {branches.find(b => b.id?.toString() === label.branchId?.toString())?.name || 'Unknown Store'}
                    </span>
                 </div>
               </div>
