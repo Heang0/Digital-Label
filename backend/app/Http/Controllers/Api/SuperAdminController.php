@@ -257,14 +257,25 @@ class SuperAdminController extends Controller
         }
 
         $company->name = $request->name;
-        $company->email = $request->email;
         $company->code = $request->code;
         $company->address = $request->address;
         $company->subscription = $request->subscription;
         $company->status = $request->status;
-        $company->owner_id = $user->id; // Assign to creator admin
+        
+        if (!$company->exists) {
+            $company->owner_id = $user->id; // Assign to creator admin only for new companies
+        }
+        
         $company->phone = $request->phone ?? '';
         $company->save();
+
+        if ($company->owner_id) {
+            $owner = User::find($company->owner_id);
+            if ($owner) {
+                $owner->email = $request->email;
+                $owner->save();
+            }
+        }
 
         return response()->json(['success' => true, 'company' => $company]);
     }
