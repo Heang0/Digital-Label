@@ -279,7 +279,13 @@ export function useVendorDashboard() {
       setLabels(mappedLabels);
 
       setIssues(data.issues || []);
-      setStaffMembers(data.staffMembers || []);
+      const mappedStaff = (data.staffMembers || []).map((s: any) => ({
+          ...s,
+          id: s.id.toString(),
+          branchId: s.branch_id ? s.branch_id.toString() : '',
+          companyId: s.company_id ? s.company_id.toString() : ''
+        }));
+        setStaffMembers(mappedStaff);
 
       const mappedPromotions = (data.promotions || []).map((p: any) => ({
         id: p.id.toString(),
