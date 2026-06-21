@@ -675,6 +675,34 @@ class DashboardController extends Controller
         $promotion->status = 'active';
         $promotion->save();
 
+        // Auto-sync discount to physical labels
+        if ($promotion->apply_to === 'products' && !empty($promotion->selected_products)) {
+            $labels = Label::where('company_id', $user->company_id)
+                ->whereIn('product_id', $promotion->selected_products)
+                ->get();
+
+            foreach ($labels as $label) {
+                $basePrice = $label->base_price ?? $label->current_price ?? 0;
+                $discountPrice = $basePrice;
+                $discountPercent = 0;
+
+                if ($promotion->type === 'percentage') {
+                    $discountPercent = $promotion->value;
+                    $discountPrice = round($basePrice * (1 - $discountPercent / 100), 2);
+                } elseif ($promotion->type === 'fixed_amount') {
+                    $discountPrice = max(0, $basePrice - $promotion->value);
+                    $discountPercent = $basePrice > 0 ? round(($promotion->value / $basePrice) * 100) : 0;
+                }
+
+                $label->discount_percent = $discountPercent;
+                $label->discount_price = $discountPrice;
+                $label->final_price = $discountPrice;
+                $label->status = 'syncing';
+                $label->last_sync = now();
+                $label->save();
+            }
+        }
+
         return response()->json(['success' => true, 'promotion' => $promotion]);
     }
 
@@ -685,6 +713,22 @@ class DashboardController extends Controller
         
         if (!$promotion) {
             return response()->json(['message' => 'Promotion not found'], 404);
+        }
+
+        // Remove discount from physical labels
+        if ($promotion->apply_to === 'products' && !empty($promotion->selected_products)) {
+            $labels = Label::where('company_id', $user->company_id)
+                ->whereIn('product_id', $promotion->selected_products)
+                ->get();
+
+            foreach ($labels as $label) {
+                $label->discount_percent = null;
+                $label->discount_price = null;
+                $label->final_price = $label->base_price ?? $label->current_price;
+                $label->status = 'syncing';
+                $label->last_sync = now();
+                $label->save();
+            }
         }
 
         $promotion->delete();
