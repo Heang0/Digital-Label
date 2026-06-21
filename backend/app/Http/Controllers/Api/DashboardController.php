@@ -143,11 +143,11 @@ class DashboardController extends Controller
     }
 
 
-    public function saveBranch(Request )
+    public function saveBranch(Request $request)
     {
-         = ->user();
+        $user = $request->user();
         
-        ->validate([
+        $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'nullable|string',
             'manager' => 'nullable|string',
@@ -155,36 +155,36 @@ class DashboardController extends Controller
             'id' => 'nullable'
         ]);
 
-        if (->has('id') && ->id) {
-             = Branch::where('company_id', ->company_id)->find(->id);
-            if (!) {
+        if ($request->has('id') && $request->id) {
+            $branch = Branch::where('company_id', $user->company_id)->find($request->id);
+            if (!$branch) {
                 return response()->json(['message' => 'Branch not found'], 404);
             }
         } else {
-             = new Branch();
-            ->company_id = ->company_id;
+            $branch = new Branch();
+            $branch->company_id = $user->company_id;
         }
 
-        ->name = ->name;
-        ->location = ->location;
-        ->manager = ->manager;
-        ->contact = ->contact;
-        ->status = 'active';
-        ->save();
+        $branch->name = $request->name;
+        $branch->location = $request->location;
+        $branch->manager = $request->manager;
+        $branch->contact = $request->contact;
+        $branch->status = 'active';
+        $branch->save();
 
-        return response()->json(['success' => true, 'branch' => ]);
+        return response()->json(['success' => true, 'branch' => $branch]);
     }
 
-    public function deleteBranch(, Request )
+    public function deleteBranch($id, Request $request)
     {
-         = ->user();
-         = Branch::where('company_id', ->company_id)->find();
+        $user = $request->user();
+        $branch = Branch::where('company_id', $user->company_id)->find($id);
         
-        if (!) {
+        if (!$branch) {
             return response()->json(['message' => 'Branch not found'], 404);
         }
 
-        ->delete();
+        $branch->delete();
 
         return response()->json(['success' => true, 'message' => 'Branch deleted']);
     }
