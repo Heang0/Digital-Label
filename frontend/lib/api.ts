@@ -374,6 +374,24 @@ export const laravelApi = {
   },
 
 
+  async provisionLabel(data: { labelId: string, location: string, branchId: string }, token: string) {
+    const response = await fetch(`${API_BASE_URL}/labels/provision`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to provision label');
+    }
+    return await response.json();
+  },
+
   async syncLabel(labelId: string, status: string, token: string) {
     const response = await fetch(`${API_BASE_URL}/labels/sync`, {
       method: 'POST',

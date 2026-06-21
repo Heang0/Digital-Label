@@ -1007,21 +1007,9 @@ export function useVendorDashboard() {
     }
 
     try {
-      // Keep local state responsive for demo tag provisioning
-      const newLabel: any = {
-        id: 'LBL-' + Math.floor(Math.random() * 100000),
-        labelId: data.labelId,
-        location: data.location,
-        branchId: data.branchId,
-        companyId: currentUser.companyId,
-        status: 'active',
-        battery: 100,
-        productId: null,
-        lastSync: new Date().toISOString(),
-        createdAt: new Date().toISOString()
-      };
-      setLabels(prev => [...prev, newLabel]);
+      await laravelApi.provisionLabel(data, accessToken!);
       openLabelNotice('Success', `Label ${data.labelId} provisioned at ${data.location || 'unspecified location'}.`, 'success');
+      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Provision failed', error.message || 'Could not register hardware.', 'error');
     }

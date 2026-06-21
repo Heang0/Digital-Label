@@ -287,6 +287,42 @@ class DashboardController extends Controller
         return response()->json(['success' => true, 'message' => 'Staff deleted']);
     }
 
+    public function provisionLabel(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'labelId' => 'required|string',
+            'branchId' => 'required|string',
+            'location' => 'nullable|string'
+        ]);
+
+        // Check for duplicate location in branch
+        if ($request->location) {
+            $duplicate = Label::where('company_id', $user->company_id)
+                ->where('branch_id', $request->branchId)
+                ->where('location', $request->location)
+                ->first();
+
+            if ($duplicate) {
+                return response()->json(['message' => 'Location Conflict: ' . $request->location . ' is already occupied in this branch.'], 400);
+            }
+        }
+
+        $label = new Label();
+        $label->label_id = $request->labelId;
+        $label->label_code = $request->labelId;
+        $label->branch_id = $request->branchId;
+        $label->company_id = $user->company_id;
+        $label->location = $request->location;
+        $label->status = 'active';
+        $label->battery = 100;
+        $label->last_sync = now();
+        $label->save();
+
+        return response()->json(['success' => true, 'label' => $label]);
+    }
+
     public function linkProductToLabel(Request $request)
     {
         $user = $request->user();

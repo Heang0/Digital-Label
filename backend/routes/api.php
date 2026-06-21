@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/staff/{id}', [DashboardController::class, 'deleteStaff']);
 
     // Labels
+    Route::post('/labels/provision', [DashboardController::class, 'provisionLabel']);
     Route::post('/labels/link', [DashboardController::class, 'linkProductToLabel']);
     Route::post('/labels/unlink', [DashboardController::class, 'unlinkProductFromLabel']);
     Route::post('/labels/sync', [DashboardController::class, 'syncLabel']);
