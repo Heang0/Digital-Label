@@ -142,6 +142,53 @@ class DashboardController extends Controller
         ]);
     }
 
+
+    public function saveBranch(Request )
+    {
+         = ->user();
+        
+        ->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'nullable|string',
+            'manager' => 'nullable|string',
+            'contact' => 'nullable|string',
+            'id' => 'nullable'
+        ]);
+
+        if (->has('id') && ->id) {
+             = Branch::where('company_id', ->company_id)->find(->id);
+            if (!) {
+                return response()->json(['message' => 'Branch not found'], 404);
+            }
+        } else {
+             = new Branch();
+            ->company_id = ->company_id;
+        }
+
+        ->name = ->name;
+        ->location = ->location;
+        ->manager = ->manager;
+        ->contact = ->contact;
+        ->status = 'active';
+        ->save();
+
+        return response()->json(['success' => true, 'branch' => ]);
+    }
+
+    public function deleteBranch(, Request )
+    {
+         = ->user();
+         = Branch::where('company_id', ->company_id)->find();
+        
+        if (!) {
+            return response()->json(['message' => 'Branch not found'], 404);
+        }
+
+        ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Branch deleted']);
+    }
+
     public function saveCategory(Request $request)
     {
         $user = $request->user();

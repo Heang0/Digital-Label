@@ -50,6 +50,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/save', [ProductController::class, 'save']);
     Route::delete('/products/{id}', [ProductController::class, 'delete']);
 
+    // Branches
+    Route::post('/branches/save', [DashboardController::class, 'saveBranch']);
+    Route::delete('/branches/{id}', [DashboardController::class, 'deleteBranch']);
+
     // Categories
     Route::post('/categories/save', [DashboardController::class, 'saveCategory']);
     Route::delete('/categories/{id}', [DashboardController::class, 'deleteCategory']);
