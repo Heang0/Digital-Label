@@ -643,9 +643,9 @@ export function useVendorDashboard() {
         price: productData.basePrice,
         category: productData.category,
         stock: productData.stock,
-        minStock: productData.minStock,
+        min_stock: productData.minStock,
         description: productData.description,
-        imageUrl: productData.imageUrl,
+        image_url: productData.imageUrl,
       }, accessToken!);
 
       setShowProductModal(false);
@@ -665,9 +665,9 @@ export function useVendorDashboard() {
         price: productData.basePrice,
         category: productData.category,
         stock: productData.stock,
-        minStock: productData.minStock,
+        min_stock: productData.minStock,
         description: productData.description,
-        imageUrl: productData.imageUrl,
+        image_url: productData.imageUrl,
       }, accessToken!);
 
       setShowProductModal(false);
