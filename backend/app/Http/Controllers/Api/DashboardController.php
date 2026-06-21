@@ -323,6 +323,63 @@ class DashboardController extends Controller
         return response()->json(['success' => true, 'label' => $label]);
     }
 
+    public function bulkProvisionLabels(Request $request)
+    {
+        $user = $request->user();
+        
+        $request->validate([
+            'branchId' => 'required|string',
+            'count' => 'required|integer|min:1|max:100'
+        ]);
+
+        $count = $request->count;
+        $branchId = $request->branchId;
+
+        $existing = Label::where('company_id', $user->company_id)
+            ->where('branch_id', $branchId)
+            ->get();
+
+        $maxNum = 0;
+        foreach ($existing as $label) {
+            $code = $label->label_code ?? $label->label_id ?? '';
+            if (preg_match('/DL-(\d+)/', $code, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        $layout = [
+            ['aisle' => 'Dairy', 'shelves' => ['Shelf 1', 'Shelf 2', 'Shelf 3']],
+            ['aisle' => 'Beverages', 'shelves' => ['Shelf 1', 'Shelf 2']]
+        ];
+
+        $newLabels = [];
+        for ($i = 0; $i < $count; $i++) {
+            $maxNum++;
+            $code = 'DL-' . str_pad($maxNum, 3, '0', STR_PAD_LEFT);
+            $randomLayout = $layout[array_rand($layout)];
+            $randomShelf = $randomLayout['shelves'][array_rand($randomLayout['shelves'])];
+            $location = $randomLayout['aisle'] . ', ' . $randomShelf;
+
+            $label = new Label();
+            $label->label_id = $code;
+            $label->label_code = $code;
+            $label->branch_id = $branchId;
+            $label->company_id = $user->company_id;
+            $label->location = $location;
+            $label->status = 'active';
+            $label->battery = 100;
+            $label->last_sync = now();
+            $label->save();
+
+            $newLabels[] = $label;
+        }
+
+        return response()->json(['success' => true, 'count' => $count, 'labels' => $newLabels]);
+    }
+
     public function linkProductToLabel(Request $request)
     {
         $user = $request->user();

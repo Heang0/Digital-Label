@@ -392,6 +392,23 @@ export const laravelApi = {
     return await response.json();
   },
 
+  async bulkProvisionLabels(branchId: string, count: number, token: string) {
+    const response = await fetch(`${API_BASE_URL}/labels/bulk-provision`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ branchId, count })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to bulk provision labels');
+    }
+    return await response.json();
+  },
+
   async syncLabel(labelId: string, status: string, token: string) {
     const response = await fetch(`${API_BASE_URL}/labels/sync`, {
       method: 'POST',

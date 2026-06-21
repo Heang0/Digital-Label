@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Labels
     Route::post('/labels/provision', [DashboardController::class, 'provisionLabel']);
+    Route::post('/labels/bulk-provision', [DashboardController::class, 'bulkProvisionLabels']);
     Route::post('/labels/link', [DashboardController::class, 'linkProductToLabel']);
     Route::post('/labels/unlink', [DashboardController::class, 'unlinkProductFromLabel']);
     Route::post('/labels/sync', [DashboardController::class, 'syncLabel']);

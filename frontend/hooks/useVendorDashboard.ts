@@ -924,12 +924,9 @@ export function useVendorDashboard() {
   const handleBulkProvision = async (branchId: string, count: number) => {
     if (!currentUser?.companyId) return;
     try {
-      await generateLabelsForBranch({
-        companyId: currentUser.companyId,
-        branchId,
-        count
-      });
+      await laravelApi.bulkProvisionLabels(branchId, count, accessToken!);
       openLabelNotice('Success', `${count} labels generated for this branch.`, 'success');
+      loadVendorData();
     } catch (error: any) {
       openLabelNotice('Bulk Provision Failed', error.message || 'Could not generate labels.', 'error');
     }
