@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Info, XCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, XCircle, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -19,6 +20,8 @@ interface LabelNoticeModalProps {
 
 export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
   const { t } = useLanguage();
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   if (!modal) return null;
 
   const getIcon = () => {
@@ -95,16 +98,21 @@ export const LabelNoticeModal = ({ modal, onClose }: LabelNoticeModalProps) => {
                 )}
                 <Button
                   onClick={async () => {
-                    if (modal.onConfirm) await modal.onConfirm();
+                    if (modal.onConfirm) {
+                      setIsProcessing(true);
+                      await modal.onConfirm();
+                      setIsProcessing(false);
+                    }
                     onClose();
                   }}
-                  className={`flex-1 h-12 rounded-none text-[10px] font-black uppercase tracking-widest text-white border-none shadow-xl transition-all active:scale-[0.98] ${
+                  disabled={isProcessing}
+                  className={`flex-1 h-12 rounded-none text-[10px] font-black uppercase tracking-widest text-white border-none shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 ${
                     modal.tone === 'error' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20' : 
                     modal.tone === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 
                     'bg-[#5750F1] hover:bg-[#4A44D1] shadow-indigo-500/20'
                   }`}
                 >
-                  {modal.confirmLabel || t('ok')}
+                  {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : (modal.confirmLabel || t('ok'))}
                 </Button>
               </div>
             </div>

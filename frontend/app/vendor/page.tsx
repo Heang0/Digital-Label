@@ -430,23 +430,6 @@ export default function VendorDashboard() {
         </main>
       </div>
 
-      {/* Global Notice Modal */}
-      {labelModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setLabelModal(null)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-sm bg-white dark:bg-[#1C2434] rounded-2xl shadow-2xl overflow-hidden p-8 text-center border border-slate-100 dark:border-slate-800">
-            <h3 className="text-xl font-bold text-[#111928] dark:text-white mb-2">{labelModal.title}</h3>
-            <p className="text-sm font-medium text-[#637381] dark:text-slate-400 mb-8">{labelModal.message}</p>
-            <div className="flex justify-center gap-3">
-              {labelModal.cancelLabel && (
-                <button onClick={() => setLabelModal(null)} className="px-6 py-2.5 text-xs font-bold text-[#637381] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(labelModal.cancelLabel) || labelModal.cancelLabel}</button>
-              )}
-              <button onClick={() => { labelModal.onConfirm?.(); setLabelModal(null); }} className="px-8 py-2.5 bg-[#5750F1] text-white rounded-xl text-xs font-bold hover:bg-[#4A44D1] shadow-lg shadow-[#5750F1]/20 transition-all">{t(labelModal.confirmLabel) || labelModal.confirmLabel || t('acknowledge')}</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
       {/* Modals */}
       <ManualDiscountModal
         activeDiscountModal={activeDiscountModal}
