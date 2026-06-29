@@ -67,6 +67,8 @@ export const translations = {
     end_date: "End Date",
     invalid_discount: "Invalid Discount",
     invalid_discount_desc: "Please enter a value between 1 and 100.",
+    price_override: "Manual Discount",
+    price_override_desc: "Apply a custom percentage discount directly to this electronic tag.",
     update_price: "Update Price",
     active_cart: "Active Cart",
     reprint: "Reprint",
