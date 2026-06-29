@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Branch Products Stock
     Route::post('/branch-products/update-stock', [DashboardController::class, 'updateStock']);
+    Route::get('/dashboard/stock-history', [DashboardController::class, 'stockHistory']);
 
     // Promotions
     Route::post('/promotions/save', [DashboardController::class, 'savePromotion']);

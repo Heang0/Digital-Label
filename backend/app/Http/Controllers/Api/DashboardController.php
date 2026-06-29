@@ -335,14 +335,13 @@ class DashboardController extends Controller
         $count = $request->count;
         $branchId = $request->branchId;
 
-        $existing = Label::where('company_id', $user->company_id)
-            ->where('branch_id', $branchId)
-            ->get();
+        $existing = Label::where('company_id', $user->company_id)->get();
 
         $maxNum = 0;
         foreach ($existing as $label) {
             $code = $label->label_code ?? $label->label_id ?? '';
-            if (preg_match('/DL-(\d+)/', $code, $matches)) {
+            // Match DL-xxx or TAG-xxx to find the highest number
+            if (preg_match('/(?:DL|TAG)-(\d+)/i', $code, $matches)) {
                 $num = (int)$matches[1];
                 if ($num > $maxNum) {
                     $maxNum = $num;
@@ -595,7 +594,48 @@ class DashboardController extends Controller
         $bp->status = $status;
         $bp->save();
 
+        // Record stock history
+        \App\Models\StockHistory::create([
+            'company_id' => $user->company_id,
+            'branch_id' => $request->branchId,
+            'product_id' => $request->productId,
+            'user_id' => $user->id,
+            'previous_stock' => $currentStock,
+            'new_stock' => $newStock,
+            'change_amount' => $newStock - $currentStock,
+            'reason' => 'Stock updated via ' . $request->mode
+        ]);
+
+        // Sync labels if status changed (e.g. to out-of-stock)
+        $labels = Label::where('company_id', $user->company_id)
+            ->where('branch_id', $request->branchId)
+            ->where('product_id', $request->productId)
+            ->get();
+            
+        foreach ($labels as $label) {
+            if ($label->status !== 'syncing') {
+                $label->status = 'syncing';
+                $label->save();
+            }
+        }
+
         return response()->json(['success' => true, 'branchProduct' => $bp]);
+    }
+
+    public function stockHistory(Request $request)
+    {
+        $user = $request->user();
+        
+        $histories = \App\Models\StockHistory::where('company_id', $user->company_id)
+            ->with(['product:id,name,sku', 'branch:id,name', 'user:id,name'])
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'histories' => $histories
+        ]);
     }
 
     public function reportIssue(Request $request)

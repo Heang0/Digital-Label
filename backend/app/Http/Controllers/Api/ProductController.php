@@ -88,6 +88,23 @@ class ProductController extends Controller
             $branchProduct->save();
         }
 
+        // Sync with Labels
+        $labels = \App\Models\Label::where('company_id', $user->company_id)
+            ->where('product_id', $product->id)
+            ->get();
+            
+        foreach ($labels as $label) {
+            $label->base_price = $product->price;
+            // Recalculate final price if there is a discount
+            if ($label->discount_percent > 0) {
+                $label->final_price = $label->base_price * (1 - ($label->discount_percent / 100));
+            } else {
+                $label->final_price = $label->base_price;
+            }
+            $label->status = 'syncing';
+            $label->save();
+        }
+
         return response()->json([
             'success' => true,
             'product' => $product

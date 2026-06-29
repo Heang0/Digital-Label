@@ -450,13 +450,28 @@ export const laravelApi = {
     const response = await fetch(`${API_BASE_URL}/branch-products/update-stock`, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Accept': 'application/json'
       },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Failed to update stock');
+    
+    if (!response.ok) {
+      throw new Error('Failed to update stock');
+    }
+    
+    return await response.json();
+  },
+
+  async getStockHistory(token: string) {
+    const response = await fetch(`${API_BASE_URL}/dashboard/stock-history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch stock history');
     return await response.json();
   },
 

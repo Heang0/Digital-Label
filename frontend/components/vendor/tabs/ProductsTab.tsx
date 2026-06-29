@@ -12,7 +12,9 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Search,
-  ScanLine
+  ScanLine,
+  History,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,7 @@ interface ProductsTabProps {
   handleBulkImport: (file: File) => void;
   handleBulkExport: () => void;
   downloadImportTemplate: () => void;
+  stockHistories?: any[];
 }
 
 export const ProductsTab = ({
@@ -69,10 +72,13 @@ export const ProductsTab = ({
   getDisplayStockForProduct,
   handleBulkImport,
   handleBulkExport,
-  downloadImportTemplate
+  downloadImportTemplate,
+  stockHistories = []
 }: ProductsTabProps) => {
   const { t } = useLanguage();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [showHistoryForProduct, setShowHistoryForProduct] = useState<Product | null>(null);
+
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -230,6 +236,9 @@ export const ProductsTab = ({
                      {(currentUser?.role === 'vendor' || currentUser?.permissions?.canCreateProducts) && (
                        <td className="px-6 py-4 text-right">
                          <div className="flex items-center justify-end gap-2">
+                           <Button variant="ghost" size="icon" onClick={() => setShowHistoryForProduct(product)} className="h-9 w-9 text-slate-400 hover:text-[#5750F1] hover:bg-indigo-50 dark:hover:bg-indigo-900/20" title="Stock History">
+                             <History className="h-4 w-4" />
+                           </Button>
                            <Button variant="ghost" size="icon" onClick={() => setShowEditProduct(product)} className="h-9 w-9 text-slate-400 hover:text-[#5750F1] hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
                              <Edit className="h-4 w-4" />
                            </Button>
@@ -299,6 +308,75 @@ export const ProductsTab = ({
           setSearchTerm(decodedText);
         }}
       />
+
+      {/* Stock History Modal */}
+      {showHistoryForProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#1C2434] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center">
+                  <History className="h-5 w-5 text-[#5750F1]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#111928] dark:text-white">Stock History</h3>
+                  <p className="text-sm font-medium text-[#637381] dark:text-slate-400">{showHistoryForProduct.name}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setShowHistoryForProduct(null)} className="h-8 w-8 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                {(() => {
+                  const productHistory = stockHistories.filter(h => h.product_id.toString() === showHistoryForProduct.id.toString());
+                  if (productHistory.length === 0) {
+                    return (
+                      <div className="text-center py-12">
+                        <History className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                        <h4 className="text-base font-bold text-[#111928] dark:text-white mb-1">No History Found</h4>
+                        <p className="text-sm text-[#637381] dark:text-slate-400">There are no recorded stock changes for this product yet.</p>
+                      </div>
+                    );
+                  }
+                  
+                  return productHistory.map((history, idx) => (
+                    <div key={idx} className="bg-[#F9FAFB] dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-[#637381] dark:text-slate-400">
+                          {new Date(history.created_at).toLocaleString()}
+                        </span>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${history.change_amount > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'}`}>
+                          {history.change_amount > 0 ? '+' : ''}{history.change_amount}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-[#111928] dark:text-white">
+                        Stock changed from <span className="font-bold">{history.previous_stock}</span> to <span className="font-bold">{history.new_stock}</span>
+                      </p>
+                      <div className="flex items-center justify-between mt-3 text-xs">
+                        <span className="text-[#637381] dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded-md line-clamp-1">
+                          {history.reason || 'Manual Update'}
+                        </span>
+                        <span className="font-medium text-[#111928] dark:text-slate-300">
+                          {history.user?.name || 'System'} @ {history.branch?.name || 'Unknown Branch'}
+                        </span>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 shrink-0 text-right">
+              <Button onClick={() => setShowHistoryForProduct(null)} className="h-10 px-6 rounded-xl bg-[#5750F1] hover:bg-[#4A44D1] text-sm font-bold text-white shadow-lg shadow-indigo-500/20">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

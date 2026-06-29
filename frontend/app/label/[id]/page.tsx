@@ -538,52 +538,54 @@ export default function LabelPreviewPage() {
                </div>
             ) : (
                <>
-                 {/* Standard layout structure */}
-                 <div className="flex items-start justify-between border-b-2 border-[#1a1a1a] px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="flex-1">
-                       <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Premium Retail</p>
-                       <h1 className="text-[26px] sm:text-[36px] lg:text-[40px] font-black text-[#1a1a1a] tracking-tighter uppercase leading-[0.9]">
+                 {/* Super Clean Standard Layout */}
+                 <div className="flex flex-col h-full bg-white">
+                    {/* Header: Product Name */}
+                    <div className="px-6 py-5 border-b-4 border-black text-center flex items-center justify-center min-h-[90px]">
+                       <h1 className="text-[32px] sm:text-[40px] font-black text-black tracking-tight leading-[1.1] uppercase line-clamp-2">
                         {label.productName || 'PRODUCT'}
                        </h1>
                     </div>
-                 </div>
 
-                 <div className="flex border-b-2 border-[#1a1a1a]">
-                    <div className="w-[38%] border-r-2 border-[#1a1a1a] p-3 sm:p-5 flex flex-col justify-center">
-                       <span className="text-[8px] sm:text-[10px] font-bold text-[#888] uppercase tracking-widest mb-1">Unit Price</span>
-                       <span className="font-black text-[#1a1a1a] tracking-tight leading-none text-[20px] sm:text-[28px]">
-                         ${originalPrice.toFixed(2)}
-                       </span>
-                    </div>
-                    <div className="flex-1 flex items-center justify-center p-3 sm:p-5 bg-slate-50/50">
+                    {/* Middle: Price */}
+                    <div className="flex-1 flex items-center justify-center p-6 bg-white">
                        <div className="flex items-start">
-                          <span className="text-[22px] sm:text-[30px] font-black text-black mt-5 sm:mt-7 mr-1">$</span>
-                          <span className="text-[76px] sm:text-[112px] lg:text-[124px] font-black text-black leading-[0.75] tracking-tighter">
+                          <span className="text-[32px] sm:text-[40px] font-black text-black mt-2 mr-1">$</span>
+                          <span className="text-[100px] sm:text-[130px] lg:text-[150px] font-black text-black leading-[0.8] tracking-tighter">
                             {wholePart}
                           </span>
-                          <span className="text-[38px] sm:text-[56px] lg:text-[62px] font-black text-black leading-[0.9] tracking-tight mt-1">
+                          <span className="text-[40px] sm:text-[54px] lg:text-[64px] font-black text-black leading-[0.9] mt-1">
                             .{centsPart}
                           </span>
                        </div>
                     </div>
-                 </div>
 
-                 <div className="flex items-stretch">
-                    <div className="flex-1 px-4 py-3 sm:px-6 sm:py-4 flex flex-col justify-center border-r-2 border-black">
-                       <BarcodeSvg value={barcodeValue} className="h-[76px] sm:h-[88px] w-[280px] sm:w-[390px] max-w-full mb-2" />
-                       <div className="flex flex-wrap justify-between items-center gap-2">
-                          <span className="text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.3em] uppercase">{barcodeValue || 'PRODUCT BARCODE MISSING'}</span>
-                          <span className="border border-black px-1.5 py-0.5 text-[8px] sm:text-[9px] font-black uppercase">Loc: {labelLocation}</span>
+                    {/* Bottom: Barcode and Meta */}
+                    <div className="border-t-4 border-black px-5 py-4 flex items-center justify-between gap-4 bg-white">
+                       <div className="flex flex-col items-start justify-center">
+                          <BarcodeSvg value={barcodeValue} className="h-[60px] sm:h-[70px] w-[220px] sm:w-[260px] -ml-2" />
+                          <span className="text-[11px] sm:text-[13px] font-black text-black tracking-widest mt-1">
+                            {barcodeValue || 'NO BARCODE'}
+                          </span>
+                       </div>
+                       
+                       <div className="flex flex-col items-end gap-2 text-right">
                           {design?.showStock && (
-                             <span className="bg-black text-white px-1.5 py-0.5 text-[8px] sm:text-[9px] font-black uppercase">Stock: {label.stock || 0}</span>
+                             <span className="text-[12px] sm:text-[14px] font-black text-black border-2 border-black px-2 py-0.5 whitespace-nowrap">
+                               STOCK: {label.stock || 0}
+                             </span>
                           )}
+                          <span className="text-[10px] sm:text-[12px] font-bold text-black uppercase">
+                            LOC: {labelLocation}
+                          </span>
                        </div>
+                       
+                       {design?.showQrCode && qrUrl && (
+                          <div className="border-2 border-black p-1 ml-2 bg-white shrink-0">
+                             <img src={qrUrl} className="w-[60px] h-[60px] sm:w-[70px] sm:h-[70px] object-contain" alt="QR" />
+                          </div>
+                       )}
                     </div>
-                    {design?.showQrCode && qrUrl && (
-                       <div className="w-[76px] sm:w-[96px] p-2 sm:p-3 flex items-center justify-center bg-white">
-                          <img src={qrUrl} className="w-[58px] h-[58px] sm:w-[72px] sm:h-[72px] object-contain" alt="QR" />
-                       </div>
-                    )}
                  </div>
                </>
             )}

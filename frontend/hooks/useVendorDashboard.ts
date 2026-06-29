@@ -72,6 +72,7 @@ export function useVendorDashboard() {
   const [labels, setLabels] = useState<DigitalLabel[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [issues, setIssues] = useState<IssueReport[]>([]);
+  const [stockHistories, setStockHistories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilterCategory, setSelectedFilterCategory] = useState('all');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
@@ -320,6 +321,14 @@ export function useVendorDashboard() {
       console.error('Error loading vendor data:', error);
     } finally {
       setLoading(false);
+    }
+
+    // Fetch stock history independently
+    try {
+      const historyData = await laravelApi.getStockHistory(accessToken);
+      setStockHistories(historyData.histories || []);
+    } catch (e) {
+      console.error("Failed to load stock history", e);
     }
   };
 
@@ -1329,6 +1338,7 @@ export function useVendorDashboard() {
     addIssueNote,
     handleBulkImport,
     handleBulkExport,
-    downloadImportTemplate
+    downloadImportTemplate,
+    stockHistories
   };
 }

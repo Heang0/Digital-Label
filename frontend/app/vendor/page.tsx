@@ -274,30 +274,31 @@ export default function VendorDashboard() {
               )}
 
               {(selectedTab === 'products' || selectedTab === 'inventory') && (
-                <ProductsTab
-                  currentUser={currentUser}
-                  products={products}
-                  branches={branches}
-                  categories={categories}
-                  selectedBranchId={selectedBranchId}
-                  setSelectedBranchId={setSelectedBranchId}
-                  selectedFilterCategory={selectedFilterCategory}
-                  setSelectedFilterCategory={setSelectedFilterCategory}
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  paginatedProducts={paginatedProducts}
-                  totalProductPages={totalProductPages}
-                  productPage={productPage}
-                  setProductPage={setProductPage}
-                  setShowProductModal={setShowProductModal}
-                  setShowCategoryModal={setShowCategoryModal}
-                  setShowEditProduct={handleEditProduct}
-                  handleDeleteProduct={handleDeleteProduct}
-                  getDisplayStockForProduct={getDisplayStockForProduct}
-                  handleBulkImport={handleBulkImport}
-                  handleBulkExport={handleBulkExport}
-                  downloadImportTemplate={downloadImportTemplate}
-                />
+                  <ProductsTab
+                    currentUser={currentUser}
+                    products={products}
+                    branches={branches}
+                    categories={categories}
+                    selectedBranchId={selectedBranchId}
+                    setSelectedBranchId={setSelectedBranchId}
+                    selectedFilterCategory={selectedFilterCategory}
+                    setSelectedFilterCategory={setSelectedFilterCategory}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    paginatedProducts={paginatedProducts}
+                    totalProductPages={totalProductPages}
+                    productPage={productPage}
+                    setProductPage={setProductPage}
+                    setShowProductModal={setShowProductModal}
+                    setShowCategoryModal={setShowCategoryModal}
+                    setShowEditProduct={handleEditProduct}
+                    handleDeleteProduct={handleDeleteProduct}
+                    getDisplayStockForProduct={getDisplayStockForProduct}
+                    handleBulkImport={handleBulkImport}
+                    handleBulkExport={handleBulkExport}
+                    downloadImportTemplate={downloadImportTemplate}
+                    stockHistories={stockHistories}
+                  />
               )}
 
               {selectedTab === 'categories' && (
